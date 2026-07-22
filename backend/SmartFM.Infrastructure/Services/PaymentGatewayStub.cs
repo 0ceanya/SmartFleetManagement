@@ -4,5 +4,5 @@ namespace SmartFM.Infrastructure.Services;
 
 public class PaymentGatewayStub : IPaymentGateway
 {
-    public string ProcessPayment(decimal amount, string reference) => "Payment processed";
+    public bool ProcessPayment(decimal amount, string reference) => true;
 }

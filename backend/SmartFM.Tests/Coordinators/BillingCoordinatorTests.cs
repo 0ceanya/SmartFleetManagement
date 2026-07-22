@@ -56,7 +56,7 @@ public class BillingCoordinatorTests : IDisposable
     public async Task BillingCoordinatorGeneratesInvoiceFromOrder()
     {
         var order = await SeedOrderWithShipmentAsync();
-        var coordinator = CreateCoordinator(new FakePaymentGateway("Payment processed"));
+        var coordinator = CreateCoordinator(new FakePaymentGateway(true));
 
         var invoice = await coordinator.GenerateInvoiceAsync(order.Id, 150000m);
 
@@ -68,7 +68,7 @@ public class BillingCoordinatorTests : IDisposable
     public async Task BillingCoordinatorProcessesCashPaymentWithoutCallingGateway()
     {
         var order = await SeedOrderWithShipmentAsync();
-        var gateway = new FakePaymentGateway("Payment processed");
+        var gateway = new FakePaymentGateway(true);
         var coordinator = CreateCoordinator(gateway);
         var invoice = await coordinator.GenerateInvoiceAsync(order.Id, 150000m);
 
@@ -82,7 +82,7 @@ public class BillingCoordinatorTests : IDisposable
     public async Task BillingCoordinatorProcessesCardPaymentThroughGatewayAndWritesReceiptAndAudit()
     {
         var order = await SeedOrderWithShipmentAsync();
-        var gateway = new FakePaymentGateway("Payment processed");
+        var gateway = new FakePaymentGateway(true);
         var coordinator = CreateCoordinator(gateway);
         var invoice = await coordinator.GenerateInvoiceAsync(order.Id, 150000m);
 
@@ -100,7 +100,7 @@ public class BillingCoordinatorTests : IDisposable
     public async Task BillingCoordinatorRejectsCardPaymentWhenGatewayFails()
     {
         var order = await SeedOrderWithShipmentAsync();
-        var gateway = new FakePaymentGateway("Gateway timeout");
+        var gateway = new FakePaymentGateway(false);
         var coordinator = CreateCoordinator(gateway);
         var invoice = await coordinator.GenerateInvoiceAsync(order.Id, 150000m);
 

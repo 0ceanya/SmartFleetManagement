@@ -4,18 +4,18 @@ namespace SmartFM.Tests.TestSupport;
 
 public sealed class FakePaymentGateway : IPaymentGateway
 {
-    private readonly string _response;
+    private readonly bool _succeeds;
 
-    public FakePaymentGateway(string response)
+    public FakePaymentGateway(bool succeeds)
     {
-        _response = response;
+        _succeeds = succeeds;
     }
 
     public int CallCount { get; private set; }
 
-    public string ProcessPayment(decimal amount, string reference)
+    public bool ProcessPayment(decimal amount, string reference)
     {
         CallCount++;
-        return _response;
+        return _succeeds;
     }
 }

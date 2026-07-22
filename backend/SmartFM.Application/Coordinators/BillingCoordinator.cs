@@ -106,17 +106,19 @@ public class BillingCoordinator
 
     private CardPayment CreateCardPayment(Invoice invoice)
     {
-        var response = _paymentGateway.ProcessPayment(invoice.Amount, invoice.Id.ToString());
-        if (response != "Payment processed")
+        var success = _paymentGateway.ProcessPayment(invoice.Amount, invoice.Id.ToString());
+        if (!success)
             throw new InvalidOperationException("Card payment failed.");
-        return new CardPayment(invoice.Amount, invoice.Id, response);
+        Console.WriteLine("Payment processed");
+        return new CardPayment(invoice.Amount, invoice.Id, "Payment processed");
     }
 
     private DigitalPayment CreateDigitalPayment(Invoice invoice, string walletReference)
     {
-        var response = _paymentGateway.ProcessPayment(invoice.Amount, invoice.Id.ToString());
-        if (response != "Payment processed")
+        var success = _paymentGateway.ProcessPayment(invoice.Amount, invoice.Id.ToString());
+        if (!success)
             throw new InvalidOperationException("Digital payment failed.");
-        return new DigitalPayment(invoice.Amount, invoice.Id, response, walletReference);
+        Console.WriteLine("Payment processed");
+        return new DigitalPayment(invoice.Amount, invoice.Id, "Payment processed", walletReference);
     }
 }
