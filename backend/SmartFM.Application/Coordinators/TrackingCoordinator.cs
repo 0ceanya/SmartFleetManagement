@@ -39,6 +39,14 @@ public class TrackingCoordinator : ITelemetryObserver
 
     public Task<IEnumerable<TrackingRecord>> GetTrackingRecordsAsync() => _trackingRecords.GetAllAsync();
 
+    public async Task<IEnumerable<TrackingRecord>> GetTrackingRecordsByShipmentIdAsync(Guid shipmentId)
+    {
+        var records = await _trackingRecords.GetAllAsync();
+        return records.Where(r => r.ShipmentId == shipmentId);
+    }
+
+    public Task<IEnumerable<Notification>> GetNotificationsAsync() => _notifications.GetAllAsync();
+
     private async Task RecordTelemetryAsync(Vehicle vehicle, TelemetryData data)
     {
         var assignments = await _assignments.GetAllAsync();
