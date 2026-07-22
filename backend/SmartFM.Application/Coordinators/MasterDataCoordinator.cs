@@ -65,6 +65,8 @@ public class MasterDataCoordinator
 
     public Task<IEnumerable<Branch>> GetBranchesAsync() => _branches.GetAllAsync();
 
+    public async Task<Branch?> GetBranchByIdAsync(Guid id) => await _branches.GetByIdAsync(id);
+
     public async Task<Warehouse> CreateWarehouseAsync(string name, string address, Guid branchId)
     {
         var warehouse = new Warehouse(name, address, branchId);

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using SmartFM.Api.ErrorHandling;
 using SmartFM.Application;
 using SmartFM.Application.Abstractions;
 using SmartFM.Application.Coordinators;
@@ -13,6 +14,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c => c.SwaggerDoc("v1", new() { Title = "SmartFM API", Version = "v1" }));
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 
 builder.Services.AddDbContext<SmartFMDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -32,6 +35,8 @@ builder.Services.AddScoped<SmartFMSystem>();
 builder.Services.AddHostedService<TelemetrySimulator>();
 
 var app = builder.Build();
+
+app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
 {
