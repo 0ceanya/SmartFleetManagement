@@ -1,0 +1,119 @@
+using SmartFM.Application.Coordinators;
+using SmartFM.Domain.Entities;
+using SmartFM.Domain.Records;
+using SmartFM.Domain.ValueObjects;
+using SmartFM.Infrastructure.Persistence;
+using SmartFM.Infrastructure.Persistence.Repositories;
+using SmartFM.Tests.TestSupport;
+using Xunit;
+
+namespace SmartFM.Tests.Coordinators;
+
+public class BillingCoordinatorTests : IDisposable
+{
+    private readonly InMemoryDbContextFactory _factory = new();
+    private readonly SmartFMDbContext _context;
+    private readonly Repository<Customer> _customers;
+    private readonly Repository<Offering> _offerings;
+    private readonly Repository<Order> _orders;
+    private readonly Repository<Shipment> _shipments;
+
+    public BillingCoordinatorTests()
+    {
+        _context = _factory.CreateContext();
+        _customers = new Repository<Customer>(_context);
+        _offerings = new Repository<Offering>(_context);
+        _orders = new Repository<Order>(_context);
+        _shipments = new Repository<Shipment>(_context);
+    }
+
+    private BillingCoordinator CreateCoordinator(FakePaymentGateway gateway) => new(
+        new Repository<Invoice>(_context),
+        new Repository<Payment>(_context),
+        _shipments,
+        new Repository<DeliveryConfirmation>(_context),
+        new Repository<Receipt>(_context),
+        new Repository<AuditRecord>(_context),
+        gateway,
+        new UnitOfWork(_context));
+
+    private async Task<Order> SeedOrderWithShipmentAsync()
+    {
+        var customer = new Customer("Nguyen Van Khach", "khach@example.com", "0900000000");
+        await _customers.AddAsync(customer);
+        var offering = new Offering("Light Delivery", "Small parcels", 150000m, 1000m, 3m, "Light");
+        await _offerings.AddAsync(offering);
+        var order = new Order(customer, offering);
+        var shipment = new Shipment(order);
+        order.AttachShipment(shipment);
+        await _orders.AddAsync(order);
+        await _shipments.AddAsync(shipment);
+        await _context.SaveChangesAsync();
+        return order;
+    }
+
+    [Fact]
+    public async Task BillingCoordinatorGeneratesInvoiceFromOrder()
+    {
+        var order = await SeedOrderWithShipmentAsync();
+        var coordinator = CreateCoordinator(new FakePaymentGateway("Payment processed"));
+
+        var invoice = await coordinator.GenerateInvoiceAsync(order.Id, 150000m);
+
+        Assert.Equal(150000m, invoice.Amount);
+        Assert.Equal(InvoiceStatus.Unpaid, invoice.Status);
+    }
+
+    [Fact]
+    public async Task BillingCoordinatorProcessesCashPaymentWithoutCallingGateway()
+    {
+        var order = await SeedOrderWithShipmentAsync();
+        var gateway = new FakePaymentGateway("Payment processed");
+        var coordinator = CreateCoordinator(gateway);
+        var invoice = await coordinator.GenerateInvoiceAsync(order.Id, 150000m);
+
+        var receipt = await coordinator.ProcessPaymentAsync(invoice.Id, "Cash", Guid.NewGuid(), "Recipient");
+
+        Assert.Equal(0, gateway.CallCount);
+        Assert.Equal("Cash", receipt.PaymentMethod);
+    }
+
+    [Fact]
+    public async Task BillingCoordinatorProcessesCardPaymentThroughGatewayAndWritesReceiptAndAudit()
+    {
+        var order = await SeedOrderWithShipmentAsync();
+        var gateway = new FakePaymentGateway("Payment processed");
+        var coordinator = CreateCoordinator(gateway);
+        var invoice = await coordinator.GenerateInvoiceAsync(order.Id, 150000m);
+
+        var receipt = await coordinator.ProcessPaymentAsync(invoice.Id, "Card", Guid.NewGuid(), "Recipient");
+
+        Assert.Equal(1, gateway.CallCount);
+        var confirmations = _context.Set<DeliveryConfirmation>().ToList();
+        Assert.Single(confirmations);
+        var audits = _context.Set<AuditRecord>().ToList();
+        Assert.Contains(audits, a => a.Action == "PaymentProcessed");
+        Assert.Equal("Payment processed", receipt.GatewayResponse);
+    }
+
+    [Fact]
+    public async Task BillingCoordinatorRejectsCardPaymentWhenGatewayFails()
+    {
+        var order = await SeedOrderWithShipmentAsync();
+        var gateway = new FakePaymentGateway("Gateway timeout");
+        var coordinator = CreateCoordinator(gateway);
+        var invoice = await coordinator.GenerateInvoiceAsync(order.Id, 150000m);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => coordinator.ProcessPaymentAsync(invoice.Id, "Card", Guid.NewGuid(), "Recipient"));
+
+        Assert.Empty(_context.Set<DeliveryConfirmation>().ToList());
+        Assert.Empty(_context.Set<Receipt>().ToList());
+    }
+
+    public void Dispose()
+    {
+        _context.Dispose();
+        _factory.Dispose();
+    }
+}
