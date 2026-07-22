@@ -48,6 +48,28 @@ public class OrderFulfilmentCoordinatorTests : IDisposable
         Assert.Equal(customer.Id, order.CustomerId);
         Assert.Equal(order.Id, shipment.OrderId);
         Assert.Single(shipment.Cargoes);
+        var cargo = shipment.Cargoes[0];
+        Assert.Equal("Boxed goods", cargo.Description);
+        Assert.Equal(10m, cargo.WeightKg);
+        Assert.Equal(1m, cargo.VolumeCbm);
+        Assert.Equal(shipment.Id, cargo.ShipmentId);
+    }
+
+    [Fact]
+    public async Task OrderFulfilmentCoordinatorGetOrderDetailsIncludesSubmittedCargoAfterReload()
+    {
+        var offering = await SeedOfferingAsync();
+
+        var (_, order, _) = await _coordinator.PlaceOrderAsync(
+            "Tran Thi Khach", "khach4@example.com", "0900000004", offering.Id,
+            new[] { ("Boxed goods", 10m, (decimal?)1m, false) });
+
+        var details = await _coordinator.GetOrderDetailsAsync(order.Id);
+
+        Assert.NotNull(details);
+        Assert.NotNull(details.Value.Shipment);
+        Assert.Single(details.Value.Cargoes);
+        Assert.Equal("Boxed goods", details.Value.Cargoes[0].Description);
     }
 
     [Fact]

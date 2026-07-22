@@ -30,8 +30,7 @@ public class OrdersController : ControllerBase
         var (_, order, shipment) = await _coordinator.PlaceOrderAsync(
             request.CustomerName, request.CustomerEmail, request.CustomerPhone, request.OfferingId, cargoItems);
 
-        var details = await _coordinator.GetOrderDetailsAsync(order.Id);
-        var response = OrderDetailsResponse.FromEntity(order, shipment, details?.Cargoes ?? []);
+        var response = OrderDetailsResponse.FromEntity(order, shipment, shipment.Cargoes);
         return CreatedAtAction(nameof(GetOrderById), new { id = order.Id }, response);
     }
 
