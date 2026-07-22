@@ -79,7 +79,7 @@ public class FleetAssignmentCoordinator
         return assignment;
     }
 
-    public async Task CompleteAssignmentAsync(Guid assignmentId)
+    public async Task<Assignment> CompleteAssignmentAsync(Guid assignmentId)
     {
         var assignment = await _assignments.GetByIdAsync(assignmentId)
             ?? throw new InvalidOperationException($"Assignment {assignmentId} not found.");
@@ -90,6 +90,7 @@ public class FleetAssignmentCoordinator
         await ReleaseDriverAndVehicleAsync(assignment);
 
         await _unitOfWork.SaveChangesAsync();
+        return assignment;
     }
 
     public async Task RequestReallocationAsync(Guid assignmentId)
@@ -122,7 +123,11 @@ public class FleetAssignmentCoordinator
         return record;
     }
 
-    public Task<IEnumerable<Assignment>> GetAssignmentsAsync() => _assignments.GetAllAsync();
+    public async Task<IEnumerable<Assignment>> GetAssignmentsAsync(string? status = null)
+    {
+        var assignments = await _assignments.GetAllAsync();
+        return status is null ? assignments : assignments.Where(a => a.Status == status);
+    }
 
     public async Task<Assignment?> GetAssignmentByIdAsync(Guid id) => await _assignments.GetByIdAsync(id);
 
