@@ -59,4 +59,6 @@ public class ReportingCoordinator
     }
 
     public Task<IEnumerable<Report>> GetReportsAsync() => _reports.GetAllAsync();
+
+    public Task<IEnumerable<AuditRecord>> GetAuditRecordsAsync() => _auditRecords.GetAllAsync();
 }
