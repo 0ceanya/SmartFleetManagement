@@ -30,6 +30,8 @@ public class BillingCoordinatorTests : IDisposable
     private BillingCoordinator CreateCoordinator(FakePaymentGateway gateway) => new(
         new Repository<Invoice>(_context),
         new Repository<Payment>(_context),
+        _orders,
+        _offerings,
         _shipments,
         new Repository<DeliveryConfirmation>(_context),
         new Repository<Receipt>(_context),
@@ -58,7 +60,7 @@ public class BillingCoordinatorTests : IDisposable
         var order = await SeedOrderWithShipmentAsync();
         var coordinator = CreateCoordinator(new FakePaymentGateway(true));
 
-        var invoice = await coordinator.GenerateInvoiceAsync(order.Id, 150000m);
+        var invoice = await coordinator.GenerateInvoiceAsync(order.Id);
 
         Assert.Equal(150000m, invoice.Amount);
         Assert.Equal(InvoiceStatus.Unpaid, invoice.Status);
@@ -70,7 +72,7 @@ public class BillingCoordinatorTests : IDisposable
         var order = await SeedOrderWithShipmentAsync();
         var gateway = new FakePaymentGateway(true);
         var coordinator = CreateCoordinator(gateway);
-        var invoice = await coordinator.GenerateInvoiceAsync(order.Id, 150000m);
+        var invoice = await coordinator.GenerateInvoiceAsync(order.Id);
 
         var receipt = await coordinator.ProcessPaymentAsync(invoice.Id, "Cash", Guid.NewGuid(), "Recipient");
 
@@ -84,7 +86,7 @@ public class BillingCoordinatorTests : IDisposable
         var order = await SeedOrderWithShipmentAsync();
         var gateway = new FakePaymentGateway(true);
         var coordinator = CreateCoordinator(gateway);
-        var invoice = await coordinator.GenerateInvoiceAsync(order.Id, 150000m);
+        var invoice = await coordinator.GenerateInvoiceAsync(order.Id);
 
         var receipt = await coordinator.ProcessPaymentAsync(invoice.Id, "Card", Guid.NewGuid(), "Recipient");
 
@@ -102,7 +104,7 @@ public class BillingCoordinatorTests : IDisposable
         var order = await SeedOrderWithShipmentAsync();
         var gateway = new FakePaymentGateway(false);
         var coordinator = CreateCoordinator(gateway);
-        var invoice = await coordinator.GenerateInvoiceAsync(order.Id, 150000m);
+        var invoice = await coordinator.GenerateInvoiceAsync(order.Id);
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => coordinator.ProcessPaymentAsync(invoice.Id, "Card", Guid.NewGuid(), "Recipient"));

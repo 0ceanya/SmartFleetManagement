@@ -10,6 +10,8 @@ public class BillingCoordinator
 {
     private readonly IRepository<Invoice> _invoices;
     private readonly IRepository<Payment> _payments;
+    private readonly IRepository<Order> _orders;
+    private readonly IRepository<Offering> _offerings;
     private readonly IRepository<Shipment> _shipments;
     private readonly IRepository<DeliveryConfirmation> _deliveryConfirmations;
     private readonly IRepository<Receipt> _receipts;
@@ -20,6 +22,8 @@ public class BillingCoordinator
     public BillingCoordinator(
         IRepository<Invoice> invoices,
         IRepository<Payment> payments,
+        IRepository<Order> orders,
+        IRepository<Offering> offerings,
         IRepository<Shipment> shipments,
         IRepository<DeliveryConfirmation> deliveryConfirmations,
         IRepository<Receipt> receipts,
@@ -29,6 +33,8 @@ public class BillingCoordinator
     {
         _invoices = invoices;
         _payments = payments;
+        _orders = orders;
+        _offerings = offerings;
         _shipments = shipments;
         _deliveryConfirmations = deliveryConfirmations;
         _receipts = receipts;
@@ -43,13 +49,18 @@ public class BillingCoordinator
         return Task.CompletedTask;
     }
 
-    public async Task<Invoice> GenerateInvoiceAsync(Guid orderId, decimal amount)
+    public async Task<Invoice> GenerateInvoiceAsync(Guid orderId)
     {
+        var order = await _orders.GetByIdAsync(orderId)
+            ?? throw new InvalidOperationException($"Order {orderId} not found.");
+        var offering = await _offerings.GetByIdAsync(order.OfferingId)
+            ?? throw new InvalidOperationException($"Offering {order.OfferingId} not found.");
+
         var shipments = await _shipments.GetAllAsync();
         var shipment = shipments.FirstOrDefault(s => s.OrderId == orderId)
             ?? throw new InvalidOperationException($"No shipment found for order {orderId}.");
 
-        var invoice = new Invoice(shipment, amount);
+        var invoice = new Invoice(shipment, offering.BasePrice);
         await _invoices.AddAsync(invoice);
         await _unitOfWork.SaveChangesAsync();
         return invoice;
@@ -103,6 +114,12 @@ public class BillingCoordinator
     public async Task<Invoice?> GetInvoiceByIdAsync(Guid id) => await _invoices.GetByIdAsync(id);
 
     public Task<IEnumerable<Receipt>> GetReceiptsAsync() => _receipts.GetAllAsync();
+
+    public async Task<Receipt?> GetReceiptByInvoiceIdAsync(Guid invoiceId)
+    {
+        var receipts = await _receipts.GetAllAsync();
+        return receipts.FirstOrDefault(r => r.InvoiceId == invoiceId);
+    }
 
     private CardPayment CreateCardPayment(Invoice invoice)
     {
