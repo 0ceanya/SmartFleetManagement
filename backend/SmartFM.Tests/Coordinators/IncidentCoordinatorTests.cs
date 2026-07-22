@@ -119,6 +119,32 @@ public class IncidentCoordinatorTests : IDisposable
         Assert.True(freedDriver!.IsAvailable);
     }
 
+    [Fact]
+    public async Task IncidentCoordinatorCreatesIncidentRecordWhenTelemetryFlagsAnomaly()
+    {
+        var (_, vehicle, _) = await SeedActiveAssignmentAsync();
+        var data = new TelemetryData(vehicle.Id, 21.0, 105.8, DateTime.UtcNow, IsAnomaly: true);
+
+        _coordinator.OnTelemetryReceived(vehicle, data);
+
+        var incidents = _context.Set<IncidentRecord>().ToList();
+        Assert.Single(incidents);
+        var manifests = _context.Set<LoadManifest>().ToList();
+        Assert.Single(manifests);
+    }
+
+    [Fact]
+    public async Task IncidentCoordinatorIgnoresTelemetryWithoutAnomalyFlag()
+    {
+        var (_, vehicle, _) = await SeedActiveAssignmentAsync();
+        var data = new TelemetryData(vehicle.Id, 21.0, 105.8, DateTime.UtcNow, IsAnomaly: false);
+
+        _coordinator.OnTelemetryReceived(vehicle, data);
+
+        Assert.Empty(_context.Set<IncidentRecord>().ToList());
+        Assert.Empty(_context.Set<LoadManifest>().ToList());
+    }
+
     public void Dispose()
     {
         _context.Dispose();

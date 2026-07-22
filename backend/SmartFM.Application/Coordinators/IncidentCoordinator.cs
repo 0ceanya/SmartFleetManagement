@@ -14,7 +14,6 @@ public class IncidentCoordinator : ITelemetryObserver
     private readonly IRepository<Shipment> _shipments;
     private readonly FleetAssignmentCoordinator _fleetAssignmentCoordinator;
     private readonly IUnitOfWork _unitOfWork;
-    private readonly Random _random = new();
 
     public IncidentCoordinator(
         IRepository<IncidentRecord> incidentRecords,
@@ -40,7 +39,7 @@ public class IncidentCoordinator : ITelemetryObserver
 
     public void OnTelemetryReceived(Vehicle vehicle, TelemetryData data)
     {
-        if (!SignalsIncident(data))
+        if (!data.IsAnomaly)
             return;
 
         // ITelemetryObserver is synchronous; the async write is awaited before returning.
@@ -72,8 +71,6 @@ public class IncidentCoordinator : ITelemetryObserver
         await _unitOfWork.SaveChangesAsync();
         return incident;
     }
-
-    private bool SignalsIncident(TelemetryData data) => _random.Next(10) == 0;
 
     private async Task HandleIncidentAsync(Vehicle vehicle)
     {

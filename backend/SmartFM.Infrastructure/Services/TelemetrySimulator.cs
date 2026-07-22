@@ -45,7 +45,7 @@ public class TelemetrySimulator : IHostedService, IDisposable
             vehicle.RegisterObserver(trackingCoordinator);
             vehicle.RegisterObserver(incidentCoordinator);
 
-            var data = new TelemetryData(vehicle.Id, NextLat(), NextLon(), DateTime.UtcNow);
+            var data = new TelemetryData(vehicle.Id, NextLat(), NextLon(), DateTime.UtcNow, IsAnomaly: _random.Next(10) == 0);
             vehicle.NotifyObservers(data);
 
             Console.WriteLine($"Telemetry pushed for vehicle {vehicle.RegistrationNumber}");
