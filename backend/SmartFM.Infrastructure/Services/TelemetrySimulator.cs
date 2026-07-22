@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using SmartFM.Application.Abstractions;
@@ -10,12 +11,14 @@ namespace SmartFM.Infrastructure.Services;
 public class TelemetrySimulator : IHostedService, IDisposable
 {
     private readonly IServiceProvider _serviceProvider;
+    private readonly bool _enabled;
     private readonly Random _random = new();
     private Timer? _timer;
 
-    public TelemetrySimulator(IServiceProvider serviceProvider)
+    public TelemetrySimulator(IServiceProvider serviceProvider, IConfiguration configuration)
     {
         _serviceProvider = serviceProvider;
+        _enabled = !bool.TryParse(configuration["Telemetry:Enabled"], out var enabled) || enabled;
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
@@ -34,6 +37,9 @@ public class TelemetrySimulator : IHostedService, IDisposable
 
     private void Tick(object? state)
     {
+        if (!_enabled)
+            return;
+
         using var scope = _serviceProvider.CreateScope();
         var vehicles = scope.ServiceProvider.GetRequiredService<IRepository<Vehicle>>();
         var trackingCoordinator = scope.ServiceProvider.GetRequiredService<TrackingCoordinator>();
