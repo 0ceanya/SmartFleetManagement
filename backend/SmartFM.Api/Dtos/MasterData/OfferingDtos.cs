@@ -10,13 +10,13 @@ public record CreateOfferingRequest
 
     public string Description { get; init; } = string.Empty;
 
-    [Range(typeof(decimal), "0.01", "79228162514264337593543950335")]
+    [Range(typeof(decimal), "0.01", "79228162514264337593543950335", ParseLimitsInInvariantCulture = true)]
     public decimal BasePrice { get; init; }
 
-    [Range(typeof(decimal), "0.01", "79228162514264337593543950335")]
+    [Range(typeof(decimal), "0.01", "79228162514264337593543950335", ParseLimitsInInvariantCulture = true)]
     public decimal MaxWeightKg { get; init; }
 
-    [Range(typeof(decimal), "0", "79228162514264337593543950335")]
+    [Range(typeof(decimal), "0", "79228162514264337593543950335", ParseLimitsInInvariantCulture = true)]
     public decimal MaxVolumeCbm { get; init; }
 
     [Required, AllowedValues("Light", "Medium", "Heavy")]
@@ -27,13 +27,13 @@ public record UpdateOfferingRequest
 {
     public string Description { get; init; } = string.Empty;
 
-    [Range(typeof(decimal), "0.01", "79228162514264337593543950335")]
+    [Range(typeof(decimal), "0.01", "79228162514264337593543950335", ParseLimitsInInvariantCulture = true)]
     public decimal BasePrice { get; init; }
 
-    [Range(typeof(decimal), "0.01", "79228162514264337593543950335")]
+    [Range(typeof(decimal), "0.01", "79228162514264337593543950335", ParseLimitsInInvariantCulture = true)]
     public decimal MaxWeightKg { get; init; }
 
-    [Range(typeof(decimal), "0", "79228162514264337593543950335")]
+    [Range(typeof(decimal), "0", "79228162514264337593543950335", ParseLimitsInInvariantCulture = true)]
     public decimal MaxVolumeCbm { get; init; }
 }
 

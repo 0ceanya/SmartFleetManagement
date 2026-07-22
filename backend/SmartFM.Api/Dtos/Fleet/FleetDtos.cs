@@ -12,7 +12,7 @@ public record CreateRouteRequest
     [Required]
     public Guid DestinationWarehouseId { get; init; }
 
-    [Range(typeof(decimal), "0.01", "79228162514264337593543950335")]
+    [Range(typeof(decimal), "0.01", "79228162514264337593543950335", ParseLimitsInInvariantCulture = true)]
     public decimal EstimatedDistanceKm { get; init; }
 }
 

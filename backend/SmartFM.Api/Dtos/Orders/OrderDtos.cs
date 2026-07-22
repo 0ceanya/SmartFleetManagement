@@ -8,10 +8,10 @@ public record CargoItemRequest
     [Required]
     public string Description { get; init; } = string.Empty;
 
-    [Range(typeof(decimal), "0.01", "79228162514264337593543950335")]
+    [Range(typeof(decimal), "0.01", "79228162514264337593543950335", ParseLimitsInInvariantCulture = true)]
     public decimal WeightKg { get; init; }
 
-    [Range(typeof(decimal), "0.01", "79228162514264337593543950335")]
+    [Range(typeof(decimal), "0.01", "79228162514264337593543950335", ParseLimitsInInvariantCulture = true)]
     public decimal? VolumeCbm { get; init; }
 
     public bool IsHazardous { get; init; }
