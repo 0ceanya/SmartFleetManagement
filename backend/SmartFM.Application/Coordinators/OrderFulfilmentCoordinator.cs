@@ -126,6 +126,35 @@ public class OrderFulfilmentCoordinator
 
     public Task<IEnumerable<Shipment>> GetShipmentsAsync() => _shipments.GetAllAsync();
 
+    public async Task<(Order Order, Shipment? Shipment, IReadOnlyList<Cargo> Cargoes)?> GetOrderDetailsAsync(Guid id)
+    {
+        var order = await _orders.GetByIdAsync(id);
+        if (order is null)
+            return null;
+
+        var shipments = await _shipments.GetAllAsync();
+        var shipment = shipments.FirstOrDefault(s => s.OrderId == order.Id);
+
+        IReadOnlyList<Cargo> cargoes = Array.Empty<Cargo>();
+        if (shipment is not null)
+        {
+            var allCargoes = await _cargoes.GetAllAsync();
+            cargoes = allCargoes.Where(c => c.ShipmentId == shipment.Id).ToList();
+        }
+
+        return (order, shipment, cargoes);
+    }
+
+    public async Task<IEnumerable<Order>> GetOrdersByCustomerEmailAsync(string email)
+    {
+        var customer = await FindCustomerByEmailAsync(email);
+        if (customer is null)
+            return Enumerable.Empty<Order>();
+
+        var orders = await _orders.GetAllAsync();
+        return orders.Where(o => o.CustomerId == customer.Id);
+    }
+
     private async Task<Customer?> FindCustomerByEmailAsync(string email)
     {
         var customers = await _customers.GetAllAsync();
