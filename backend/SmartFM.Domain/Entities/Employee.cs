@@ -17,4 +17,12 @@ public abstract class Employee
         Email = email;
         BranchId = branchId;
     }
+
+    public void UpdateContactInfo(string name, string email)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentException.ThrowIfNullOrWhiteSpace(email);
+        Name = name;
+        Email = email;
+    }
 }

@@ -24,4 +24,14 @@ public class Offering
         MaxVolumeCbm = maxVolumeCbm;
         VehicleClass = vehicleClass;
     }
+
+    public void UpdateDetails(string description, decimal basePrice, decimal maxWeightKg, decimal maxVolumeCbm)
+    {
+        if (basePrice <= 0) throw new ArgumentException("BasePrice must be positive.", nameof(basePrice));
+        if (maxWeightKg <= 0) throw new ArgumentException("MaxWeightKg must be positive.", nameof(maxWeightKg));
+        Description = description;
+        BasePrice = basePrice;
+        MaxWeightKg = maxWeightKg;
+        MaxVolumeCbm = maxVolumeCbm;
+    }
 }

@@ -15,4 +15,12 @@ public class Branch
         Name = name;
         City = city;
     }
+
+    public void Rename(string name, string city)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentException.ThrowIfNullOrWhiteSpace(city);
+        Name = name;
+        City = city;
+    }
 }

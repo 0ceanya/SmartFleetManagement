@@ -17,4 +17,12 @@ public class Warehouse
         Address = address;
         BranchId = branchId;
     }
+
+    public void UpdateDetails(string name, string address)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentException.ThrowIfNullOrWhiteSpace(address);
+        Name = name;
+        Address = address;
+    }
 }
