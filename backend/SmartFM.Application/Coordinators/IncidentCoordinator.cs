@@ -72,6 +72,15 @@ public class IncidentCoordinator : ITelemetryObserver
         return incident;
     }
 
+    public async Task<IncidentRecord> ReportIncidentForShipmentAsync(Guid shipmentId, string description, string severity)
+    {
+        var assignments = await _assignments.GetAllAsync();
+        var activeAssignment = assignments.FirstOrDefault(a => a.ShipmentId == shipmentId && a.Status == AssignmentStatus.Active)
+            ?? throw new InvalidOperationException($"No active assignment found for shipment {shipmentId}.");
+
+        return await ReportIncidentAsync(activeAssignment.VehicleId, description, severity);
+    }
+
     private async Task HandleIncidentAsync(Vehicle vehicle)
     {
         await ReportIncidentAsync(vehicle.Id, "Telemetry anomaly detected", "Medium");
