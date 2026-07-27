@@ -48,15 +48,21 @@ public class IncidentCoordinator : ITelemetryObserver
 
     public Task<IEnumerable<IncidentRecord>> GetIncidentRecordsAsync() => _incidentRecords.GetAllAsync();
 
+    public async Task<IncidentRecord?> GetIncidentRecordByIdAsync(Guid id) => await _incidentRecords.GetByIdAsync(id);
+
     public async Task<IncidentRecord> ReportIncidentAsync(Guid vehicleId, string description, string severity)
     {
         var assignments = await _assignments.GetAllAsync();
         var activeAssignment = assignments.FirstOrDefault(a => a.VehicleId == vehicleId && a.Status == AssignmentStatus.Active);
 
+        var affectedShipmentIds = activeAssignment is null
+            ? new List<Guid>()
+            : (await _shipments.GetAllAsync()).Where(s => s.AssignmentId == activeAssignment.Id).Select(s => s.Id).ToList();
+
         var incident = new IncidentRecord
         {
             VehicleId = vehicleId,
-            ShipmentId = activeAssignment?.ShipmentId,
+            ShipmentId = affectedShipmentIds.Count > 0 ? affectedShipmentIds[0] : null,
             Description = description,
             Severity = severity
         };
@@ -64,7 +70,9 @@ public class IncidentCoordinator : ITelemetryObserver
 
         if (activeAssignment is not null)
         {
-            await CreateLoadManifestAsync(activeAssignment.ShipmentId);
+            foreach (var shipmentId in affectedShipmentIds)
+                await CreateLoadManifestAsync(shipmentId);
+
             await _fleetAssignmentCoordinator.RequestReallocationAsync(activeAssignment.Id);
         }
 
@@ -74,11 +82,16 @@ public class IncidentCoordinator : ITelemetryObserver
 
     public async Task<IncidentRecord> ReportIncidentForShipmentAsync(Guid shipmentId, string description, string severity)
     {
-        var assignments = await _assignments.GetAllAsync();
-        var activeAssignment = assignments.FirstOrDefault(a => a.ShipmentId == shipmentId && a.Status == AssignmentStatus.Active)
-            ?? throw new InvalidOperationException($"No active assignment found for shipment {shipmentId}.");
+        var shipment = await _shipments.GetByIdAsync(shipmentId)
+            ?? throw new InvalidOperationException($"Shipment {shipmentId} not found.");
+        var assignment = shipment.AssignmentId is null
+            ? null
+            : await _assignments.GetByIdAsync(shipment.AssignmentId.Value);
 
-        return await ReportIncidentAsync(activeAssignment.VehicleId, description, severity);
+        if (assignment is null || assignment.Status != AssignmentStatus.Active)
+            throw new InvalidOperationException($"No active assignment found for shipment {shipmentId}.");
+
+        return await ReportIncidentAsync(assignment.VehicleId, description, severity);
     }
 
     private async Task HandleIncidentAsync(Vehicle vehicle)

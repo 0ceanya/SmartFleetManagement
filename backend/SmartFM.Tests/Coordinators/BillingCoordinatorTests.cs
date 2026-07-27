@@ -33,7 +33,6 @@ public class BillingCoordinatorTests : IDisposable
         _orders,
         _offerings,
         _shipments,
-        new Repository<DeliveryConfirmation>(_context),
         new Repository<Receipt>(_context),
         new Repository<AuditRecord>(_context),
         gateway,
@@ -46,7 +45,7 @@ public class BillingCoordinatorTests : IDisposable
         var offering = new Offering("Light Delivery", "Small parcels", 150000m, 1000m, 3m, "Light");
         await _offerings.AddAsync(offering);
         var order = new Order(customer, offering);
-        var shipment = new Shipment(order);
+        var shipment = new Shipment(order, Guid.NewGuid());
         order.AttachShipment(shipment);
         await _orders.AddAsync(order);
         await _shipments.AddAsync(shipment);
@@ -74,28 +73,28 @@ public class BillingCoordinatorTests : IDisposable
         var coordinator = CreateCoordinator(gateway);
         var invoice = await coordinator.GenerateInvoiceAsync(order.Id);
 
-        var receipt = await coordinator.ProcessPaymentAsync(invoice.Id, "Cash", Guid.NewGuid(), "Recipient");
+        var receipt = await coordinator.ProcessPaymentAsync(invoice.Id, "Cash");
 
         Assert.Equal(0, gateway.CallCount);
         Assert.Equal("Cash", receipt.PaymentMethod);
     }
 
     [Fact]
-    public async Task BillingCoordinatorProcessesCardPaymentThroughGatewayAndWritesReceiptAndAudit()
+    public async Task BillingCoordinatorProcessesCardPaymentThroughGatewayAndApprovesOrder()
     {
         var order = await SeedOrderWithShipmentAsync();
         var gateway = new FakePaymentGateway(true);
         var coordinator = CreateCoordinator(gateway);
         var invoice = await coordinator.GenerateInvoiceAsync(order.Id);
 
-        var receipt = await coordinator.ProcessPaymentAsync(invoice.Id, "Card", Guid.NewGuid(), "Recipient");
+        var receipt = await coordinator.ProcessPaymentAsync(invoice.Id, "Card");
 
         Assert.Equal(1, gateway.CallCount);
-        var confirmations = _context.Set<DeliveryConfirmation>().ToList();
-        Assert.Single(confirmations);
         var audits = _context.Set<AuditRecord>().ToList();
         Assert.Contains(audits, a => a.Action == "PaymentProcessed");
         Assert.Equal("Payment processed", receipt.GatewayResponse);
+        var updatedOrder = await _orders.GetByIdAsync(order.Id);
+        Assert.Equal(OrderStatus.Approved, updatedOrder!.Status);
     }
 
     [Fact]
@@ -107,10 +106,22 @@ public class BillingCoordinatorTests : IDisposable
         var invoice = await coordinator.GenerateInvoiceAsync(order.Id);
 
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => coordinator.ProcessPaymentAsync(invoice.Id, "Card", Guid.NewGuid(), "Recipient"));
+            () => coordinator.ProcessPaymentAsync(invoice.Id, "Card"));
 
-        Assert.Empty(_context.Set<DeliveryConfirmation>().ToList());
         Assert.Empty(_context.Set<Receipt>().ToList());
+    }
+
+    [Fact]
+    public async Task BillingCoordinatorRejectsPaymentOnAlreadyPaidInvoice()
+    {
+        var order = await SeedOrderWithShipmentAsync();
+        var gateway = new FakePaymentGateway(true);
+        var coordinator = CreateCoordinator(gateway);
+        var invoice = await coordinator.GenerateInvoiceAsync(order.Id);
+        await coordinator.ProcessPaymentAsync(invoice.Id, "Cash");
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => coordinator.ProcessPaymentAsync(invoice.Id, "Cash"));
     }
 
     public void Dispose()

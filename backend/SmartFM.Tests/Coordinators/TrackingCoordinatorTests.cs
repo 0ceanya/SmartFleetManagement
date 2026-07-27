@@ -24,6 +24,7 @@ public class TrackingCoordinatorTests : IDisposable
             _trackingRecords,
             new Repository<Notification>(_context),
             new Repository<Assignment>(_context),
+            new Repository<Shipment>(_context),
             new UnitOfWork(_context));
     }
 

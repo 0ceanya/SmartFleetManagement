@@ -67,9 +67,9 @@ public class MasterDataCoordinator
 
     public async Task<Branch?> GetBranchByIdAsync(Guid id) => await _branches.GetByIdAsync(id);
 
-    public async Task<Warehouse> CreateWarehouseAsync(string name, string address, Guid branchId)
+    public async Task<Warehouse> CreateWarehouseAsync(string name, string address, Guid branchId, decimal capacityKg)
     {
-        var warehouse = new Warehouse(name, address, branchId);
+        var warehouse = new Warehouse(name, address, branchId, capacityKg);
         await _warehouses.AddAsync(warehouse);
         await _unitOfWork.SaveChangesAsync();
         return warehouse;

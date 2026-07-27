@@ -23,6 +23,17 @@ public class IncidentsController : ControllerBase
         return Ok(records.Select(IncidentRecordResponse.FromEntity));
     }
 
+    [HttpGet("{id:guid}")]
+    [ProducesResponseType(typeof(IncidentRecordResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<IncidentRecordResponse>> GetIncidentRecordById(Guid id)
+    {
+        var incident = await _coordinator.GetIncidentRecordByIdAsync(id);
+        if (incident is null)
+            return Problem(detail: $"Incident record {id} not found.", statusCode: StatusCodes.Status404NotFound);
+        return Ok(IncidentRecordResponse.FromEntity(incident));
+    }
+
     [HttpPost]
     [ProducesResponseType(typeof(IncidentRecordResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -31,6 +42,6 @@ public class IncidentsController : ControllerBase
     {
         var incident = await _coordinator.ReportIncidentForShipmentAsync(request.ShipmentId, request.Description, request.Severity);
         var response = IncidentRecordResponse.FromEntity(incident);
-        return CreatedAtAction(nameof(GetIncidentRecords), response);
+        return CreatedAtAction(nameof(GetIncidentRecordById), new { id = incident.Id }, response);
     }
 }

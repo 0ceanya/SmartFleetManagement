@@ -21,12 +21,6 @@ public record PayInvoiceRequest : IValidatableObject
     [Required, AllowedValues("Cash", "Card", "Digital")]
     public string PaymentMethod { get; init; } = string.Empty;
 
-    [Required]
-    public Guid DriverId { get; init; }
-
-    [Required]
-    public string RecipientName { get; init; } = string.Empty;
-
     public string? WalletReference { get; init; }
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)

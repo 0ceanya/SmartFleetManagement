@@ -13,7 +13,6 @@ public class BillingCoordinator
     private readonly IRepository<Order> _orders;
     private readonly IRepository<Offering> _offerings;
     private readonly IRepository<Shipment> _shipments;
-    private readonly IRepository<DeliveryConfirmation> _deliveryConfirmations;
     private readonly IRepository<Receipt> _receipts;
     private readonly IRepository<AuditRecord> _auditRecords;
     private readonly IPaymentGateway _paymentGateway;
@@ -25,7 +24,6 @@ public class BillingCoordinator
         IRepository<Order> orders,
         IRepository<Offering> offerings,
         IRepository<Shipment> shipments,
-        IRepository<DeliveryConfirmation> deliveryConfirmations,
         IRepository<Receipt> receipts,
         IRepository<AuditRecord> auditRecords,
         IPaymentGateway paymentGateway,
@@ -36,7 +34,6 @@ public class BillingCoordinator
         _orders = orders;
         _offerings = offerings;
         _shipments = shipments;
-        _deliveryConfirmations = deliveryConfirmations;
         _receipts = receipts;
         _auditRecords = auditRecords;
         _paymentGateway = paymentGateway;
@@ -66,10 +63,13 @@ public class BillingCoordinator
         return invoice;
     }
 
-    public async Task<Receipt> ProcessPaymentAsync(Guid invoiceId, string method, Guid driverId, string recipientName, string? walletReference = null)
+    public async Task<Receipt> ProcessPaymentAsync(Guid invoiceId, string method, string? walletReference = null)
     {
         var invoice = await _invoices.GetByIdAsync(invoiceId)
             ?? throw new InvalidOperationException($"Invoice {invoiceId} not found.");
+
+        if (invoice.Status == InvoiceStatus.Paid)
+            throw new InvalidOperationException($"Invoice {invoiceId} is already paid.");
 
         Payment payment = method switch
         {
@@ -84,8 +84,7 @@ public class BillingCoordinator
         invoice.MarkPaid();
         _invoices.Update(invoice);
 
-        var confirmation = new DeliveryConfirmation(invoice.ShipmentId, driverId, recipientName, DateTime.UtcNow);
-        await _deliveryConfirmations.AddAsync(confirmation);
+        await ApproveOrderForShipmentAsync(invoice.ShipmentId);
 
         var gatewayResponse = payment switch
         {
@@ -137,5 +136,16 @@ public class BillingCoordinator
             throw new InvalidOperationException("Digital payment failed.");
         Console.WriteLine("Payment processed");
         return new DigitalPayment(invoice.Amount, invoice.Id, "Payment processed", walletReference);
+    }
+
+    private async Task ApproveOrderForShipmentAsync(Guid shipmentId)
+    {
+        var shipment = await _shipments.GetByIdAsync(shipmentId)
+            ?? throw new InvalidOperationException($"Shipment {shipmentId} not found.");
+        var order = await _orders.GetByIdAsync(shipment.OrderId)
+            ?? throw new InvalidOperationException($"Order not found for shipment {shipmentId}.");
+
+        order.SetStatus(OrderStatus.Approved);
+        _orders.Update(order);
     }
 }

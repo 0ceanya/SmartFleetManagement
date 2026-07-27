@@ -46,6 +46,7 @@ public class IncidentCoordinatorTests : IDisposable
             _vehicles,
             _shipments,
             new Repository<MaintenanceRecord>(_context),
+            new Repository<DeliveryConfirmation>(_context),
             unitOfWork);
 
         _coordinator = new IncidentCoordinator(
@@ -61,8 +62,8 @@ public class IncidentCoordinatorTests : IDisposable
     {
         var branch = new Branch("Hanoi Branch", "Hanoi");
         await _branches.AddAsync(branch);
-        var origin = new Warehouse("Origin Warehouse", "1 Origin Street", branch.Id);
-        var destination = new Warehouse("Destination Warehouse", "1 Destination Street", branch.Id);
+        var origin = new Warehouse("Origin Warehouse", "1 Origin Street", branch.Id, 5000m);
+        var destination = new Warehouse("Destination Warehouse", "1 Destination Street", branch.Id, 5000m);
         await _warehouses.AddAsync(origin);
         await _warehouses.AddAsync(destination);
 
@@ -76,7 +77,7 @@ public class IncidentCoordinatorTests : IDisposable
         var offering = new Offering("Light Delivery", "Small parcels", 150000m, 1000m, 3m, "Light");
         await _offerings.AddAsync(offering);
         var order = new Order(customer, offering);
-        var shipment = new Shipment(order);
+        var shipment = new Shipment(order, origin.Id);
         order.AttachShipment(shipment);
         await _orders.AddAsync(order);
         await _shipments.AddAsync(shipment);
@@ -87,7 +88,8 @@ public class IncidentCoordinatorTests : IDisposable
         await _context.SaveChangesAsync();
 
         var route = await _fleetAssignmentCoordinator.CreateRouteAsync(origin.Id, destination.Id, 100m);
-        var assignment = await _fleetAssignmentCoordinator.CreateAssignmentAsync(shipment.Id, driver.Id, vehicle.Id, route.Id);
+        var assignment = await _fleetAssignmentCoordinator.CreateAssignmentAsync(new[] { shipment.Id }, driver.Id, vehicle.Id, route.Id);
+        assignment = await _fleetAssignmentCoordinator.ApproveAssignmentAsync(assignment.Id);
 
         return (driver, vehicle, assignment);
     }

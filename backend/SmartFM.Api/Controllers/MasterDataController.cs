@@ -80,7 +80,7 @@ public class MasterDataController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<WarehouseResponse>> CreateWarehouse(CreateWarehouseRequest request)
     {
-        var warehouse = await _coordinator.CreateWarehouseAsync(request.Name, request.Address, request.BranchId);
+        var warehouse = await _coordinator.CreateWarehouseAsync(request.Name, request.Address, request.BranchId, request.CapacityKg);
         var response = WarehouseResponse.FromEntity(warehouse);
         return CreatedAtAction(nameof(GetWarehouseById), new { id = warehouse.Id }, response);
     }

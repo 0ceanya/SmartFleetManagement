@@ -44,7 +44,7 @@ public class BillingController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<PayInvoiceResponse>> PayInvoice(Guid id, PayInvoiceRequest request)
     {
-        var receipt = await _coordinator.ProcessPaymentAsync(id, request.PaymentMethod, request.DriverId, request.RecipientName, request.WalletReference);
+        var receipt = await _coordinator.ProcessPaymentAsync(id, request.PaymentMethod, request.WalletReference);
         return Ok(PayInvoiceResponse.FromReceipt(receipt));
     }
 

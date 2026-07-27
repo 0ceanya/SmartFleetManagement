@@ -7,7 +7,7 @@ public class Order
     public Guid OfferingId { get; private set; }
     public string Status { get; private set; } = OrderStatus.Pending;
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
-    public Shipment? Shipment { get; private set; }
+    public List<Shipment> Shipments { get; private set; } = [];
 
     private Order() { }
 
@@ -22,9 +22,8 @@ public class Order
     public void AttachShipment(Shipment shipment)
     {
         ArgumentNullException.ThrowIfNull(shipment);
-        if (Shipment is not null) throw new InvalidOperationException("Shipment already attached.");
-        Shipment = shipment;
-        Status = OrderStatus.Processing;
+        Shipments.Add(shipment);
+        Status = OrderStatus.PendingPayment;
     }
 
     public void SetStatus(string status) => Status = status;

@@ -11,8 +11,8 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.ToTable("Orders");
         builder.HasKey(o => o.Id);
         builder.Property(o => o.Status).IsRequired();
-        builder.HasOne(o => o.Shipment)
+        builder.HasMany(o => o.Shipments)
             .WithOne()
-            .HasForeignKey<Shipment>(s => s.OrderId);
+            .HasForeignKey(s => s.OrderId);
     }
 }

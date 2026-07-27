@@ -32,6 +32,9 @@ public record PlaceOrderRequest
     public Guid OfferingId { get; init; }
 
     [Required]
+    public Guid WarehouseId { get; init; }
+
+    [Required]
     public List<CargoItemRequest> CargoItems { get; init; } = [];
 }
 
@@ -41,17 +44,17 @@ public record CargoResponse(Guid Id, string Description, decimal WeightKg, decim
         new(cargo.Id, cargo.Description, cargo.WeightKg, cargo.VolumeCbm, cargo.IsHazardous);
 }
 
-public record ShipmentSummaryResponse(Guid Id, string Status, DateTime CreatedAt, IReadOnlyList<CargoResponse> Cargoes)
+public record ShipmentSummaryResponse(Guid Id, Guid WarehouseId, string Status, DateTime CreatedAt, IReadOnlyList<CargoResponse> CargoItems)
 {
-    public static ShipmentSummaryResponse FromEntity(Shipment shipment, IReadOnlyList<Cargo> cargoes) =>
-        new(shipment.Id, shipment.Status, shipment.CreatedAt, cargoes.Select(CargoResponse.FromEntity).ToList());
+    public static ShipmentSummaryResponse FromEntity(Shipment shipment, IReadOnlyList<Cargo> cargoItems) =>
+        new(shipment.Id, shipment.WarehouseId, shipment.Status, shipment.CreatedAt, cargoItems.Select(CargoResponse.FromEntity).ToList());
 }
 
-public record OrderDetailsResponse(Guid Id, Guid CustomerId, Guid OfferingId, string Status, DateTime CreatedAt, ShipmentSummaryResponse? Shipment)
+public record OrderDetailsResponse(Guid Id, Guid CustomerId, Guid OfferingId, string Status, DateTime CreatedAt, IReadOnlyList<ShipmentSummaryResponse> Shipments)
 {
-    public static OrderDetailsResponse FromEntity(Order order, Shipment? shipment, IReadOnlyList<Cargo> cargoes) =>
+    public static OrderDetailsResponse FromEntity(Order order, IReadOnlyList<(Shipment Shipment, IReadOnlyList<Cargo> Cargoes)> shipments) =>
         new(order.Id, order.CustomerId, order.OfferingId, order.Status, order.CreatedAt,
-            shipment is null ? null : ShipmentSummaryResponse.FromEntity(shipment, cargoes));
+            shipments.Select(s => ShipmentSummaryResponse.FromEntity(s.Shipment, s.Cargoes)).ToList());
 }
 
 public record OrderSummaryResponse(Guid Id, Guid CustomerId, Guid OfferingId, string Status, DateTime CreatedAt)

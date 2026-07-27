@@ -48,7 +48,7 @@ public class MasterDataCoordinatorTests : IDisposable
     {
         var branch = await _coordinator.CreateBranchAsync("Hue Branch", "Hue");
 
-        var warehouse = await _coordinator.CreateWarehouseAsync("Hue Warehouse", "1 Le Loi Street", branch.Id);
+        var warehouse = await _coordinator.CreateWarehouseAsync("Hue Warehouse", "1 Le Loi Street", branch.Id, 5000m);
 
         Assert.Equal(branch.Id, warehouse.BranchId);
     }

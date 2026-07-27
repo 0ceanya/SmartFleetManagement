@@ -11,17 +11,20 @@ public class TrackingCoordinator : ITelemetryObserver
     private readonly IRepository<TrackingRecord> _trackingRecords;
     private readonly IRepository<Notification> _notifications;
     private readonly IRepository<Assignment> _assignments;
+    private readonly IRepository<Shipment> _shipments;
     private readonly IUnitOfWork _unitOfWork;
 
     public TrackingCoordinator(
         IRepository<TrackingRecord> trackingRecords,
         IRepository<Notification> notifications,
         IRepository<Assignment> assignments,
+        IRepository<Shipment> shipments,
         IUnitOfWork unitOfWork)
     {
         _trackingRecords = trackingRecords;
         _notifications = notifications;
         _assignments = assignments;
+        _shipments = shipments;
         _unitOfWork = unitOfWork;
     }
 
@@ -52,15 +55,25 @@ public class TrackingCoordinator : ITelemetryObserver
         var assignments = await _assignments.GetAllAsync();
         var activeAssignment = assignments.FirstOrDefault(a => a.VehicleId == vehicle.Id && a.Status == AssignmentStatus.Active);
 
-        var record = new TrackingRecord
+        var affectedShipmentIds = activeAssignment is null
+            ? new List<Guid>()
+            : (await _shipments.GetAllAsync()).Where(s => s.AssignmentId == activeAssignment.Id).Select(s => s.Id).ToList();
+
+        if (affectedShipmentIds.Count == 0)
+            affectedShipmentIds.Add(Guid.Empty);
+
+        foreach (var shipmentId in affectedShipmentIds)
         {
-            VehicleId = vehicle.Id,
-            ShipmentId = activeAssignment?.ShipmentId ?? Guid.Empty,
-            Lat = data.Lat,
-            Lon = data.Lon,
-            Status = vehicle.CurrentStatus
-        };
-        await _trackingRecords.AddAsync(record);
+            var record = new TrackingRecord
+            {
+                VehicleId = vehicle.Id,
+                ShipmentId = shipmentId,
+                Lat = data.Lat,
+                Lon = data.Lon,
+                Status = vehicle.CurrentStatus
+            };
+            await _trackingRecords.AddAsync(record);
+        }
 
         if (activeAssignment is not null)
         {

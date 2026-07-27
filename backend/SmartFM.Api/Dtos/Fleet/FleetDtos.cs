@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using SmartFM.Domain.Entities;
+using SmartFM.Domain.ValueObjects;
 using Route = SmartFM.Domain.Entities.Route;
 
 namespace SmartFM.Api.Dtos.Fleet;
@@ -24,8 +25,8 @@ public record RouteResponse(Guid Id, Guid OriginWarehouseId, Guid DestinationWar
 
 public record CreateAssignmentRequest
 {
-    [Required]
-    public Guid ShipmentId { get; init; }
+    [Required, MinLength(1)]
+    public List<Guid> ShipmentIds { get; init; } = [];
 
     [Required]
     public Guid DriverId { get; init; }
@@ -37,8 +38,33 @@ public record CreateAssignmentRequest
     public Guid RouteId { get; init; }
 }
 
-public record AssignmentResponse(Guid Id, Guid ShipmentId, Guid DriverId, Guid VehicleId, Guid RouteId, string Status, DateTime CreatedAt)
+public record AssignmentResponse(Guid Id, IReadOnlyList<Guid> ShipmentIds, Guid DriverId, Guid VehicleId, Guid RouteId, string Status, DateTime CreatedAt)
 {
-    public static AssignmentResponse FromEntity(Assignment assignment) =>
-        new(assignment.Id, assignment.ShipmentId, assignment.DriverId, assignment.VehicleId, assignment.RouteId, assignment.Status, assignment.CreatedAt);
+    public static AssignmentResponse FromEntity(Assignment assignment, IReadOnlyList<Guid> shipmentIds) =>
+        new(assignment.Id, shipmentIds, assignment.DriverId, assignment.VehicleId, assignment.RouteId, assignment.Status, assignment.CreatedAt);
+}
+
+public record CreateDeliveryConfirmationRequest
+{
+    [Required]
+    public Guid DriverId { get; init; }
+
+    [Required]
+    public string RecipientName { get; init; } = string.Empty;
+
+    [Required]
+    public string ProofSignature { get; init; } = string.Empty;
+
+    [Range(-90, 90)]
+    public double GpsLatitude { get; init; }
+
+    [Range(-180, 180)]
+    public double GpsLongitude { get; init; }
+}
+
+public record DeliveryConfirmationResponse(Guid ShipmentId, Guid DriverId, string RecipientName, string ProofSignature, double GpsLatitude, double GpsLongitude, DateTime ConfirmedAt)
+{
+    public static DeliveryConfirmationResponse FromEntity(DeliveryConfirmation confirmation) =>
+        new(confirmation.ShipmentId, confirmation.DriverId, confirmation.RecipientName, confirmation.ProofSignature,
+            confirmation.GpsLatitude, confirmation.GpsLongitude, confirmation.ConfirmedAt);
 }
