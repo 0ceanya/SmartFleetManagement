@@ -30,11 +30,10 @@ export default function Header() {
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`cursor-pointer px-4 py-2 text-sm font-semibold transition-all duration-200 ${
-                  isActive ?
+                className={`cursor-pointer px-4 py-2 text-sm font-semibold transition-all duration-200 ${isActive ?
                     "bg-secondary text-white"
-                  : "text-white hover:bg-secondary"
-                }`}
+                    : "text-white hover:bg-secondary"
+                  }`}
               >
                 {item.label}
               </button>

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 const roles = [
   {
@@ -31,34 +31,37 @@ const roles = [
 ];
 
 export default function RolePickerPage() {
-  const router = useRouter();
-
-  const handleSelect = (role) => {
-    sessionStorage.setItem("smartfm.role", role.key);
-    router.push(role.route);
+  const handleSelectRole = (roleKey) => {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("smartfm.role", roleKey);
+    }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="max-w-2xl w-full mx-auto p-8">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 py-12 px-4">
+      <div className="max-w-2xl w-full mx-auto p-8 bg-white border border-gray-300 shadow-sm">
         <div className="text-center mb-10">
-          <h1 className="text-4xl font-heading text-secondary mb-2">SmartFM</h1>
+          <h1 className="text-4xl font-heading text-secondary font-bold mb-2">SmartFM</h1>
           <p className="text-sm text-gray-500">Smart Fleet Management - ABC-Trans</p>
         </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {roles.map((role) => (
-            <button
+            <Link
               key={role.key}
-              type="button"
-              onClick={() => handleSelect(role)}
-              className="text-left bg-white border-1 border-gray-300 p-6 hover:border-primary transition-colors cursor-pointer"
+              href={role.route}
+              onClick={() => handleSelectRole(role.key)}
+              className="block text-left bg-white border border-gray-300 p-6 hover:border-primary hover:shadow-md transition-all cursor-pointer group"
             >
-              <h2 className="text-lg font-heading text-secondary mb-1">{role.name}</h2>
+              <h2 className="text-lg font-heading text-secondary group-hover:text-primary font-bold mb-1">
+                {role.name} →
+              </h2>
               <p className="text-sm text-gray-500">{role.description}</p>
-            </button>
+            </Link>
           ))}
         </div>
       </div>
     </div>
   );
 }
+
