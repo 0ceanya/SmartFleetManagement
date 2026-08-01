@@ -56,6 +56,16 @@ public class MasterDataController : ControllerBase
         return Ok(BranchResponse.FromEntity(branch));
     }
 
+    [HttpDelete("branches/{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteBranch(Guid id)
+    {
+        await _coordinator.DeleteBranchAsync(id);
+        return NoContent();
+    }
+
+
     [HttpGet("warehouses")]
     [ProducesResponseType(typeof(IEnumerable<WarehouseResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<WarehouseResponse>>> GetWarehouses()
@@ -94,6 +104,16 @@ public class MasterDataController : ControllerBase
         var warehouse = await _coordinator.UpdateWarehouseAsync(id, request.Name, request.Address);
         return Ok(WarehouseResponse.FromEntity(warehouse));
     }
+
+    [HttpDelete("warehouses/{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteWarehouse(Guid id)
+    {
+        await _coordinator.DeleteWarehouseAsync(id);
+        return NoContent();
+    }
+
 
     [HttpGet("employees")]
     [ProducesResponseType(typeof(IEnumerable<EmployeeResponse>), StatusCodes.Status200OK)]
@@ -154,6 +174,16 @@ public class MasterDataController : ControllerBase
         return Ok(EmployeeResponse.FromEntity(employee));
     }
 
+    [HttpDelete("employees/{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteEmployee(Guid id)
+    {
+        await _coordinator.DeleteEmployeeAsync(id);
+        return NoContent();
+    }
+
+
     [HttpGet("vehicles")]
     [ProducesResponseType(typeof(IEnumerable<VehicleResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<VehicleResponse>>> GetVehicles()
@@ -192,6 +222,16 @@ public class MasterDataController : ControllerBase
         var vehicle = await _coordinator.UpdateVehicleStatusAsync(id, request.Status);
         return Ok(VehicleResponse.FromEntity(vehicle));
     }
+
+    [HttpDelete("vehicles/{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteVehicle(Guid id)
+    {
+        await _coordinator.DeleteVehicleAsync(id);
+        return NoContent();
+    }
+
 
     [HttpGet("offerings")]
     [ProducesResponseType(typeof(IEnumerable<OfferingResponse>), StatusCodes.Status200OK)]
@@ -232,4 +272,14 @@ public class MasterDataController : ControllerBase
         var offering = await _coordinator.UpdateOfferingAsync(id, request.Description, request.BasePrice, request.MaxWeightKg, request.MaxVolumeCbm);
         return Ok(OfferingResponse.FromEntity(offering));
     }
+
+    [HttpDelete("offerings/{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteOffering(Guid id)
+    {
+        await _coordinator.DeleteOfferingAsync(id);
+        return NoContent();
+    }
+
 }

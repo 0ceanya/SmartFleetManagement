@@ -9,10 +9,11 @@ const beVietnam = Be_Vietnam_Pro({
 });
 
 const headingFont = Parkinsans({
-  subsets: ["latin", "vietnamese"],
+  subsets: ["latin"],
   weight: ["500", "600", "700", "800"],
   variable: "--font-heading",
   display: "swap",
+  adjustFontFallback: false,
 });
 
 export const metadata = {
