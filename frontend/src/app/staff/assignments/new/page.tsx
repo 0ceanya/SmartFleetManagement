@@ -27,9 +27,7 @@ import type {
 } from "@/lib/types";
 
 export default function CreateAssignmentPage() {
-  const [role] = React.useState<string | null>(() =>
-    typeof window === "undefined" ? null : sessionStorage.getItem("smartfm.role"),
-  );
+  const [role, setRole] = React.useState<string | null>(null);
 
   const [drivers, setDrivers] = React.useState<Employee[]>([]);
   const [vehicles, setVehicles] = React.useState<Vehicle[]>([]);
@@ -46,6 +44,10 @@ export default function CreateAssignmentPage() {
   const [submitting, setSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
   const [submitResult, setSubmitResult] = React.useState<AssignmentResponse | null>(null);
+
+  React.useEffect(() => {
+    setRole(sessionStorage.getItem("smartfm.role"));
+  }, []);
 
   React.useEffect(() => {
     async function load() {

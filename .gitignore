@@ -6,3 +6,4 @@ meomeo.txt
 *.db
 *.db-shm
 *.db-wal
+*patch

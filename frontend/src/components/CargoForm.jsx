@@ -164,32 +164,28 @@ export default function CargoForm({ orderData = {}, onChange }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label className="block text-xs font-bold tracking-wider text-gray-700 mb-2">
-            Origin Warehouse
+            Pickup Address
           </label>
-          <select
-            value={orderData.originWarehouse || ""}
-            onChange={(e) => onChange("originWarehouse", e.target.value)}
-            className="w-full border-1 border-gray-300 p-3.5 text-sm font-medium focus:border-primary focus:outline-none bg-white transition-colors cursor-pointer"
-          >
-            <option value="">-- Select Distribution Center --</option>
-            <option value="DC-NORTH-01">DC North - Bac Ninh Hub</option>
-            <option value="DC-SOUTH-02">DC South - Binh Duong Hub</option>
-          </select>
+          <input
+            type="text"
+            placeholder="e.g. 12 Le Loi Street, District 1, Ho Chi Minh City"
+            value={orderData.pickupAddress || ""}
+            onChange={(e) => onChange("pickupAddress", e.target.value)}
+            className="w-full border-1 border-gray-300 p-3.5 text-sm font-medium focus:border-primary focus:outline-none bg-white transition-colors"
+          />
         </div>
 
         <div>
           <label className="block text-xs font-bold tracking-wider text-gray-700 mb-2">
-            Destination Store
+            Delivery Address
           </label>
-          <select
-            value={orderData.destinationStore || ""}
-            onChange={(e) => onChange("destinationStore", e.target.value)}
-            className="w-full border-1 border-gray-300 p-3.5 text-sm font-medium focus:border-primary focus:outline-none bg-white transition-colors cursor-pointer"
-          >
-            <option value="">-- Select Retail Branch --</option>
-            <option value="ST-HN-004">Supermarket Branch - Cau Giay, Hanoi</option>
-            <option value="ST-HN-012">Supermarket Branch - Hoan Kiem, Hanoi</option>
-          </select>
+          <input
+            type="text"
+            placeholder="e.g. 45 Tran Hung Dao Street, Hoan Kiem, Hanoi"
+            value={orderData.deliveryAddress || ""}
+            onChange={(e) => onChange("deliveryAddress", e.target.value)}
+            className="w-full border-1 border-gray-300 p-3.5 text-sm font-medium focus:border-primary focus:outline-none bg-white transition-colors"
+          />
         </div>
       </div>
 

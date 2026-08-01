@@ -19,19 +19,10 @@ builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 
 builder.Services.AddCors(options =>
 {
-<<<<<<< Updated upstream
     options.AddPolicy("Frontend", policy =>
         policy.WithOrigins("http://localhost:3000")
               .AllowAnyHeader()
               .AllowAnyMethod());
-=======
-    options.AddPolicy("AllowAll", policy =>
-    {
-        policy.AllowAnyOrigin()
-              .AllowAnyHeader()
-              .AllowAnyMethod();
-    });
->>>>>>> Stashed changes
 });
 
 builder.Services.AddDbContext<SmartFMDbContext>(options =>
@@ -53,7 +44,6 @@ builder.Services.AddHostedService<TelemetrySimulator>();
 
 var app = builder.Build();
 
-app.UseCors("AllowAll");
 app.UseExceptionHandler();
 
 app.UseCors("Frontend");

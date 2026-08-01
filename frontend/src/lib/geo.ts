@@ -4,10 +4,20 @@ const NOMINATIM_MIN_SPACING_MS = 1100;
 const OSRM_TIMEOUT_MS = 8000;
 
 const geocodeCache = new Map<string, GeocodeResult | null>();
-let geocodeQueue: Promise<void> = Promise.resolve();
+const reverseGeocodeCache = new Map<string, string | null>();
+let nominatimQueue: Promise<unknown> = Promise.resolve();
 
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function queueNominatimCall<T>(run: () => Promise<T>): Promise<T> {
+  const result = nominatimQueue.then(run);
+  nominatimQueue = result.then(
+    () => wait(NOMINATIM_MIN_SPACING_MS),
+    () => wait(NOMINATIM_MIN_SPACING_MS),
+  );
+  return result;
 }
 
 export function geocodeAddress(address: string): Promise<GeocodeResult | null> {
@@ -15,12 +25,10 @@ export function geocodeAddress(address: string): Promise<GeocodeResult | null> {
     return Promise.resolve(geocodeCache.get(address) ?? null);
   }
 
-  const result = geocodeQueue.then(async () => {
+  return queueNominatimCall(async () => {
     try {
       const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(address)}`;
-      const res = await fetch(url, {
-        headers: { Accept: "application/json" },
-      });
+      const res = await fetch(url, { headers: { Accept: "application/json" } });
       if (!res.ok) {
         geocodeCache.set(address, null);
         return null;
@@ -43,13 +51,31 @@ export function geocodeAddress(address: string): Promise<GeocodeResult | null> {
       return null;
     }
   });
+}
 
-  geocodeQueue = result.then(
-    () => wait(NOMINATIM_MIN_SPACING_MS),
-    () => wait(NOMINATIM_MIN_SPACING_MS),
-  );
+export function reverseGeocode(lat: number, lon: number): Promise<string | null> {
+  const key = `${lat.toFixed(6)},${lon.toFixed(6)}`;
+  if (reverseGeocodeCache.has(key)) {
+    return Promise.resolve(reverseGeocodeCache.get(key) ?? null);
+  }
 
-  return result;
+  return queueNominatimCall(async () => {
+    try {
+      const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`;
+      const res = await fetch(url, { headers: { Accept: "application/json" } });
+      if (!res.ok) {
+        reverseGeocodeCache.set(key, null);
+        return null;
+      }
+      const body = await res.json();
+      const address = typeof body?.display_name === "string" ? body.display_name : null;
+      reverseGeocodeCache.set(key, address);
+      return address;
+    } catch {
+      reverseGeocodeCache.set(key, null);
+      return null;
+    }
+  });
 }
 
 export async function fetchOsrmRoute(
