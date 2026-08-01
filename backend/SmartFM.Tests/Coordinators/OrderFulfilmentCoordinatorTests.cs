@@ -58,18 +58,45 @@ public class OrderFulfilmentCoordinatorTests : IDisposable
 
         var (customer, order, shipment) = await _coordinator.PlaceOrderAsync(
             "Nguyen Van Khach", "khach@example.com", "0900000000", offering.Id, warehouse.Id,
-            new[] { ("Boxed goods", 10m, (decimal?)1m, false) });
+            new[] { ("Boxed goods", 10m, (decimal?)1m, false) }, 10m);
 
         Assert.NotEqual(Guid.Empty, customer.Id);
         Assert.Equal(customer.Id, order.CustomerId);
         Assert.Equal(order.Id, shipment.OrderId);
         Assert.Equal(warehouse.Id, shipment.WarehouseId);
-        Assert.Single(shipment.Cargoes);
-        var cargo = shipment.Cargoes[0];
+        Assert.Equal(10m, order.OrderWeightKg);
+        Assert.Single(order.Cargoes);
+        var cargo = order.Cargoes[0];
         Assert.Equal("Boxed goods", cargo.Description);
         Assert.Equal(10m, cargo.WeightKg);
         Assert.Equal(1m, cargo.VolumeCbm);
-        Assert.Equal(shipment.Id, cargo.ShipmentId);
+        Assert.Equal(order.Id, cargo.OrderId);
+    }
+
+    [Fact]
+    public async Task OrderFulfilmentCoordinatorPlacesOrderWithMultipleCargoItemsAndCalculatesOrderWeight()
+    {
+        var offering = await SeedOfferingAsync();
+        var warehouse = await SeedWarehouseAsync();
+
+        var cargoData = new List<CargoData>
+        {
+            new CargoData("Pallet 1 - Supermarket Goods", 35m, 1.5m, false),
+            new CargoData("Pallet 2 - Household Supplies", 15m, 1.0m, false)
+        };
+
+        var (customer, order, shipment) = await _coordinator.PlaceOrderAsync(
+            "Supermarket Customer", "supermarket@example.com", "0912345678", offering.Id, warehouse.Id, cargoData);
+
+        // Total order weight = 35 + 15 = 50kg
+        Assert.Equal(50m, order.OrderWeightKg);
+        Assert.Equal(2, order.Cargoes.Count);
+
+        var cargo1 = order.Cargoes[0];
+        Assert.Equal(35m, cargo1.WeightKg);
+
+        var cargo2 = order.Cargoes[1];
+        Assert.Equal(15m, cargo2.WeightKg);
     }
 
     [Fact]
@@ -80,15 +107,15 @@ public class OrderFulfilmentCoordinatorTests : IDisposable
 
         var (_, order, _) = await _coordinator.PlaceOrderAsync(
             "Tran Thi Khach", "khach4@example.com", "0900000004", offering.Id, warehouse.Id,
-            new[] { ("Boxed goods", 10m, (decimal?)1m, false) });
+            new[] { ("Boxed goods", 10m, (decimal?)1m, false) }, 10m);
 
         var details = await _coordinator.GetOrderDetailsAsync(order.Id);
 
         Assert.NotNull(details);
+        Assert.Equal(10m, details.Value.Order.OrderWeightKg);
         Assert.Single(details.Value.Shipments);
-        var shipment = details.Value.Shipments[0];
-        Assert.Single(shipment.Cargoes);
-        Assert.Equal("Boxed goods", shipment.Cargoes[0].Description);
+        Assert.Single(details.Value.Cargoes);
+        Assert.Equal("Boxed goods", details.Value.Cargoes[0].Description);
     }
 
     [Fact]
@@ -98,11 +125,11 @@ public class OrderFulfilmentCoordinatorTests : IDisposable
         var warehouse = await SeedWarehouseAsync();
         var (first, _, _) = await _coordinator.PlaceOrderAsync(
             "Nguyen Van Khach", "khach@example.com", "0900000000", offering.Id, warehouse.Id,
-            Array.Empty<(string, decimal, decimal?, bool)>());
+            new[] { ("First parcel", 5m, (decimal?)null, false) }, 5m);
 
         var (second, _, _) = await _coordinator.PlaceOrderAsync(
             "Nguyen Van Khach", "khach@example.com", "0900000000", offering.Id, warehouse.Id,
-            Array.Empty<(string, decimal, decimal?, bool)>());
+            new[] { ("Second parcel", 5m, (decimal?)null, false) }, 5m);
 
         Assert.Equal(first.Id, second.Id);
     }
@@ -115,7 +142,7 @@ public class OrderFulfilmentCoordinatorTests : IDisposable
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => _coordinator.PlaceOrderAsync(
             "Nguyen Van Khach", "khach@example.com", "0900000000", offering.Id, warehouse.Id,
-            new[] { ("Overweight item", 150m, (decimal?)null, false) }));
+            new[] { ("Overweight item", 150m, (decimal?)null, false) }, 150m));
     }
 
     [Fact]
@@ -126,13 +153,13 @@ public class OrderFulfilmentCoordinatorTests : IDisposable
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => _coordinator.PlaceOrderAsync(
             "Nguyen Van Khach", "khach@example.com", "0900000000", offering.Id, warehouse.Id,
-            new[] { ("Oversized item", 10m, (decimal?)5m, false) }));
+            new[] { ("Oversized item", 10m, (decimal?)5m, false) }, 10m));
 
-        var (_, _, shipment) = await _coordinator.PlaceOrderAsync(
+        var (_, order, shipment) = await _coordinator.PlaceOrderAsync(
             "Tran Thi Khach", "khach2@example.com", "0900000001", offering.Id, warehouse.Id,
-            new[] { ("Item without volume", 10m, (decimal?)null, false) });
+            new[] { ("Item without volume", 10m, (decimal?)null, false) }, 10m);
 
-        Assert.Single(shipment.Cargoes);
+        Assert.Single(order.Cargoes);
     }
 
     [Fact]
@@ -143,7 +170,18 @@ public class OrderFulfilmentCoordinatorTests : IDisposable
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => _coordinator.PlaceOrderAsync(
             "Nguyen Van Khach", "khach@example.com", "0900000000", offering.Id, warehouse.Id,
-            new[] { ("Heavy item", 100m, (decimal?)null, false) }));
+            new[] { ("Heavy item", 100m, (decimal?)null, false) }, 100m));
+    }
+
+    [Fact]
+    public async Task OrderFulfilmentCoordinatorRejectsMismatchedOrderWeightAndCargoWeight()
+    {
+        var offering = await SeedOfferingAsync();
+        var warehouse = await SeedWarehouseAsync();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _coordinator.PlaceOrderAsync(
+            "Nguyen Van Khach", "khach@example.com", "0900000000", offering.Id, warehouse.Id,
+            new[] { ("Boxed goods", 10m, (decimal?)null, false) }, 12m));
     }
 
     public void Dispose()

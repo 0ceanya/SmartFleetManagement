@@ -24,14 +24,14 @@ public class OrdersController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<OrderDetailsResponse>> PlaceOrder(PlaceOrderRequest request)
     {
-        var cargoItems = request.CargoItems
-            .Select(item => (item.Description, item.WeightKg, item.VolumeCbm, item.IsHazardous))
+        var cargoDataList = request.CargoItems
+            .Select(item => new CargoData(item.Description, item.WeightKg, item.VolumeCbm, item.IsHazardous))
             .ToList();
 
         var (_, order, shipment) = await _coordinator.PlaceOrderAsync(
-            request.CustomerName, request.CustomerEmail, request.CustomerPhone, request.OfferingId, request.WarehouseId, cargoItems);
+            request.CustomerName, request.CustomerEmail, request.CustomerPhone, request.OfferingId, request.WarehouseId, cargoDataList, request.OrderWeightKg);
 
-        var response = OrderDetailsResponse.FromEntity(order, new[] { (shipment, (IReadOnlyList<Cargo>)shipment.Cargoes) });
+        var response = OrderDetailsResponse.FromEntity(order, order.Cargoes, new[] { shipment });
         return CreatedAtAction(nameof(GetOrderById), new { id = order.Id }, response);
     }
 
@@ -43,7 +43,7 @@ public class OrdersController : ControllerBase
         var details = await _coordinator.GetOrderDetailsAsync(id);
         if (details is null)
             return Problem(detail: $"Order {id} not found.", statusCode: StatusCodes.Status404NotFound);
-        return Ok(OrderDetailsResponse.FromEntity(details.Value.Order, details.Value.Shipments));
+        return Ok(OrderDetailsResponse.FromEntity(details.Value.Order, details.Value.Cargoes, details.Value.Shipments));
     }
 
     [HttpGet]

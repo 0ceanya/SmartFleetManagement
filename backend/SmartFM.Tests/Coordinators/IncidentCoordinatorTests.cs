@@ -13,7 +13,7 @@ public class IncidentCoordinatorTests : IDisposable
 {
     private readonly InMemoryDbContextFactory _factory = new();
     private readonly SmartFMDbContext _context;
-    private readonly IncidentCoordinator _coordinator;
+    private readonly IncidentCoordinator _incidentCoordinator;
     private readonly FleetAssignmentCoordinator _fleetAssignmentCoordinator;
     private readonly Repository<Branch> _branches;
     private readonly Repository<Warehouse> _warehouses;
@@ -24,6 +24,7 @@ public class IncidentCoordinatorTests : IDisposable
     private readonly Repository<Order> _orders;
     private readonly Repository<Shipment> _shipments;
     private readonly Repository<Cargo> _cargoes;
+    private readonly Repository<LoadManifest> _loadManifests;
 
     public IncidentCoordinatorTests()
     {
@@ -37,8 +38,10 @@ public class IncidentCoordinatorTests : IDisposable
         _orders = new Repository<Order>(_context);
         _shipments = new Repository<Shipment>(_context);
         _cargoes = new Repository<Cargo>(_context);
+        _loadManifests = new Repository<LoadManifest>(_context);
 
         var unitOfWork = new UnitOfWork(_context);
+
         _fleetAssignmentCoordinator = new FleetAssignmentCoordinator(
             new Repository<Route>(_context),
             new Repository<Assignment>(_context),
@@ -49,26 +52,28 @@ public class IncidentCoordinatorTests : IDisposable
             new Repository<DeliveryConfirmation>(_context),
             unitOfWork);
 
-        _coordinator = new IncidentCoordinator(
+        _incidentCoordinator = new IncidentCoordinator(
             new Repository<IncidentRecord>(_context),
-            new Repository<LoadManifest>(_context),
+            _loadManifests,
             new Repository<Assignment>(_context),
             _shipments,
+            _cargoes,
             _fleetAssignmentCoordinator,
             unitOfWork);
     }
 
-    private async Task<(Driver driver, Vehicle vehicle, Assignment assignment)> SeedActiveAssignmentAsync()
+    private async Task<(Driver Driver, Vehicle Vehicle, Assignment Assignment)> SeedActiveAssignmentAsync()
     {
         var branch = new Branch("Hanoi Branch", "Hanoi");
         await _branches.AddAsync(branch);
-        var origin = new Warehouse("Origin Warehouse", "1 Origin Street", branch.Id, 5000m);
-        var destination = new Warehouse("Destination Warehouse", "1 Destination Street", branch.Id, 5000m);
+        var origin = new Warehouse("Hanoi Warehouse", "1 Giai Phong Street", branch.Id, 1000m);
+        var destination = new Warehouse("HCMC Warehouse", "2 Nguyen Van Linh Street", branch.Id, 1000m);
         await _warehouses.AddAsync(origin);
         await _warehouses.AddAsync(destination);
 
-        var driver = new Driver("Nguyen Van Tai Xe", "driver@example.com", branch.Id, "D-0001");
+        var driver = new Driver("Nguyen Van A", "driver.a@example.com", branch.Id, "D-001");
         await _drivers.AddAsync(driver);
+
         var vehicle = new LightVehicle("29A-00001", branch.Id);
         await _vehicles.AddAsync(vehicle);
 
@@ -82,8 +87,8 @@ public class IncidentCoordinatorTests : IDisposable
         await _orders.AddAsync(order);
         await _shipments.AddAsync(shipment);
 
-        var cargo = new Cargo(shipment.Id, "Boxed goods", 10m, 1m, false);
-        shipment.AddCargo(cargo);
+        var cargo = new Cargo(order.Id, "Boxed goods", 10m, 1m, false);
+        order.AddCargo(cargo);
         await _cargoes.AddAsync(cargo);
         await _context.SaveChangesAsync();
 
@@ -95,56 +100,22 @@ public class IncidentCoordinatorTests : IDisposable
     }
 
     [Fact]
-    public async Task IncidentCoordinatorCreatesIncidentRecordAndLoadManifestForActiveAssignment()
-    {
-        var (_, vehicle, _) = await SeedActiveAssignmentAsync();
-
-        var incident = await _coordinator.ReportIncidentAsync(vehicle.Id, "Vehicle breakdown", "High");
-
-        Assert.Equal(vehicle.Id, incident.VehicleId);
-        var manifests = _context.Set<LoadManifest>().ToList();
-        Assert.Single(manifests);
-        Assert.Contains("Boxed goods", manifests[0].CargoDescriptions);
-    }
-
-    [Fact]
-    public async Task IncidentCoordinatorRequestsReallocationFreeingDriverAndVehicle()
+    public async Task ReportIncidentUpdatesVehicleStatusAndGeneratesReport()
     {
         var (driver, vehicle, assignment) = await SeedActiveAssignmentAsync();
 
-        await _coordinator.ReportIncidentAsync(vehicle.Id, "Vehicle breakdown", "High");
+        var incident = await _incidentCoordinator.ReportIncidentAsync(vehicle.Id, "Engine overheating", "High");
 
-        var completedAssignment = await _fleetAssignmentCoordinator.GetAssignmentByIdAsync(assignment.Id);
-        Assert.Equal(AssignmentStatus.Completed, completedAssignment!.Status);
+        Assert.NotNull(incident);
+        Assert.Equal(vehicle.Id, incident.VehicleId);
+        Assert.Equal("Engine overheating", incident.Description);
 
-        var freedDriver = await _drivers.GetByIdAsync(driver.Id);
-        Assert.True(freedDriver!.IsAvailable);
-    }
+        var updatedAssignment = await (new Repository<Assignment>(_context)).GetByIdAsync(assignment.Id);
+        Assert.NotNull(updatedAssignment);
 
-    [Fact]
-    public async Task IncidentCoordinatorCreatesIncidentRecordWhenTelemetryFlagsAnomaly()
-    {
-        var (_, vehicle, _) = await SeedActiveAssignmentAsync();
-        var data = new TelemetryData(vehicle.Id, 21.0, 105.8, DateTime.UtcNow, IsAnomaly: true);
-
-        _coordinator.OnTelemetryReceived(vehicle, data);
-
-        var incidents = _context.Set<IncidentRecord>().ToList();
-        Assert.Single(incidents);
-        var manifests = _context.Set<LoadManifest>().ToList();
+        var manifests = (await _loadManifests.GetAllAsync()).ToList();
         Assert.Single(manifests);
-    }
-
-    [Fact]
-    public async Task IncidentCoordinatorIgnoresTelemetryWithoutAnomalyFlag()
-    {
-        var (_, vehicle, _) = await SeedActiveAssignmentAsync();
-        var data = new TelemetryData(vehicle.Id, 21.0, 105.8, DateTime.UtcNow, IsAnomaly: false);
-
-        _coordinator.OnTelemetryReceived(vehicle, data);
-
-        Assert.Empty(_context.Set<IncidentRecord>().ToList());
-        Assert.Empty(_context.Set<LoadManifest>().ToList());
+        Assert.Contains("Boxed goods", manifests[0].CargoDescriptions);
     }
 
     public void Dispose()

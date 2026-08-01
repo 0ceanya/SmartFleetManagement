@@ -2,9 +2,62 @@
 
 import React from "react";
 
-export default function CargoForm({ orderData, onChange }) {
-  const handleChange = (field, value) => {
-    onChange(field, value);
+export default function CargoForm({ orderData = {}, onChange }) {
+  const cargoItems = orderData.cargoItems || [
+    {
+      description: "Cargo 1 - Fresh Produce Pallet",
+      weightKg: 250,
+      volumeCbm: 1.2,
+      isHazardous: false,
+    },
+  ];
+
+  const totalOrderWeightKg = cargoItems.reduce(
+    (sum, cargo) => sum + (Number(cargo.weightKg) || 0),
+    0
+  );
+
+  const handleCargoChange = (index, field, value) => {
+    const updatedCargoes = [...cargoItems];
+    updatedCargoes[index] = { ...updatedCargoes[index], [field]: value };
+    onChange("cargoItems", updatedCargoes);
+
+    const newTotalWeight = updatedCargoes.reduce(
+      (sum, cargo) => sum + (Number(cargo.weightKg) || 0),
+      0
+    );
+    onChange("orderWeightKg", newTotalWeight);
+  };
+
+  const addCargo = () => {
+    const updatedCargoes = [
+      ...cargoItems,
+      {
+        description: `Cargo ${cargoItems.length + 1}`,
+        weightKg: 100,
+        volumeCbm: 1.0,
+        isHazardous: false,
+      },
+    ];
+    onChange("cargoItems", updatedCargoes);
+
+    const newTotalWeight = updatedCargoes.reduce(
+      (sum, cargo) => sum + (Number(cargo.weightKg) || 0),
+      0
+    );
+    onChange("orderWeightKg", newTotalWeight);
+  };
+
+  const removeCargo = (index) => {
+    if (cargoItems.length <= 1) return;
+    const updatedCargoes = cargoItems.filter((_, idx) => idx !== index);
+    onChange("cargoItems", updatedCargoes);
+
+    const newTotalWeight = updatedCargoes.reduce(
+      (sum, cargo) => sum + (Number(cargo.weightKg) || 0),
+      0
+    );
+    onChange("orderWeightKg", newTotalWeight);
   };
 
   return (
@@ -15,8 +68,8 @@ export default function CargoForm({ orderData, onChange }) {
             Origin Warehouse
           </label>
           <select
-            value={orderData.originWarehouse}
-            onChange={(e) => handleChange("originWarehouse", e.target.value)}
+            value={orderData.originWarehouse || ""}
+            onChange={(e) => onChange("originWarehouse", e.target.value)}
             className="w-full border-1 border-gray-300 p-3.5 text-sm font-medium focus:border-primary focus:outline-none bg-white transition-colors cursor-pointer"
           >
             <option value="">-- Select Distribution Center --</option>
@@ -30,87 +83,95 @@ export default function CargoForm({ orderData, onChange }) {
             Destination Store
           </label>
           <select
-            value={orderData.destinationStore}
-            onChange={(e) => handleChange("destinationStore", e.target.value)}
+            value={orderData.destinationStore || ""}
+            onChange={(e) => onChange("destinationStore", e.target.value)}
             className="w-full border-1 border-gray-300 p-3.5 text-sm font-medium focus:border-primary focus:outline-none bg-white transition-colors cursor-pointer"
           >
             <option value="">-- Select Retail Branch --</option>
-            <option value="ST-HN-004">
-              Supermarket Branch - Cau Giay, Hanoi
-            </option>
-            <option value="ST-HN-012">
-              Supermarket Branch - Hoan Kiem, Hanoi
-            </option>
+            <option value="ST-HN-004">Supermarket Branch - Cau Giay, Hanoi</option>
+            <option value="ST-HN-012">Supermarket Branch - Hoan Kiem, Hanoi</option>
           </select>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
+      <div className="bg-gray-50 border-1 border-gray-200 p-4 rounded-sm flex items-center justify-between">
         <div>
-          <label className="block text-xs font-bold tracking-wider text-gray-700 mb-2">
-            Total Pallets
-          </label>
-          <input
-            type="number"
-            min="1"
-            value={orderData.palletCount}
-            onChange={(e) =>
-              handleChange("palletCount", Number(e.target.value))
-            }
-            className="w-full border-1 border-gray-300 p-3.5 text-sm font-bold focus:border-primary focus:outline-none transition-colors"
-          />
+          <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Calculated Total Order Weight</span>
+          <p className="text-2xl font-bold text-black">{totalOrderWeightKg.toFixed(2)} kg</p>
         </div>
-
-        <div>
-          <label className="block text-xs font-bold tracking-wider text-gray-700 mb-2">
-            Estimated Weight (Kg)
-          </label>
-          <input
-            type="number"
-            step="50"
-            value={orderData.weightKg}
-            onChange={(e) => handleChange("weightKg", Number(e.target.value))}
-            className="w-full border-1 border-gray-300 p-3.5 text-sm font-bold focus:border-primary focus:outline-none transition-colors"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-bold tracking-wider text-gray-700 mb-2">
-            Storage Condition
-          </label>
-          <select
-            value={orderData.cargoType}
-            onChange={(e) => handleChange("cargoType", e.target.value)}
-            className="w-full border-1 border-gray-300 p-3.5 text-sm font-medium focus:border-primary focus:outline-none bg-white transition-colors cursor-pointer"
-          >
-            <option value="ambient">Standard Ambient</option>
-            <option value="chilled">Chilled 0°C - 4°C</option>
-          </select>
-        </div>
+        <button
+          type="button"
+          onClick={addCargo}
+          className="bg-black text-white px-4 py-2 text-xs font-bold hover:bg-gray-800 transition-colors cursor-pointer"
+        >
+          + Add Cargo Item
+        </button>
       </div>
 
-      <div className="pt-2">
-        <label className="block text-xs font-bold tracking-wider text-gray-700 mb-2">
-          Item Manifest & Special Instructions (Optional)
-        </label>
-        <div className="border-1 border-gray-300 p-5 bg-tertiary flex flex-col md:flex-row items-center justify-between gap-4 hover:border-primary transition-colors">
-          <div>
-            <p className="text-sm font-bold text-black">
-              Upload SKU Manifest (CSV / Excel)
-            </p>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Attach detailed item list for supermarket receiving dock
-              validation.
-            </p>
+      {cargoItems.map((cargo, cIdx) => (
+        <div key={cIdx} className="border-1 border-gray-300 p-4 space-y-4">
+          <div className="flex justify-between items-center border-b pb-2">
+            <h3 className="font-bold text-sm text-secondary">Cargo Item #{cIdx + 1}</h3>
+            {cargoItems.length > 1 && (
+              <button
+                type="button"
+                onClick={() => removeCargo(cIdx)}
+                className="text-xs font-bold text-red-600 hover:underline"
+              >
+                Remove
+              </button>
+            )}
           </div>
-          <button
-            type="button"
-            className="bg-white px-4 py-2 text-xs font-bold text-black hover:bg-black hover:text-white transition-all cursor-pointer whitespace-nowrap"
-          >
-            + Browse CSV
-          </button>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="md:col-span-2">
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Cargo Description</label>
+              <input
+                type="text"
+                placeholder="e.g. Pallet of Dairy Products"
+                value={cargo.description || ""}
+                onChange={(e) => handleCargoChange(cIdx, "description", e.target.value)}
+                className="w-full border border-gray-300 p-2 text-xs"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Weight (Kg)</label>
+              <input
+                type="number"
+                step="1"
+                min="0.1"
+                placeholder="Weight in Kg"
+                value={cargo.weightKg || ""}
+                onChange={(e) => handleCargoChange(cIdx, "weightKg", Number(e.target.value))}
+                className="w-full border border-gray-300 p-2 text-xs font-bold"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Volume (m³)</label>
+              <input
+                type="number"
+                step="0.1"
+                placeholder="Volume in m³"
+                value={cargo.volumeCbm || ""}
+                onChange={(e) => handleCargoChange(cIdx, "volumeCbm", Number(e.target.value))}
+                className="w-full border border-gray-300 p-2 text-xs"
+              />
+            </div>
+          </div>
+
+          <div className="pt-1">
+            <label className="inline-flex items-center text-xs font-semibold text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={cargo.isHazardous || false}
+                onChange={(e) => handleCargoChange(cIdx, "isHazardous", e.target.checked)}
+                className="mr-2"
+              />
+              Hazardous Material
+            </label>
+          </div>
         </div>
-      </div>
+      ))}
     </div>
   );
 }

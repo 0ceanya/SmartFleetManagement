@@ -34,7 +34,11 @@ public record PlaceOrderRequest
     [Required]
     public Guid WarehouseId { get; init; }
 
+    [Range(typeof(decimal), "0.01", "79228162514264337593543950335", ParseLimitsInInvariantCulture = true)]
+    public decimal? OrderWeightKg { get; init; }
+
     [Required]
+    [MinLength(1)]
     public List<CargoItemRequest> CargoItems { get; init; } = [];
 }
 
@@ -44,21 +48,22 @@ public record CargoResponse(Guid Id, string Description, decimal WeightKg, decim
         new(cargo.Id, cargo.Description, cargo.WeightKg, cargo.VolumeCbm, cargo.IsHazardous);
 }
 
-public record ShipmentSummaryResponse(Guid Id, Guid WarehouseId, string Status, DateTime CreatedAt, IReadOnlyList<CargoResponse> CargoItems)
+public record ShipmentSummaryResponse(Guid Id, Guid WarehouseId, string Status, DateTime CreatedAt)
 {
-    public static ShipmentSummaryResponse FromEntity(Shipment shipment, IReadOnlyList<Cargo> cargoItems) =>
-        new(shipment.Id, shipment.WarehouseId, shipment.Status, shipment.CreatedAt, cargoItems.Select(CargoResponse.FromEntity).ToList());
+    public static ShipmentSummaryResponse FromEntity(Shipment shipment) =>
+        new(shipment.Id, shipment.WarehouseId, shipment.Status, shipment.CreatedAt);
 }
 
-public record OrderDetailsResponse(Guid Id, Guid CustomerId, Guid OfferingId, string Status, DateTime CreatedAt, IReadOnlyList<ShipmentSummaryResponse> Shipments)
+public record OrderDetailsResponse(Guid Id, Guid CustomerId, Guid OfferingId, decimal OrderWeightKg, string Status, DateTime CreatedAt, IReadOnlyList<CargoResponse> Cargoes, IReadOnlyList<ShipmentSummaryResponse> Shipments)
 {
-    public static OrderDetailsResponse FromEntity(Order order, IReadOnlyList<(Shipment Shipment, IReadOnlyList<Cargo> Cargoes)> shipments) =>
-        new(order.Id, order.CustomerId, order.OfferingId, order.Status, order.CreatedAt,
-            shipments.Select(s => ShipmentSummaryResponse.FromEntity(s.Shipment, s.Cargoes)).ToList());
+    public static OrderDetailsResponse FromEntity(Order order, IReadOnlyList<Cargo> cargoes, IReadOnlyList<Shipment> shipments) =>
+        new(order.Id, order.CustomerId, order.OfferingId, order.OrderWeightKg, order.Status, order.CreatedAt,
+            cargoes.Select(CargoResponse.FromEntity).ToList(),
+            shipments.Select(ShipmentSummaryResponse.FromEntity).ToList());
 }
 
-public record OrderSummaryResponse(Guid Id, Guid CustomerId, Guid OfferingId, string Status, DateTime CreatedAt)
+public record OrderSummaryResponse(Guid Id, Guid CustomerId, Guid OfferingId, decimal OrderWeightKg, string Status, DateTime CreatedAt)
 {
     public static OrderSummaryResponse FromEntity(Order order) =>
-        new(order.Id, order.CustomerId, order.OfferingId, order.Status, order.CreatedAt);
+        new(order.Id, order.CustomerId, order.OfferingId, order.OrderWeightKg, order.Status, order.CreatedAt);
 }

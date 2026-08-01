@@ -12,6 +12,7 @@ public class IncidentCoordinator : ITelemetryObserver
     private readonly IRepository<LoadManifest> _loadManifests;
     private readonly IRepository<Assignment> _assignments;
     private readonly IRepository<Shipment> _shipments;
+    private readonly IRepository<Cargo> _cargoes;
     private readonly FleetAssignmentCoordinator _fleetAssignmentCoordinator;
     private readonly IUnitOfWork _unitOfWork;
 
@@ -20,6 +21,7 @@ public class IncidentCoordinator : ITelemetryObserver
         IRepository<LoadManifest> loadManifests,
         IRepository<Assignment> assignments,
         IRepository<Shipment> shipments,
+        IRepository<Cargo> cargoes,
         FleetAssignmentCoordinator fleetAssignmentCoordinator,
         IUnitOfWork unitOfWork)
     {
@@ -27,6 +29,7 @@ public class IncidentCoordinator : ITelemetryObserver
         _loadManifests = loadManifests;
         _assignments = assignments;
         _shipments = shipments;
+        _cargoes = cargoes;
         _fleetAssignmentCoordinator = fleetAssignmentCoordinator;
         _unitOfWork = unitOfWork;
     }
@@ -105,11 +108,13 @@ public class IncidentCoordinator : ITelemetryObserver
         if (shipment is null)
             return;
 
+        var cargoes = (await _cargoes.GetAllAsync()).Where(c => c.OrderId == shipment.OrderId).ToList();
+
         var manifest = new LoadManifest(
             shipment.Id,
-            shipment.Cargoes.Select(c => c.Description).ToList(),
-            shipment.Cargoes.Sum(c => c.WeightKg),
-            shipment.Cargoes.Any(c => c.IsHazardous),
+            cargoes.Select(c => c.Description).ToList(),
+            cargoes.Sum(c => c.WeightKg),
+            cargoes.Any(c => c.IsHazardous),
             DateTime.UtcNow);
         await _loadManifests.AddAsync(manifest);
     }

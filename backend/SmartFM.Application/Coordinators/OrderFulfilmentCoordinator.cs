@@ -3,6 +3,8 @@ using SmartFM.Domain.Entities;
 
 namespace SmartFM.Application.Coordinators;
 
+public record CargoData(string Description, decimal WeightKg, decimal? VolumeCbm, bool IsHazardous);
+
 public class OrderFulfilmentCoordinator
 {
     private readonly IRepository<Customer> _customers;
@@ -69,20 +71,19 @@ public class OrderFulfilmentCoordinator
         return (order, shipment);
     }
 
-    public async Task<Cargo> AddCargoAsync(Guid shipmentId, string description, decimal weightKg, decimal? volumeCbm, bool isHazardous)
+    public async Task<Cargo> AddCargoAsync(Guid orderId, string description, decimal weightKg, decimal? volumeCbm, bool isHazardous)
     {
-        var shipment = await _shipments.GetByIdAsync(shipmentId)
-            ?? throw new InvalidOperationException($"Shipment {shipmentId} not found.");
-        var order = await _orders.GetByIdAsync(shipment.OrderId)
-            ?? throw new InvalidOperationException("Order not found for shipment.");
+        var order = await _orders.GetByIdAsync(orderId)
+            ?? throw new InvalidOperationException($"Order {orderId} not found.");
         var offering = await _offerings.GetByIdAsync(order.OfferingId)
             ?? throw new InvalidOperationException("Offering not found for order.");
 
         ValidateCargoAgainstOffering(offering, weightKg, volumeCbm);
 
-        var cargo = new Cargo(shipment.Id, description, weightKg, volumeCbm, isHazardous);
-        shipment.AddCargo(cargo);
+        var cargo = new Cargo(order.Id, description, weightKg, volumeCbm, isHazardous);
+        order.AddCargo(cargo);
         await _cargoes.AddAsync(cargo);
+
         await _unitOfWork.SaveChangesAsync();
         return cargo;
     }
@@ -93,14 +94,34 @@ public class OrderFulfilmentCoordinator
         string customerPhone,
         Guid offeringId,
         Guid warehouseId,
-        IReadOnlyList<(string Description, decimal WeightKg, decimal? VolumeCbm, bool IsHazardous)> cargoItems)
+        IReadOnlyList<(string Description, decimal WeightKg, decimal? VolumeCbm, bool IsHazardous)> cargoItems,
+        decimal? orderWeightKg = null)
+    {
+        var convertedCargoData = cargoItems.Select(c => new CargoData(c.Description, c.WeightKg, c.VolumeCbm, c.IsHazardous)).ToList();
+        return await PlaceOrderAsync(customerName, customerEmail, customerPhone, offeringId, warehouseId, convertedCargoData, orderWeightKg);
+    }
+
+    public async Task<(Customer customer, Order order, Shipment shipment)> PlaceOrderAsync(
+        string customerName,
+        string customerEmail,
+        string customerPhone,
+        Guid offeringId,
+        Guid warehouseId,
+        IReadOnlyList<CargoData> cargoItems,
+        decimal? orderWeightKg = null)
     {
         var offering = await _offerings.GetByIdAsync(offeringId)
             ?? throw new InvalidOperationException($"Offering {offeringId} not found.");
         var warehouse = await _warehouses.GetByIdAsync(warehouseId)
             ?? throw new InvalidOperationException($"Warehouse {warehouseId} not found.");
 
-        EnsureWarehouseCapacity(warehouse, cargoItems);
+        if (cargoItems == null || cargoItems.Count == 0)
+            throw new ArgumentException("Order must contain at least one cargo item.", nameof(cargoItems));
+
+        var totalCargoWeightKg = cargoItems.Sum(c => c.WeightKg);
+
+        ValidateOrderWeight(orderWeightKg, totalCargoWeightKg);
+        EnsureWarehouseCapacity(warehouse, orderWeightKg ?? totalCargoWeightKg);
 
         var customer = await FindCustomerByEmailAsync(customerEmail);
         if (customer is null)
@@ -109,20 +130,14 @@ public class OrderFulfilmentCoordinator
             await _customers.AddAsync(customer);
         }
 
-        var order = new Order(customer, offering);
+        var order = new Order(customer, offering, totalCargoWeightKg);
         var shipment = new Shipment(order, warehouse.Id);
         order.AttachShipment(shipment);
 
         await _orders.AddAsync(order);
         await _shipments.AddAsync(shipment);
 
-        foreach (var item in cargoItems)
-        {
-            ValidateCargoAgainstOffering(offering, item.WeightKg, item.VolumeCbm);
-            var cargo = new Cargo(shipment.Id, item.Description, item.WeightKg, item.VolumeCbm, item.IsHazardous);
-            shipment.AddCargo(cargo);
-            await _cargoes.AddAsync(cargo);
-        }
+        await CreateCargoesAsync(order, offering, cargoItems);
 
         await _unitOfWork.SaveChangesAsync();
         return (customer, order, shipment);
@@ -136,7 +151,7 @@ public class OrderFulfilmentCoordinator
 
     public Task<IEnumerable<Shipment>> GetShipmentsAsync() => _shipments.GetAllAsync();
 
-    public async Task<(Order Order, IReadOnlyList<(Shipment Shipment, IReadOnlyList<Cargo> Cargoes)> Shipments)?> GetOrderDetailsAsync(Guid id)
+    public async Task<(Order Order, IReadOnlyList<Cargo> Cargoes, IReadOnlyList<Shipment> Shipments)?> GetOrderDetailsAsync(Guid id)
     {
         var order = await _orders.GetByIdAsync(id);
         if (order is null)
@@ -146,11 +161,9 @@ public class OrderFulfilmentCoordinator
         var orderShipments = shipments.Where(s => s.OrderId == order.Id).ToList();
 
         var allCargoes = await _cargoes.GetAllAsync();
-        var result = orderShipments
-            .Select(s => (s, (IReadOnlyList<Cargo>)allCargoes.Where(c => c.ShipmentId == s.Id).ToList()))
-            .ToList();
+        var orderCargoes = allCargoes.Where(c => c.OrderId == order.Id).ToList();
 
-        return (order, result);
+        return (order, orderCargoes, orderShipments);
     }
 
     public async Task<IEnumerable<Order>> GetOrdersByCustomerEmailAsync(string email)
@@ -169,6 +182,21 @@ public class OrderFulfilmentCoordinator
         return customers.FirstOrDefault(c => string.Equals(c.Email, email, StringComparison.OrdinalIgnoreCase));
     }
 
+    private async Task CreateCargoesAsync(
+        Order order,
+        Offering offering,
+        IReadOnlyList<CargoData> cargoItems)
+    {
+        foreach (var item in cargoItems)
+        {
+            ValidateCargoAgainstOffering(offering, item.WeightKg, item.VolumeCbm);
+
+            var cargo = new Cargo(order.Id, item.Description, item.WeightKg, item.VolumeCbm, item.IsHazardous);
+            order.AddCargo(cargo);
+            await _cargoes.AddAsync(cargo);
+        }
+    }
+
     private static void ValidateCargoAgainstOffering(Offering offering, decimal weightKg, decimal? volumeCbm)
     {
         if (weightKg <= 0)
@@ -179,13 +207,19 @@ public class OrderFulfilmentCoordinator
             throw new InvalidOperationException($"VolumeCbm {volumeCbm} exceeds offering limit of {offering.MaxVolumeCbm}.");
     }
 
+    private static void ValidateOrderWeight(decimal? orderWeightKg, decimal cargoWeightKg)
+    {
+        if (orderWeightKg.HasValue && orderWeightKg.Value != cargoWeightKg)
+            throw new InvalidOperationException(
+                $"Order weight {orderWeightKg.Value}kg must match the combined cargo weight of {cargoWeightKg}kg.");
+    }
+
     private static void EnsureWarehouseCapacity(
         Warehouse warehouse,
-        IReadOnlyList<(string Description, decimal WeightKg, decimal? VolumeCbm, bool IsHazardous)> cargoItems)
+        decimal orderWeightKg)
     {
-        var totalWeightKg = cargoItems.Sum(item => item.WeightKg);
-        if (totalWeightKg > warehouse.CapacityKg)
+        if (orderWeightKg > warehouse.CapacityKg)
             throw new InvalidOperationException(
-                $"Order weight {totalWeightKg}kg exceeds warehouse '{warehouse.Name}' capacity of {warehouse.CapacityKg}kg.");
+                $"Order weight {orderWeightKg}kg exceeds warehouse '{warehouse.Name}' capacity of {warehouse.CapacityKg}kg.");
     }
 }

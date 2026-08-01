@@ -11,8 +11,13 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.ToTable("Orders");
         builder.HasKey(o => o.Id);
         builder.Property(o => o.Status).IsRequired();
+        builder.Property(o => o.OrderWeightKg).HasPrecision(18, 2);
         builder.HasMany(o => o.Shipments)
             .WithOne()
             .HasForeignKey(s => s.OrderId);
+        builder.HasMany(o => o.Cargoes)
+            .WithOne()
+            .HasForeignKey(c => c.OrderId);
+        builder.Navigation(o => o.Cargoes).AutoInclude();
     }
 }

@@ -11,9 +11,6 @@ public class ShipmentConfiguration : IEntityTypeConfiguration<Shipment>
         builder.ToTable("Shipments");
         builder.HasKey(s => s.Id);
         builder.Property(s => s.Status).IsRequired();
-        builder.HasMany(s => s.Cargoes)
-            .WithOne()
-            .HasForeignKey(c => c.ShipmentId);
         builder.HasOne<Assignment>()
             .WithMany()
             .HasForeignKey(s => s.AssignmentId)

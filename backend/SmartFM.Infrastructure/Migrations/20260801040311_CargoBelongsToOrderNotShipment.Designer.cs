@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SmartFM.Infrastructure.Persistence;
 
@@ -10,9 +11,11 @@ using SmartFM.Infrastructure.Persistence;
 namespace SmartFM.Infrastructure.Migrations
 {
     [DbContext(typeof(SmartFMDbContext))]
-    partial class SmartFMDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260801040311_CargoBelongsToOrderNotShipment")]
+    partial class CargoBelongsToOrderNotShipment
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.0");
@@ -170,6 +173,37 @@ namespace SmartFM.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Invoices", (string)null);
+                });
+
+            modelBuilder.Entity("SmartFM.Domain.Entities.LineItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CargoId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal?>("VolumeCbm")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("WeightKg")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CargoId");
+
+                    b.ToTable("LineItems", (string)null);
                 });
 
             modelBuilder.Entity("SmartFM.Domain.Entities.Offering", b =>
@@ -734,6 +768,15 @@ namespace SmartFM.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("SmartFM.Domain.Entities.LineItem", b =>
+                {
+                    b.HasOne("SmartFM.Domain.Entities.Cargo", null)
+                        .WithMany("LineItems")
+                        .HasForeignKey("CargoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("SmartFM.Domain.Entities.Shipment", b =>
                 {
                     b.HasOne("SmartFM.Domain.Entities.Assignment", null)
@@ -745,6 +788,11 @@ namespace SmartFM.Infrastructure.Migrations
                         .HasForeignKey("OrderId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("SmartFM.Domain.Entities.Cargo", b =>
+                {
+                    b.Navigation("LineItems");
                 });
 
             modelBuilder.Entity("SmartFM.Domain.Entities.Order", b =>

@@ -11,5 +11,7 @@ public class CargoConfiguration : IEntityTypeConfiguration<Cargo>
         builder.ToTable("Cargoes");
         builder.HasKey(c => c.Id);
         builder.Property(c => c.Description).IsRequired();
+        builder.Property(c => c.WeightKg).HasPrecision(18, 2);
+        builder.Property(c => c.VolumeCbm).HasPrecision(18, 2);
     }
 }

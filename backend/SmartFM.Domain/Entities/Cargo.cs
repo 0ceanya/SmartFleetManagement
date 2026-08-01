@@ -3,7 +3,7 @@ namespace SmartFM.Domain.Entities;
 public class Cargo
 {
     public Guid Id { get; private set; } = Guid.NewGuid();
-    public Guid ShipmentId { get; private set; }
+    public Guid OrderId { get; private set; }
     public string Description { get; private set; } = string.Empty;
     public decimal WeightKg { get; private set; }
     public decimal? VolumeCbm { get; private set; }
@@ -11,11 +11,12 @@ public class Cargo
 
     private Cargo() { }
 
-    public Cargo(Guid shipmentId, string description, decimal weightKg, decimal? volumeCbm, bool isHazardous)
+    public Cargo(Guid orderId, string description, decimal weightKg, decimal? volumeCbm, bool isHazardous)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(description);
         if (weightKg <= 0) throw new ArgumentException("WeightKg must be positive.", nameof(weightKg));
-        ShipmentId = shipmentId;
+
+        OrderId = orderId;
         Description = description;
         WeightKg = weightKg;
         VolumeCbm = volumeCbm;
