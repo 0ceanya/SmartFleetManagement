@@ -8,7 +8,6 @@ const HARDCODED_PASSWORD = "12345678";
 
 export default function DriverLoginForm({ onLoginSuccess }) {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [availableDrivers, setAvailableDrivers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [fetchingDrivers, setFetchingDrivers] = useState(true);
@@ -39,12 +38,6 @@ export default function DriverLoginForm({ onLoginSuccess }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
-
-    // 1. Password Verification
-    if (password !== HARDCODED_PASSWORD) {
-      setError("Invalid password. Please enter the required password: 12345678");
-      return;
-    }
 
     if (!email.trim()) {
       setError("Please select or enter your registered email address.");
@@ -120,11 +113,11 @@ export default function DriverLoginForm({ onLoginSuccess }) {
           Sign In to Driver Account
         </h2>
         <p className="text-xs text-gray-500">
-          Enter your registered email and password to access driver assignments & profile.
+          Enter your registered email to access driver assignments & profile.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+      <div className="space-y-4 text-xs">
         <div>
           <label className="block font-bold text-gray-700 mb-1">
             Email Address <span className="text-rose-600">*</span>
@@ -135,6 +128,12 @@ export default function DriverLoginForm({ onLoginSuccess }) {
             placeholder="e.g. driver@smartfm.vn"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleSubmit(e);
+              }
+            }}
             className="w-full border border-gray-300 p-3 font-medium focus:border-primary focus:outline-none text-xs"
           />
 
@@ -162,22 +161,7 @@ export default function DriverLoginForm({ onLoginSuccess }) {
           )}
         </div>
 
-        <div>
-          <label className="block font-bold text-gray-700 mb-1">
-            Password <span className="text-rose-600">*</span>
-          </label>
-          <input
-            type="password"
-            required
-            placeholder="Enter password (12345678)"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full border border-gray-300 p-3 font-medium focus:border-primary focus:outline-none text-xs font-mono"
-          />
-          <span className="text-[11px] text-gray-400 mt-1 block">
-            Required Password: <code className="font-mono text-primary font-bold">12345678</code>
-          </span>
-        </div>
+
 
         {error && (
           <div className="bg-rose-50 border-l-4 border-rose-500 p-3 text-xs text-rose-800 font-medium">
@@ -186,13 +170,14 @@ export default function DriverLoginForm({ onLoginSuccess }) {
         )}
 
         <Button
-          type="submit"
+          type="button"
+          onClick={handleSubmit}
           disabled={loading}
           className="w-full py-3 bg-primary hover:bg-primary-hover text-white font-bold text-xs"
         >
           {loading ? "Authenticating with API..." : "Sign In to Driver Account →"}
         </Button>
-      </form>
+      </div>
     </div>
   );
 }
