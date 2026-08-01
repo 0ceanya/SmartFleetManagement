@@ -1,4 +1,5 @@
 import { Be_Vietnam_Pro, Parkinsans } from "next/font/google";
+import EmotionRegistry from "@/components/EmotionRegistry";
 import "./globals.css";
 
 const beVietnam = Be_Vietnam_Pro({
@@ -25,7 +26,7 @@ export default function RootLayout({ children }) {
       <body
         className={`${beVietnam.className} ${headingFont.variable} min-h-full flex flex-col bg-slate-50 text-slate-800 antialiased`}
       >
-        {children}
+        <EmotionRegistry>{children}</EmotionRegistry>
       </body>
     </html>
   );
