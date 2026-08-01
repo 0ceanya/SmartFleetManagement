@@ -174,14 +174,16 @@ public class OrderFulfilmentCoordinatorTests : IDisposable
     }
 
     [Fact]
-    public async Task OrderFulfilmentCoordinatorRejectsMismatchedOrderWeightAndCargoWeight()
+    public async Task OrderFulfilmentCoordinatorUsesCargoWeightWhenProvidedOrderWeightDiffers()
     {
         var offering = await SeedOfferingAsync();
         var warehouse = await SeedWarehouseAsync();
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => _coordinator.PlaceOrderAsync(
+        var (_, order, _) = await _coordinator.PlaceOrderAsync(
             "Nguyen Van Khach", "khach@example.com", "0900000000", offering.Id, warehouse.Id,
-            new[] { ("Boxed goods", 10m, (decimal?)null, false) }, 12m));
+            new[] { ("Boxed goods", 10m, (decimal?)null, false) }, 12m);
+
+        Assert.Equal(10m, order.OrderWeightKg);
     }
 
     public void Dispose()

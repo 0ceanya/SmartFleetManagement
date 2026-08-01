@@ -1,14 +1,19 @@
 "use client";
 
-import React from "react";
+import React, { useRef, useState } from "react";
 
 export default function CargoForm({ orderData = {}, onChange }) {
+  const [manifestInfo, setManifestInfo] = useState({});
+  const fileInputRefs = useRef({});
+
   const cargoItems = orderData.cargoItems || [
     {
       description: "Cargo 1 - Fresh Produce Pallet",
       weightKg: 250,
       volumeCbm: 1.2,
       isHazardous: false,
+      manifestFileName: null,
+      manifestItems: [],
     },
   ];
 
@@ -37,6 +42,8 @@ export default function CargoForm({ orderData = {}, onChange }) {
         weightKg: 100,
         volumeCbm: 1.0,
         isHazardous: false,
+        manifestFileName: null,
+        manifestItems: [],
       },
     ];
     onChange("cargoItems", updatedCargoes);
@@ -58,6 +65,98 @@ export default function CargoForm({ orderData = {}, onChange }) {
       0
     );
     onChange("orderWeightKg", newTotalWeight);
+  };
+
+  // Helper to parse CSV text into items list
+  const parseCSV = (text) => {
+    const lines = text
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+
+    if (lines.length === 0) return [];
+
+    const items = [];
+    const hasHeader =
+      lines[0].toLowerCase().includes("description") ||
+      lines[0].toLowerCase().includes("item") ||
+      lines[0].toLowerCase().includes("weight");
+
+    const startIndex = hasHeader ? 1 : 0;
+
+    for (let i = startIndex; i < lines.length; i++) {
+      const parts = lines[i].split(/[,;\t]/).map((p) => p.trim());
+      if (parts.length >= 2) {
+        const desc = parts[0] || `Item #${i}`;
+        const weight = parseFloat(parts[1]) || 0;
+        const volume = parts.length >= 3 ? parseFloat(parts[2]) || 0 : 0;
+        const isHaz =
+          parts.length >= 4
+            ? ["true", "yes", "1"].includes(parts[3].toLowerCase())
+            : false;
+
+        items.push({
+          description: desc,
+          weightKg: weight,
+          volumeCbm: volume > 0 ? volume : null,
+          isHazardous: isHaz,
+        });
+      }
+    }
+    return items;
+  };
+
+  const handleFileUpload = (cargoIndex, event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result || "";
+      const parsedItems = parseCSV(text);
+
+      let updatedCargoes = [...cargoItems];
+      let cargo = { ...updatedCargoes[cargoIndex] };
+
+      cargo.manifestFileName = file.name;
+      cargo.manifestItems = parsedItems;
+
+      if (parsedItems.length > 0) {
+        const totalParsedWeight = parsedItems.reduce(
+          (sum, item) => sum + (item.weightKg || 0),
+          0
+        );
+        const totalParsedVolume = parsedItems.reduce(
+          (sum, item) => sum + (item.volumeCbm || 0),
+          0
+        );
+        const hasHazardous = parsedItems.some((item) => item.isHazardous);
+
+        if (totalParsedWeight > 0) cargo.weightKg = totalParsedWeight;
+        if (totalParsedVolume > 0) cargo.volumeCbm = Number(totalParsedVolume.toFixed(2));
+        if (hasHazardous) cargo.isHazardous = true;
+
+        if (!cargo.description || cargo.description.startsWith("Cargo ")) {
+          cargo.description = `Cargo #${cargoIndex + 1} (${parsedItems.length} items from ${file.name})`;
+        }
+      }
+
+      updatedCargoes[cargoIndex] = cargo;
+      onChange("cargoItems", updatedCargoes);
+
+      const newTotalWeight = updatedCargoes.reduce(
+        (sum, c) => sum + (Number(c.weightKg) || 0),
+        0
+      );
+      onChange("orderWeightKg", newTotalWeight);
+
+      setManifestInfo((prev) => ({
+        ...prev,
+        [cargoIndex]: `${file.name} parsed (${parsedItems.length} items)`,
+      }));
+    };
+
+    reader.readAsText(file);
   };
 
   return (
@@ -104,19 +203,19 @@ export default function CargoForm({ orderData = {}, onChange }) {
           onClick={addCargo}
           className="bg-black text-white px-4 py-2 text-xs font-bold hover:bg-gray-800 transition-colors cursor-pointer"
         >
-          + Add Cargo Item
+          + Add Cargo Container
         </button>
       </div>
 
       {cargoItems.map((cargo, cIdx) => (
-        <div key={cIdx} className="border-1 border-gray-300 p-4 space-y-4">
+        <div key={cIdx} className="border-1 border-gray-300 p-5 space-y-5">
           <div className="flex justify-between items-center border-b pb-2">
             <h3 className="font-bold text-sm text-secondary">Cargo Item #{cIdx + 1}</h3>
             {cargoItems.length > 1 && (
               <button
                 type="button"
                 onClick={() => removeCargo(cIdx)}
-                className="text-xs font-bold text-red-600 hover:underline"
+                className="text-xs font-bold text-red-600 hover:underline cursor-pointer"
               >
                 Remove
               </button>
@@ -159,7 +258,7 @@ export default function CargoForm({ orderData = {}, onChange }) {
             </div>
           </div>
 
-          <div className="pt-1">
+          <div className="flex items-center justify-between">
             <label className="inline-flex items-center text-xs font-semibold text-gray-700 cursor-pointer">
               <input
                 type="checkbox"
@@ -170,6 +269,57 @@ export default function CargoForm({ orderData = {}, onChange }) {
               Hazardous Material
             </label>
           </div>
+
+          {/* Load Manifest CSV / Excel Upload Section */}
+          <div className="border-1 border-dashed border-gray-300 p-4 bg-tertiary flex flex-col md:flex-row items-center justify-between gap-4 hover:border-primary transition-colors">
+            <div>
+              <p className="text-xs font-bold text-black uppercase tracking-wider">
+                Upload Load Manifest (CSV / Excel)
+              </p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Attach SKU item manifest sheet to auto-calculate cargo specifications and validate receiving dock items.
+              </p>
+              {cargo.manifestFileName && (
+                <div className="mt-2 text-xs font-bold text-emerald-700 flex items-center gap-1">
+                  ✓ Attached: <span className="underline">{cargo.manifestFileName}</span>
+                  {cargo.manifestItems?.length > 0 && ` (${cargo.manifestItems.length} items parsed)`}
+                </div>
+              )}
+            </div>
+
+            <input
+              type="file"
+              accept=".csv,.txt,.xlsx,.xls"
+              ref={(el) => (fileInputRefs.current[cIdx] = el)}
+              onChange={(e) => handleFileUpload(cIdx, e)}
+              className="hidden"
+            />
+
+            <button
+              type="button"
+              onClick={() => fileInputRefs.current[cIdx]?.click()}
+              className="bg-white border border-gray-400 px-4 py-2 text-xs font-bold text-black hover:bg-black hover:text-white transition-all cursor-pointer whitespace-nowrap"
+            >
+              {cargo.manifestFileName ? "Change Manifest Sheet" : "+ Upload Load Manifest"}
+            </button>
+          </div>
+
+          {/* Display parsed manifest items if uploaded */}
+          {cargo.manifestItems && cargo.manifestItems.length > 0 && (
+            <div className="bg-white p-3 border border-gray-200 space-y-2">
+              <span className="text-xs font-bold text-gray-700 uppercase">Parsed Load Manifest Items</span>
+              <div className="max-h-40 overflow-y-auto space-y-1">
+                {cargo.manifestItems.map((item, idx) => (
+                  <div key={idx} className="flex justify-between items-center text-xs py-1 px-2 bg-gray-50 border-b border-gray-100">
+                    <span className="font-medium text-gray-800">{item.description}</span>
+                    <span className="text-gray-500 font-mono">
+                      {item.weightKg} kg {item.volumeCbm ? `| ${item.volumeCbm} m³` : ""} {item.isHazardous ? "| ⚠️ Hazardous" : ""}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       ))}
     </div>
