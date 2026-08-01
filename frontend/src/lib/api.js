@@ -2,9 +2,11 @@ function getApiBaseUrl() {
   if (process.env.NEXT_PUBLIC_API_URL) {
     return process.env.NEXT_PUBLIC_API_URL;
   }
-  if (typeof window !== "undefined" && window.location?.hostname) {
-    return `http://${window.location.hostname}:5000`;
+  if (typeof window !== "undefined") {
+    // Client-side: use relative path to leverage next.config.mjs rewrites proxy
+    return "";
   }
+  // Server-side
   return "http://localhost:5000";
 }
 
