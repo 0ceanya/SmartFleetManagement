@@ -1,4 +1,5 @@
 import { Be_Vietnam_Pro, Parkinsans } from "next/font/google";
+import EmotionRegistry from "@/components/EmotionRegistry";
 import "./globals.css";
 
 const beVietnam = Be_Vietnam_Pro({
@@ -8,10 +9,11 @@ const beVietnam = Be_Vietnam_Pro({
 });
 
 const headingFont = Parkinsans({
-  subsets: ["latin", "vietnamese"],
+  subsets: ["latin"],
   weight: ["500", "600", "700", "800"],
   variable: "--font-heading",
   display: "swap",
+  adjustFontFallback: false,
 });
 
 export const metadata = {
@@ -25,7 +27,7 @@ export default function RootLayout({ children }) {
       <body
         className={`${beVietnam.className} ${headingFont.variable} min-h-full flex flex-col bg-slate-50 text-slate-800 antialiased`}
       >
-        {children}
+        <EmotionRegistry>{children}</EmotionRegistry>
       </body>
     </html>
   );

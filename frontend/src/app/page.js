@@ -28,6 +28,12 @@ const roles = [
     description: "Generate reports, view audit log",
     route: "/manager/reports",
   },
+  {
+    key: "admin",
+    name: "Admin",
+    description: "Manage master data (branches, warehouses, employees, vehicles, offerings)",
+    route: "/admin/masterdata",
+  },
 ];
 
 export default function RolePickerPage() {

@@ -17,6 +17,23 @@ builder.Services.AddSwaggerGen(c => c.SwaggerDoc("v1", new() { Title = "SmartFM 
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 
+builder.Services.AddCors(options =>
+{
+<<<<<<< Updated upstream
+    options.AddPolicy("Frontend", policy =>
+        policy.WithOrigins("http://localhost:3000")
+              .AllowAnyHeader()
+              .AllowAnyMethod());
+=======
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+>>>>>>> Stashed changes
+});
+
 builder.Services.AddDbContext<SmartFMDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
@@ -36,7 +53,10 @@ builder.Services.AddHostedService<TelemetrySimulator>();
 
 var app = builder.Build();
 
+app.UseCors("AllowAll");
 app.UseExceptionHandler();
+
+app.UseCors("Frontend");
 
 if (app.Environment.IsDevelopment())
 {
