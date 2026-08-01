@@ -4,3 +4,5 @@ bin/
 obj/
 smartfm.db
 meomeo.txt
+smartfm.db-shm
+smartfm.db-wal
