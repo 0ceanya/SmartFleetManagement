@@ -7,4 +7,5 @@ public record DeliveryConfirmation(
     string ProofSignature,
     double GpsLatitude,
     double GpsLongitude,
-    DateTime ConfirmedAt);
+    DateTime ConfirmedAt,
+    IReadOnlyList<string>? DamagedOrMissingItems = null);

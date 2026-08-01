@@ -18,6 +18,8 @@ public class FleetAssignmentCoordinator
     private readonly IRepository<Warehouse> _warehouses;
     private readonly IRepository<MaintenanceRecord> _maintenanceRecords;
     private readonly IRepository<DeliveryConfirmation> _deliveryConfirmations;
+    private readonly IRepository<LoadManifest> _loadManifests;
+    private readonly IRepository<Cargo> _cargoes;
     private readonly OrderFulfilmentCoordinator _orderFulfilmentCoordinator;
     private readonly IUnitOfWork _unitOfWork;
 
@@ -31,6 +33,8 @@ public class FleetAssignmentCoordinator
         IRepository<Warehouse> warehouses,
         IRepository<MaintenanceRecord> maintenanceRecords,
         IRepository<DeliveryConfirmation> deliveryConfirmations,
+        IRepository<LoadManifest> loadManifests,
+        IRepository<Cargo> cargoes,
         OrderFulfilmentCoordinator orderFulfilmentCoordinator,
         IUnitOfWork unitOfWork)
     {
@@ -43,6 +47,8 @@ public class FleetAssignmentCoordinator
         _warehouses = warehouses;
         _maintenanceRecords = maintenanceRecords;
         _deliveryConfirmations = deliveryConfirmations;
+        _loadManifests = loadManifests;
+        _cargoes = cargoes;
         _orderFulfilmentCoordinator = orderFulfilmentCoordinator;
         _unitOfWork = unitOfWork;
     }
@@ -186,7 +192,14 @@ public class FleetAssignmentCoordinator
         if (assignment.DriverId != driverId)
             throw new ArgumentException("Driver is not assigned to this shipment.", nameof(driverId));
 
-        var confirmation = new DeliveryConfirmation(shipmentId, driverId, recipientName, proofSignature, gpsLatitude, gpsLongitude, DateTime.UtcNow);
+        var manifests = await _loadManifests.GetAllAsync();
+        var manifest = manifests.FirstOrDefault(m => m.ShipmentId == shipmentId);
+        
+        var damagedOrMissingItems = manifest?.DamagedOrMissingItems;
+
+        var confirmation = new DeliveryConfirmation(
+            shipmentId, driverId, recipientName, proofSignature, gpsLatitude, gpsLongitude, DateTime.UtcNow, damagedOrMissingItems);
+        
         await _deliveryConfirmations.AddAsync(confirmation);
 
         shipment.SetStatus(ShipmentStatus.Delivered);
@@ -197,6 +210,55 @@ public class FleetAssignmentCoordinator
         await _orderFulfilmentCoordinator.MarkOrderFulfilledAsync(shipment.OrderId);
 
         return confirmation;
+    }
+
+    public async Task<LoadManifest> GenerateAndResolveLoadManifestAsync(Guid shipmentId)
+    {
+        var shipment = await _shipments.GetByIdAsync(shipmentId)
+            ?? throw new InvalidOperationException($"Shipment {shipmentId} not found.");
+
+        var order = await _orders.GetByIdAsync(shipment.OrderId)
+            ?? throw new InvalidOperationException($"Order {shipment.OrderId} not found.");
+
+        var cargoes = await _cargoes.GetAllAsync();
+        var shipmentCargoes = cargoes.Where(c => c.OrderId == shipment.OrderId).ToList();
+
+        var cargoDescriptions = shipmentCargoes.Select(c => c.Description).ToList();
+        var totalWeight = shipmentCargoes.Sum(c => c.WeightKg);
+        var containsHazardous = shipmentCargoes.Any(c => c.IsHazardous);
+
+        var manifest = new LoadManifest(
+            shipmentId,
+            cargoDescriptions,
+            totalWeight,
+            containsHazardous,
+            DateTime.UtcNow,
+            IsPickupResolved: true,
+            IsDropoffResolved: false,
+            DamagedOrMissingItems: null);
+
+        await _loadManifests.AddAsync(manifest);
+        await _unitOfWork.SaveChangesAsync();
+
+        return manifest;
+    }
+
+    public async Task<LoadManifest> ResolveLoadManifestAtDropoffAsync(Guid shipmentId, IReadOnlyList<string>? damagedOrMissingItems)
+    {
+        var manifests = await _loadManifests.GetAllAsync();
+        var manifest = manifests.FirstOrDefault(m => m.ShipmentId == shipmentId)
+            ?? throw new InvalidOperationException($"LoadManifest for shipment {shipmentId} not found.");
+
+        var updatedManifest = manifest with 
+        { 
+            IsDropoffResolved = true,
+            DamagedOrMissingItems = damagedOrMissingItems
+        };
+
+        _loadManifests.Update(updatedManifest);
+        await _unitOfWork.SaveChangesAsync();
+
+        return updatedManifest;
     }
 
     public async Task<DeliveryConfirmation?> GetDeliveryConfirmationByShipmentIdAsync(Guid shipmentId)

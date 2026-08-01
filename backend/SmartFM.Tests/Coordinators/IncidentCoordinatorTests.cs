@@ -63,6 +63,8 @@ public class IncidentCoordinatorTests : IDisposable
             _warehouses,
             new Repository<MaintenanceRecord>(_context),
             new Repository<DeliveryConfirmation>(_context),
+            _loadManifests,
+            _cargoes,
             orderFulfilmentCoordinator,
             unitOfWork);
 

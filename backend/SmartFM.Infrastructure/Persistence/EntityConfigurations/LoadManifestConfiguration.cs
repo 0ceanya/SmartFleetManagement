@@ -22,5 +22,14 @@ public class LoadManifestConfiguration : IEntityTypeConfiguration<LoadManifest>
                 (a, b) => (a ?? new List<string>()).SequenceEqual(b ?? new List<string>()),
                 v => v.Aggregate(0, (hash, s) => HashCode.Combine(hash, s.GetHashCode())),
                 v => v.ToList()));
+
+        builder.Property(m => m.DamagedOrMissingItems)
+            .HasConversion(
+                v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+                v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ?? new List<string>())
+            .Metadata.SetValueComparer(new ValueComparer<IReadOnlyList<string>>(
+                (a, b) => (a ?? new List<string>()).SequenceEqual(b ?? new List<string>()),
+                v => v == null ? 0 : v.Aggregate(0, (hash, s) => HashCode.Combine(hash, s.GetHashCode())),
+                v => v == null ? null : v.ToList()));
     }
 }

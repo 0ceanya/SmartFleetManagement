@@ -75,9 +75,30 @@ public record CreateDeliveryConfirmationRequest
     public double GpsLongitude { get; init; }
 }
 
-public record DeliveryConfirmationResponse(Guid ShipmentId, Guid DriverId, string RecipientName, string ProofSignature, double GpsLatitude, double GpsLongitude, DateTime ConfirmedAt)
+public record DeliveryConfirmationResponse(Guid ShipmentId, Guid DriverId, string RecipientName, string ProofSignature, double GpsLatitude, double GpsLongitude, DateTime ConfirmedAt, IReadOnlyList<string>? DamagedOrMissingItems)
 {
     public static DeliveryConfirmationResponse FromEntity(DeliveryConfirmation confirmation) =>
         new(confirmation.ShipmentId, confirmation.DriverId, confirmation.RecipientName, confirmation.ProofSignature,
-            confirmation.GpsLatitude, confirmation.GpsLongitude, confirmation.ConfirmedAt);
+            confirmation.GpsLatitude, confirmation.GpsLongitude, confirmation.ConfirmedAt, confirmation.DamagedOrMissingItems);
+}
+
+public record ResolveLoadManifestRequest
+{
+    public List<string>? DamagedOrMissingItems { get; init; }
+}
+
+public record LoadManifestResponse(
+    Guid ShipmentId,
+    IReadOnlyList<string> CargoDescriptions,
+    decimal TotalWeightKg,
+    bool ContainsHazardous,
+    DateTime CreatedAt,
+    bool IsPickupResolved,
+    bool IsDropoffResolved,
+    IReadOnlyList<string>? DamagedOrMissingItems)
+{
+    public static LoadManifestResponse FromEntity(LoadManifest manifest) =>
+        new(manifest.ShipmentId, manifest.CargoDescriptions, manifest.TotalWeightKg,
+            manifest.ContainsHazardous, manifest.CreatedAt, manifest.IsPickupResolved, 
+            manifest.IsDropoffResolved, manifest.DamagedOrMissingItems);
 }

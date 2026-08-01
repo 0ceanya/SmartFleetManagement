@@ -102,4 +102,22 @@ public class FleetController : ControllerBase
             return Problem(detail: $"Delivery confirmation for shipment {shipmentId} not found.", statusCode: StatusCodes.Status404NotFound);
         return Ok(DeliveryConfirmationResponse.FromEntity(confirmation));
     }
+
+    [HttpPost("shipments/{id:guid}/load-manifest")]
+    [ProducesResponseType(typeof(LoadManifestResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<LoadManifestResponse>> CreateLoadManifest(Guid id)
+    {
+        var manifest = await _coordinator.GenerateAndResolveLoadManifestAsync(id);
+        return CreatedAtAction(nameof(CreateLoadManifest), new { id }, LoadManifestResponse.FromEntity(manifest));
+    }
+
+    [HttpPut("shipments/{id:guid}/load-manifest/resolve")]
+    [ProducesResponseType(typeof(LoadManifestResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<LoadManifestResponse>> ResolveLoadManifestAtDropoff(Guid id, ResolveLoadManifestRequest request)
+    {
+        var updatedManifest = await _coordinator.ResolveLoadManifestAtDropoffAsync(id, request.DamagedOrMissingItems);
+        return Ok(LoadManifestResponse.FromEntity(updatedManifest));
+    }
 }

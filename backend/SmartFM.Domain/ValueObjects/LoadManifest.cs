@@ -5,4 +5,7 @@ public record LoadManifest(
     IReadOnlyList<string> CargoDescriptions,
     decimal TotalWeightKg,
     bool ContainsHazardous,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    bool IsPickupResolved = false,
+    bool IsDropoffResolved = false,
+    IReadOnlyList<string>? DamagedOrMissingItems = null);

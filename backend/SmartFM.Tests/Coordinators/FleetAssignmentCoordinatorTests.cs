@@ -56,6 +56,8 @@ public class FleetAssignmentCoordinatorTests : IDisposable
             _warehouses,
             new Repository<Domain.Records.MaintenanceRecord>(_context),
             new Repository<DeliveryConfirmation>(_context),
+            new Repository<LoadManifest>(_context),
+            new Repository<Cargo>(_context),
             orderFulfilmentCoordinator,
             unitOfWork);
     }
