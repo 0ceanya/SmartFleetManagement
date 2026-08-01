@@ -10,5 +10,7 @@ public class RouteConfiguration : IEntityTypeConfiguration<Route>
     {
         builder.ToTable("Routes");
         builder.HasKey(r => r.Id);
+        builder.Property(r => r.OriginAddress).IsRequired();
+        builder.Property(r => r.DestinationAddress).IsRequired();
     }
 }

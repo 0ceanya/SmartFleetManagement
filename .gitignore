@@ -2,7 +2,7 @@ CLAUDE.md
 task.md
 bin/
 obj/
-smartfm.db
 meomeo.txt
-smartfm.db-shm
-smartfm.db-wal
+*.db
+*.db-shm
+*.db-wal

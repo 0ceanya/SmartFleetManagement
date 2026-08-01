@@ -45,7 +45,7 @@ public class BillingCoordinatorTests : IDisposable
         var offering = new Offering("Light Delivery", "Small parcels", 150000m, 1000m, 3m, "Light");
         await _offerings.AddAsync(offering);
         var order = new Order(customer, offering);
-        var shipment = new Shipment(order, Guid.NewGuid());
+        var shipment = new Shipment(order, "Customer warehouse, Binh Duong", "Supermarket store, Q1 HCMC");
         order.AttachShipment(shipment);
         await _orders.AddAsync(order);
         await _shipments.AddAsync(shipment);

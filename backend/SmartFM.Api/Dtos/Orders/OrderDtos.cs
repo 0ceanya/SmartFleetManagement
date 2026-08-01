@@ -32,7 +32,10 @@ public record PlaceOrderRequest
     public Guid OfferingId { get; init; }
 
     [Required]
-    public Guid WarehouseId { get; init; }
+    public string PickupAddress { get; init; } = string.Empty;
+
+    [Required]
+    public string DeliveryAddress { get; init; } = string.Empty;
 
     [Range(typeof(decimal), "0.01", "79228162514264337593543950335", ParseLimitsInInvariantCulture = true)]
     public decimal? OrderWeightKg { get; init; }
@@ -48,10 +51,10 @@ public record CargoResponse(Guid Id, string Description, decimal WeightKg, decim
         new(cargo.Id, cargo.Description, cargo.WeightKg, cargo.VolumeCbm, cargo.IsHazardous);
 }
 
-public record ShipmentSummaryResponse(Guid Id, Guid WarehouseId, string Status, DateTime CreatedAt)
+public record ShipmentSummaryResponse(Guid Id, string PickupAddress, string DeliveryAddress, Guid? WarehouseId, string Status, DateTime CreatedAt)
 {
     public static ShipmentSummaryResponse FromEntity(Shipment shipment) =>
-        new(shipment.Id, shipment.WarehouseId, shipment.Status, shipment.CreatedAt);
+        new(shipment.Id, shipment.PickupAddress, shipment.DeliveryAddress, shipment.WarehouseId, shipment.Status, shipment.CreatedAt);
 }
 
 public record OrderDetailsResponse(Guid Id, Guid CustomerId, Guid OfferingId, decimal OrderWeightKg, string Status, DateTime CreatedAt, IReadOnlyList<CargoResponse> Cargoes, IReadOnlyList<ShipmentSummaryResponse> Shipments)

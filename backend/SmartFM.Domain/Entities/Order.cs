@@ -43,4 +43,20 @@ public class Order
     }
 
     public void SetStatus(string status) => Status = status;
+
+    public void Fulfil()
+    {
+        if (Status != OrderStatus.Approved)
+            throw new InvalidOperationException($"Cannot fulfil order in status '{Status}'.");
+        Status = OrderStatus.Fulfilled;
+    }
+
+    public void Cancel(bool hasDispatchedShipment)
+    {
+        if (Status is not (OrderStatus.PendingPayment or OrderStatus.Approved))
+            throw new InvalidOperationException($"Cannot cancel order in status '{Status}'.");
+        if (hasDispatchedShipment)
+            throw new InvalidOperationException("Cannot cancel an order that has already been dispatched.");
+        Status = OrderStatus.Cancelled;
+    }
 }

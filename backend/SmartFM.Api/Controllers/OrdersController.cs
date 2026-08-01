@@ -29,7 +29,8 @@ public class OrdersController : ControllerBase
             .ToList();
 
         var (_, order, shipment) = await _coordinator.PlaceOrderAsync(
-            request.CustomerName, request.CustomerEmail, request.CustomerPhone, request.OfferingId, request.WarehouseId, cargoDataList, request.OrderWeightKg);
+            request.CustomerName, request.CustomerEmail, request.CustomerPhone, request.OfferingId,
+            request.PickupAddress, request.DeliveryAddress, cargoDataList, request.OrderWeightKg);
 
         var response = OrderDetailsResponse.FromEntity(order, order.Cargoes, new[] { shipment });
         return CreatedAtAction(nameof(GetOrderById), new { id = order.Id }, response);
@@ -54,5 +55,15 @@ public class OrdersController : ControllerBase
             ? await _coordinator.GetOrdersAsync()
             : await _coordinator.GetOrdersByCustomerEmailAsync(customerEmail);
         return Ok(orders.Select(OrderSummaryResponse.FromEntity));
+    }
+
+    [HttpPost("{id:guid}/cancel")]
+    [ProducesResponseType(typeof(OrderSummaryResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<OrderSummaryResponse>> CancelOrder(Guid id)
+    {
+        var order = await _coordinator.CancelOrderAsync(id);
+        return Ok(OrderSummaryResponse.FromEntity(order));
     }
 }

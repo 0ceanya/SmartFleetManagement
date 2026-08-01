@@ -11,5 +11,10 @@ public class AssignmentConfiguration : IEntityTypeConfiguration<Assignment>
         builder.ToTable("Assignments");
         builder.HasKey(a => a.Id);
         builder.Property(a => a.Status).IsRequired();
+        builder.HasOne<Route>()
+            .WithMany()
+            .HasForeignKey(a => a.RouteId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

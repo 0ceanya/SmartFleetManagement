@@ -5,6 +5,8 @@ using SmartFM.Domain.ValueObjects;
 
 namespace SmartFM.Application.Coordinators;
 
+public record RouteData(string OriginAddress, string DestinationAddress, IReadOnlyList<string>? Waypoints, double? DistanceKm, int? EstimatedDurationMinutes);
+
 public class FleetAssignmentCoordinator
 {
     private readonly IRepository<Route> _routes;
@@ -12,8 +14,11 @@ public class FleetAssignmentCoordinator
     private readonly IRepository<Driver> _drivers;
     private readonly IRepository<Vehicle> _vehicles;
     private readonly IRepository<Shipment> _shipments;
+    private readonly IRepository<Order> _orders;
+    private readonly IRepository<Warehouse> _warehouses;
     private readonly IRepository<MaintenanceRecord> _maintenanceRecords;
     private readonly IRepository<DeliveryConfirmation> _deliveryConfirmations;
+    private readonly OrderFulfilmentCoordinator _orderFulfilmentCoordinator;
     private readonly IUnitOfWork _unitOfWork;
 
     public FleetAssignmentCoordinator(
@@ -22,8 +27,11 @@ public class FleetAssignmentCoordinator
         IRepository<Driver> drivers,
         IRepository<Vehicle> vehicles,
         IRepository<Shipment> shipments,
+        IRepository<Order> orders,
+        IRepository<Warehouse> warehouses,
         IRepository<MaintenanceRecord> maintenanceRecords,
         IRepository<DeliveryConfirmation> deliveryConfirmations,
+        OrderFulfilmentCoordinator orderFulfilmentCoordinator,
         IUnitOfWork unitOfWork)
     {
         _routes = routes;
@@ -31,8 +39,11 @@ public class FleetAssignmentCoordinator
         _drivers = drivers;
         _vehicles = vehicles;
         _shipments = shipments;
+        _orders = orders;
+        _warehouses = warehouses;
         _maintenanceRecords = maintenanceRecords;
         _deliveryConfirmations = deliveryConfirmations;
+        _orderFulfilmentCoordinator = orderFulfilmentCoordinator;
         _unitOfWork = unitOfWork;
     }
 
@@ -42,19 +53,9 @@ public class FleetAssignmentCoordinator
         return Task.CompletedTask;
     }
 
-    public async Task<Route> CreateRouteAsync(Guid originWarehouseId, Guid destinationWarehouseId, decimal estimatedDistanceKm)
-    {
-        var route = new Route(originWarehouseId, destinationWarehouseId, estimatedDistanceKm);
-        await _routes.AddAsync(route);
-        await _unitOfWork.SaveChangesAsync();
-        return route;
-    }
-
-    public Task<IEnumerable<Route>> GetRoutesAsync() => _routes.GetAllAsync();
-
     public async Task<Route?> GetRouteByIdAsync(Guid id) => await _routes.GetByIdAsync(id);
 
-    public async Task<Assignment> CreateAssignmentAsync(IReadOnlyList<Guid> shipmentIds, Guid driverId, Guid vehicleId, Guid routeId)
+    public async Task<Assignment> CreateAssignmentAsync(IReadOnlyList<Guid> shipmentIds, Guid driverId, Guid vehicleId, RouteData? routeData = null, Guid? warehouseId = null)
     {
         if (shipmentIds is null || shipmentIds.Count == 0)
             throw new ArgumentException("At least one shipment is required.", nameof(shipmentIds));
@@ -73,8 +74,24 @@ public class FleetAssignmentCoordinator
             ?? throw new InvalidOperationException($"Driver {driverId} not found.");
         var vehicle = await _vehicles.GetByIdAsync(vehicleId)
             ?? throw new InvalidOperationException($"Vehicle {vehicleId} not found.");
-        var route = await _routes.GetByIdAsync(routeId)
-            ?? throw new InvalidOperationException($"Route {routeId} not found.");
+
+        Route? route = null;
+        if (routeData is not null)
+        {
+            var waypointsJson = routeData.Waypoints is { Count: > 0 }
+                ? System.Text.Json.JsonSerializer.Serialize(routeData.Waypoints)
+                : null;
+            route = new Route(routeData.OriginAddress, routeData.DestinationAddress, waypointsJson, routeData.DistanceKm, routeData.EstimatedDurationMinutes);
+            await _routes.AddAsync(route);
+        }
+
+        Warehouse? warehouse = null;
+        if (warehouseId is not null)
+        {
+            warehouse = await _warehouses.GetByIdAsync(warehouseId.Value)
+                ?? throw new InvalidOperationException($"Warehouse {warehouseId} not found.");
+            await EnsureWarehouseCapacityAsync(warehouse, shipments);
+        }
 
         await EnsureNotDoubleBookedAsync(driverId, vehicleId);
 
@@ -85,6 +102,8 @@ public class FleetAssignmentCoordinator
         {
             shipment.AssignTo(assignment.Id);
             shipment.SetStatus(ShipmentStatus.Assigned);
+            if (warehouse is not null)
+                shipment.SetWarehouse(warehouse.Id);
             _shipments.Update(shipment);
         }
 
@@ -174,6 +193,9 @@ public class FleetAssignmentCoordinator
         _shipments.Update(shipment);
 
         await _unitOfWork.SaveChangesAsync();
+
+        await _orderFulfilmentCoordinator.MarkOrderFulfilledAsync(shipment.OrderId);
+
         return confirmation;
     }
 
@@ -183,7 +205,7 @@ public class FleetAssignmentCoordinator
         return confirmations.FirstOrDefault(c => c.ShipmentId == shipmentId);
     }
 
-    public async Task<IEnumerable<(Assignment Assignment, IReadOnlyList<Guid> ShipmentIds)>> GetAssignmentsAsync(string? status = null, Guid? driverId = null)
+    public async Task<IEnumerable<(Assignment Assignment, IReadOnlyList<Guid> ShipmentIds, Route? Route)>> GetAssignmentsAsync(string? status = null, Guid? driverId = null)
     {
         var assignments = await _assignments.GetAllAsync();
         if (status is not null)
@@ -192,14 +214,18 @@ public class FleetAssignmentCoordinator
             assignments = assignments.Where(a => a.DriverId == driverId);
 
         var shipments = await _shipments.GetAllAsync();
+        var routes = await _routes.GetAllAsync();
         return assignments
-            .Select(a => (a, (IReadOnlyList<Guid>)shipments.Where(s => s.AssignmentId == a.Id).Select(s => s.Id).ToList()))
+            .Select(a => (
+                a,
+                (IReadOnlyList<Guid>)shipments.Where(s => s.AssignmentId == a.Id).Select(s => s.Id).ToList(),
+                a.RouteId is null ? null : routes.FirstOrDefault(r => r.Id == a.RouteId.Value)))
             .ToList();
     }
 
     public async Task<Assignment?> GetAssignmentByIdAsync(Guid id) => await _assignments.GetByIdAsync(id);
 
-    public async Task<(Assignment Assignment, IReadOnlyList<Guid> ShipmentIds)?> GetAssignmentDetailsAsync(Guid id)
+    public async Task<(Assignment Assignment, IReadOnlyList<Guid> ShipmentIds, Route? Route)?> GetAssignmentDetailsAsync(Guid id)
     {
         var assignment = await _assignments.GetByIdAsync(id);
         if (assignment is null)
@@ -207,7 +233,23 @@ public class FleetAssignmentCoordinator
 
         var shipments = await _shipments.GetAllAsync();
         var shipmentIds = shipments.Where(s => s.AssignmentId == assignment.Id).Select(s => s.Id).ToList();
-        return (assignment, shipmentIds);
+        var route = assignment.RouteId is null ? null : await _routes.GetByIdAsync(assignment.RouteId.Value);
+        return (assignment, shipmentIds, route);
+    }
+
+    private async Task EnsureWarehouseCapacityAsync(Warehouse warehouse, IReadOnlyList<Shipment> shipments)
+    {
+        decimal totalWeightKg = 0;
+        foreach (var shipment in shipments)
+        {
+            var order = await _orders.GetByIdAsync(shipment.OrderId)
+                ?? throw new InvalidOperationException($"Order {shipment.OrderId} not found.");
+            totalWeightKg += order.OrderWeightKg;
+        }
+
+        if (totalWeightKg > warehouse.CapacityKg)
+            throw new InvalidOperationException(
+                $"Shipment weight {totalWeightKg}kg exceeds warehouse '{warehouse.Name}' capacity of {warehouse.CapacityKg}kg.");
     }
 
     private async Task EnsureNotDoubleBookedAsync(Guid driverId, Guid vehicleId)

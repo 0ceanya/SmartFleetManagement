@@ -1,26 +1,37 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
+using SmartFM.Application.Coordinators;
 using SmartFM.Domain.Entities;
 using SmartFM.Domain.ValueObjects;
 using Route = SmartFM.Domain.Entities.Route;
 
 namespace SmartFM.Api.Dtos.Fleet;
 
-public record CreateRouteRequest
+public record RouteRequest
 {
     [Required]
-    public Guid OriginWarehouseId { get; init; }
+    public string OriginAddress { get; init; } = string.Empty;
 
     [Required]
-    public Guid DestinationWarehouseId { get; init; }
+    public string DestinationAddress { get; init; } = string.Empty;
 
-    [Range(typeof(decimal), "0.01", "79228162514264337593543950335", ParseLimitsInInvariantCulture = true)]
-    public decimal EstimatedDistanceKm { get; init; }
+    public List<string>? Waypoints { get; init; }
+
+    [Range(typeof(double), "0.01", "1.7976931348623157E+308", ParseLimitsInInvariantCulture = true)]
+    public double? DistanceKm { get; init; }
+
+    [Range(1, int.MaxValue)]
+    public int? EstimatedDurationMinutes { get; init; }
+
+    public Application.Coordinators.RouteData ToRouteData() => new(OriginAddress, DestinationAddress, Waypoints, DistanceKm, EstimatedDurationMinutes);
 }
 
-public record RouteResponse(Guid Id, Guid OriginWarehouseId, Guid DestinationWarehouseId, decimal EstimatedDistanceKm, decimal EstimatedDurationHours)
+public record RouteResponse(Guid Id, string OriginAddress, string DestinationAddress, IReadOnlyList<string>? Waypoints, double? DistanceKm, int? EstimatedDurationMinutes)
 {
     public static RouteResponse FromEntity(Route route) =>
-        new(route.Id, route.OriginWarehouseId, route.DestinationWarehouseId, route.EstimatedDistanceKm, route.EstimatedDurationHours);
+        new(route.Id, route.OriginAddress, route.DestinationAddress,
+            route.WaypointsJson is null ? null : JsonSerializer.Deserialize<List<string>>(route.WaypointsJson),
+            route.DistanceKm, route.EstimatedDurationMinutes);
 }
 
 public record CreateAssignmentRequest
@@ -34,14 +45,16 @@ public record CreateAssignmentRequest
     [Required]
     public Guid VehicleId { get; init; }
 
-    [Required]
-    public Guid RouteId { get; init; }
+    public RouteRequest? Route { get; init; }
+
+    public Guid? WarehouseId { get; init; }
 }
 
-public record AssignmentResponse(Guid Id, IReadOnlyList<Guid> ShipmentIds, Guid DriverId, Guid VehicleId, Guid RouteId, string Status, DateTime CreatedAt)
+public record AssignmentResponse(Guid Id, IReadOnlyList<Guid> ShipmentIds, Guid DriverId, Guid VehicleId, RouteResponse? Route, string Status, DateTime CreatedAt)
 {
-    public static AssignmentResponse FromEntity(Assignment assignment, IReadOnlyList<Guid> shipmentIds) =>
-        new(assignment.Id, shipmentIds, assignment.DriverId, assignment.VehicleId, assignment.RouteId, assignment.Status, assignment.CreatedAt);
+    public static AssignmentResponse FromEntity(Assignment assignment, IReadOnlyList<Guid> shipmentIds, Route? route) =>
+        new(assignment.Id, shipmentIds, assignment.DriverId, assignment.VehicleId,
+            route is null ? null : RouteResponse.FromEntity(route), assignment.Status, assignment.CreatedAt);
 }
 
 public record CreateDeliveryConfirmationRequest

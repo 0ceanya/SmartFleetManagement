@@ -12,7 +12,7 @@ public class OrderFulfilmentCoordinator
     private readonly IRepository<Shipment> _shipments;
     private readonly IRepository<Cargo> _cargoes;
     private readonly IRepository<Offering> _offerings;
-    private readonly IRepository<Warehouse> _warehouses;
+    private readonly IRepository<Assignment> _assignments;
     private readonly IUnitOfWork _unitOfWork;
 
     public OrderFulfilmentCoordinator(
@@ -21,7 +21,7 @@ public class OrderFulfilmentCoordinator
         IRepository<Shipment> shipments,
         IRepository<Cargo> cargoes,
         IRepository<Offering> offerings,
-        IRepository<Warehouse> warehouses,
+        IRepository<Assignment> assignments,
         IUnitOfWork unitOfWork)
     {
         _customers = customers;
@@ -29,7 +29,7 @@ public class OrderFulfilmentCoordinator
         _shipments = shipments;
         _cargoes = cargoes;
         _offerings = offerings;
-        _warehouses = warehouses;
+        _assignments = assignments;
         _unitOfWork = unitOfWork;
     }
 
@@ -51,17 +51,15 @@ public class OrderFulfilmentCoordinator
 
     public async Task<Customer?> GetCustomerByIdAsync(Guid id) => await _customers.GetByIdAsync(id);
 
-    public async Task<(Order order, Shipment shipment)> CreateOrderAsync(Guid customerId, Guid offeringId, Guid warehouseId)
+    public async Task<(Order order, Shipment shipment)> CreateOrderAsync(Guid customerId, Guid offeringId, string pickupAddress, string deliveryAddress)
     {
         var customer = await _customers.GetByIdAsync(customerId)
             ?? throw new InvalidOperationException($"Customer {customerId} not found.");
         var offering = await _offerings.GetByIdAsync(offeringId)
             ?? throw new InvalidOperationException($"Offering {offeringId} not found.");
-        var warehouse = await _warehouses.GetByIdAsync(warehouseId)
-            ?? throw new InvalidOperationException($"Warehouse {warehouseId} not found.");
 
         var order = new Order(customer, offering);
-        var shipment = new Shipment(order, warehouse.Id);
+        var shipment = new Shipment(order, pickupAddress, deliveryAddress);
         order.AttachShipment(shipment);
 
         await _orders.AddAsync(order);
@@ -93,12 +91,13 @@ public class OrderFulfilmentCoordinator
         string customerEmail,
         string customerPhone,
         Guid offeringId,
-        Guid warehouseId,
+        string pickupAddress,
+        string deliveryAddress,
         IReadOnlyList<(string Description, decimal WeightKg, decimal? VolumeCbm, bool IsHazardous)> cargoItems,
         decimal? orderWeightKg = null)
     {
         var convertedCargoData = cargoItems.Select(c => new CargoData(c.Description, c.WeightKg, c.VolumeCbm, c.IsHazardous)).ToList();
-        return await PlaceOrderAsync(customerName, customerEmail, customerPhone, offeringId, warehouseId, convertedCargoData, orderWeightKg);
+        return await PlaceOrderAsync(customerName, customerEmail, customerPhone, offeringId, pickupAddress, deliveryAddress, convertedCargoData, orderWeightKg);
     }
 
     public async Task<(Customer customer, Order order, Shipment shipment)> PlaceOrderAsync(
@@ -106,14 +105,13 @@ public class OrderFulfilmentCoordinator
         string customerEmail,
         string customerPhone,
         Guid offeringId,
-        Guid warehouseId,
+        string pickupAddress,
+        string deliveryAddress,
         IReadOnlyList<CargoData> cargoItems,
         decimal? orderWeightKg = null)
     {
         var offering = await _offerings.GetByIdAsync(offeringId)
             ?? throw new InvalidOperationException($"Offering {offeringId} not found.");
-        var warehouse = await _warehouses.GetByIdAsync(warehouseId)
-            ?? throw new InvalidOperationException($"Warehouse {warehouseId} not found.");
 
         if (cargoItems == null || cargoItems.Count == 0)
             throw new ArgumentException("Order must contain at least one cargo item.", nameof(cargoItems));
@@ -121,7 +119,6 @@ public class OrderFulfilmentCoordinator
         var totalCargoWeightKg = cargoItems.Sum(c => c.WeightKg);
 
         ValidateOrderWeight(orderWeightKg, totalCargoWeightKg);
-        EnsureWarehouseCapacity(warehouse, orderWeightKg ?? totalCargoWeightKg);
 
         var customer = await FindCustomerByEmailAsync(customerEmail);
         if (customer is null)
@@ -131,7 +128,7 @@ public class OrderFulfilmentCoordinator
         }
 
         var order = new Order(customer, offering, totalCargoWeightKg);
-        var shipment = new Shipment(order, warehouse.Id);
+        var shipment = new Shipment(order, pickupAddress, deliveryAddress);
         order.AttachShipment(shipment);
 
         await _orders.AddAsync(order);
@@ -176,6 +173,46 @@ public class OrderFulfilmentCoordinator
         return orders.Where(o => o.CustomerId == customer.Id);
     }
 
+    public async Task<Order> MarkOrderFulfilledAsync(Guid orderId)
+    {
+        var order = await _orders.GetByIdAsync(orderId)
+            ?? throw new InvalidOperationException($"Order {orderId} not found.");
+
+        order.Fulfil();
+        _orders.Update(order);
+
+        await _unitOfWork.SaveChangesAsync();
+        return order;
+    }
+
+    public async Task<Order> CancelOrderAsync(Guid orderId)
+    {
+        var order = await _orders.GetByIdAsync(orderId)
+            ?? throw new InvalidOperationException($"Order {orderId} not found.");
+
+        var hasDispatchedShipment = await HasDispatchedShipmentAsync(order.Id);
+        order.Cancel(hasDispatchedShipment);
+        _orders.Update(order);
+
+        await _unitOfWork.SaveChangesAsync();
+        return order;
+    }
+
+    private async Task<bool> HasDispatchedShipmentAsync(Guid orderId)
+    {
+        var shipments = await _shipments.GetAllAsync();
+        var assignmentIds = shipments
+            .Where(s => s.OrderId == orderId && s.AssignmentId is not null)
+            .Select(s => s.AssignmentId!.Value)
+            .ToHashSet();
+
+        if (assignmentIds.Count == 0)
+            return false;
+
+        var assignments = await _assignments.GetAllAsync();
+        return assignments.Any(a => assignmentIds.Contains(a.Id) && a.Status == AssignmentStatus.Active);
+    }
+
     private async Task<Customer?> FindCustomerByEmailAsync(string email)
     {
         var customers = await _customers.GetAllAsync();
@@ -212,14 +249,5 @@ public class OrderFulfilmentCoordinator
         if (orderWeightKg.HasValue && orderWeightKg.Value != cargoWeightKg)
             throw new InvalidOperationException(
                 $"Order weight {orderWeightKg.Value}kg must match the combined cargo weight of {cargoWeightKg}kg.");
-    }
-
-    private static void EnsureWarehouseCapacity(
-        Warehouse warehouse,
-        decimal orderWeightKg)
-    {
-        if (orderWeightKg > warehouse.CapacityKg)
-            throw new InvalidOperationException(
-                $"Order weight {orderWeightKg}kg exceeds warehouse '{warehouse.Name}' capacity of {warehouse.CapacityKg}kg.");
     }
 }

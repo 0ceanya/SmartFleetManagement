@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SmartFM.Infrastructure.Persistence;
 
@@ -10,9 +11,11 @@ using SmartFM.Infrastructure.Persistence;
 namespace SmartFM.Infrastructure.Migrations
 {
     [DbContext(typeof(SmartFMDbContext))]
-    partial class SmartFMDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260801062439_ShipmentAddressesAndOptionalWarehouse")]
+    partial class ShipmentAddressesAndOptionalWarehouse
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.0");
@@ -29,7 +32,7 @@ namespace SmartFM.Infrastructure.Migrations
                     b.Property<Guid>("DriverId")
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid?>("RouteId")
+                    b.Property<Guid>("RouteId")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Status")
@@ -40,8 +43,6 @@ namespace SmartFM.Infrastructure.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("RouteId");
 
                     b.ToTable("Assignments", (string)null);
                 });
@@ -269,21 +270,16 @@ namespace SmartFM.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("DestinationAddress")
-                        .IsRequired()
+                    b.Property<Guid>("DestinationWarehouseId")
                         .HasColumnType("TEXT");
 
-                    b.Property<double?>("DistanceKm")
-                        .HasColumnType("REAL");
-
-                    b.Property<int?>("EstimatedDurationMinutes")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("OriginAddress")
-                        .IsRequired()
+                    b.Property<decimal>("EstimatedDistanceKm")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("WaypointsJson")
+                    b.Property<decimal>("EstimatedDurationHours")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("OriginWarehouseId")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
@@ -738,14 +734,6 @@ namespace SmartFM.Infrastructure.Migrations
                         });
 
                     b.HasDiscriminator().HasValue("Tracking");
-                });
-
-            modelBuilder.Entity("SmartFM.Domain.Entities.Assignment", b =>
-                {
-                    b.HasOne("SmartFM.Domain.Entities.Route", null)
-                        .WithMany()
-                        .HasForeignKey("RouteId")
-                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("SmartFM.Domain.Entities.Cargo", b =>
