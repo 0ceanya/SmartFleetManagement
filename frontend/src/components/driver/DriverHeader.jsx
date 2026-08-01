@@ -14,24 +14,24 @@ export default function DriverHeader({ driverId, driverInfo, onSignOut }) {
   ];
 
   return (
-    <header className="bg-primary border-b border-black text-white px-6 py-3.5 sticky top-0 z-40 shadow-sm">
-      <div className="max-w-6xl mx-auto flex items-center justify-between">
+    <header className="bg-primary border-b border-black text-white px-4 py-3 sticky top-0 z-40 shadow-sm sm:px-6 sm:py-3.5">
+      <div className="max-w-6xl mx-auto flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         {/* Portal Branding */}
         <Link href="/driver/assignments" className="flex items-center gap-3">
-          <span className="font-heading text-xl font-bold tracking-tight text-white">
+          <span className="font-heading text-lg font-bold tracking-tight text-white sm:text-xl">
             SmartFM <span className="text-xs font-mono bg-secondary px-2 py-0.5 rounded text-amber-300 ml-1">Driver Portal</span>
           </span>
         </Link>
 
         {/* Navigation Bar */}
-        <nav className="flex items-center gap-1 sm:gap-2">
+        <nav className="flex flex-wrap items-center gap-1 sm:gap-2">
           {navItems.map((item) => {
             const isActive = pathname === item.href || (item.href !== "/driver/assignments" && pathname.startsWith(item.href));
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`px-4 py-2 text-xs font-heading font-bold transition-all ${
+                className={`shrink-0 px-4 py-2 text-xs font-heading font-bold transition-all ${
                   isActive
                     ? "bg-secondary text-white shadow-xs border-b-2 border-amber-400"
                     : "text-slate-200 hover:bg-secondary/70 hover:text-white"
@@ -44,7 +44,7 @@ export default function DriverHeader({ driverId, driverInfo, onSignOut }) {
         </nav>
 
         {/* User Account Session Actions */}
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {driverInfo ? (
             <div className="hidden md:flex flex-col text-right text-[11px]">
               <span className="font-bold text-amber-300 truncate max-w-[150px]">

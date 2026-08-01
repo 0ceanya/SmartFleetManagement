@@ -427,27 +427,7 @@ export default function AdminMasterDataPage() {
   };
 
   return (
-    <div className="min-h-screen bg-surface-bg flex flex-col">
-      {/* Header Bar */}
-      <header className="border-b border-gray-300 bg-secondary px-8 py-4 text-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/" className="font-heading text-2xl font-bold tracking-tight text-white hover:opacity-90">
-              SmartFM Admin
-            </Link>
-            <span className="bg-primary px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider text-white">
-              Master Data Center
-            </span>
-          </div>
-          <div className="flex items-center gap-4 text-sm">
-            <span>Role: <strong>{role || "Not Selected"}</strong></span>
-            <Link href="/" className="bg-white text-secondary px-3 py-1.5 font-bold hover:bg-gray-100 transition-colors">
-              Switch Role
-            </Link>
-          </div>
-        </div>
-      </header>
-
+    <>
       {/* Main Container */}
       <main className="max-w-7xl mx-auto my-8 px-4 flex-1 w-full">
         {role !== "admin" && (
@@ -621,6 +601,6 @@ export default function AdminMasterDataPage() {
         onDelete={handleDelete}
         submitting={submitting}
       />
-    </div>
+    </>
   );
 }

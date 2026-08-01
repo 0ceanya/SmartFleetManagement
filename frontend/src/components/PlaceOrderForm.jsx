@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Header from "@/components/Header";
 import OfferingCard from "@/components/OfferingCard";
 import CargoForm from "@/components/CargoForm";
 import Button from "@/components/ui/Button";
@@ -113,7 +112,6 @@ export default function PlaceOrderForm() {
 
   return (
     <div>
-      <Header />
       <div className="max-w-4xl mx-auto my-8">
         <h1 className="font-heading text-secondary mb-6">Step 1 of 3</h1>
         <h1 className="text-3xl font-heading text-secondary mb-2">

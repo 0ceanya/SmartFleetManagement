@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import DriverLoginForm from "./DriverLoginForm";
 import DriverHeader from "./DriverHeader";
+import AppFooter from "@/components/AppFooter";
 
 export default function DriverAuthGuard({ children }) {
   const [driverId, setDriverId] = useState(null);
@@ -68,15 +69,19 @@ export default function DriverAuthGuard({ children }) {
         <div className="flex-1 flex items-center justify-center p-6 sm:p-12">
           <DriverLoginForm onLoginSuccess={handleLoginSuccess} />
         </div>
+        <AppFooter />
       </div>
     );
   }
 
   // Render children, passing driver context and sign out handler
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 flex flex-col">
       <DriverHeader driverId={driverId} driverInfo={driverInfo} onSignOut={handleSignOut} />
-      {typeof children === "function" ? children({ driverId, driverInfo, handleSignOut }) : children}
+      <div className="flex-1 flex flex-col">
+        {typeof children === "function" ? children({ driverId, driverInfo, handleSignOut }) : children}
+      </div>
+      <AppFooter />
     </div>
   );
 }

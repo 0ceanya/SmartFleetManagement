@@ -1,6 +1,6 @@
 import React from "react";
 
-export default function WarehouseTable({ warehouses, branchMap, onEdit, onDelete }) {
+export default function WarehouseTable({ warehouses, branchMap, onEdit, onDelete, readOnly = false }) {
   if (!warehouses || warehouses.length === 0) {
     return <p className="p-6 text-sm text-gray-500 text-center">No warehouses found.</p>;
   }
@@ -13,7 +13,7 @@ export default function WarehouseTable({ warehouses, branchMap, onEdit, onDelete
           <th className="p-3">Address</th>
           <th className="p-3">Belongs to Branch</th>
           <th className="p-3">Capacity (kg)</th>
-          <th className="p-3 text-right">Actions</th>
+          {!readOnly && <th className="p-3 text-right">Actions</th>}
         </tr>
       </thead>
       <tbody className="divide-y divide-gray-200">
@@ -25,22 +25,24 @@ export default function WarehouseTable({ warehouses, branchMap, onEdit, onDelete
             <td className="p-3 font-mono font-medium">
               {wh.capacityKg ? wh.capacityKg.toLocaleString() : "-"} kg
             </td>
-            <td className="p-3 text-right space-x-2">
-              <button
-                type="button"
-                onClick={() => onEdit(wh)}
-                className="text-xs font-bold text-secondary hover:underline cursor-pointer"
-              >
-                Edit
-              </button>
-              <button
-                type="button"
-                onClick={() => onDelete(wh, "warehouses")}
-                className="text-xs font-bold text-accent hover:underline cursor-pointer"
-              >
-                Delete
-              </button>
-            </td>
+            {!readOnly && (
+              <td className="p-3 text-right space-x-2">
+                <button
+                  type="button"
+                  onClick={() => onEdit(wh)}
+                  className="text-xs font-bold text-secondary hover:underline cursor-pointer"
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDelete(wh, "warehouses")}
+                  className="text-xs font-bold text-accent hover:underline cursor-pointer"
+                >
+                  Delete
+                </button>
+              </td>
+            )}
           </tr>
         ))}
       </tbody>

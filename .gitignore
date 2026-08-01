@@ -7,3 +7,4 @@ meomeo.txt
 *.db-shm
 *.db-wal
 *patch
+frontend/map_api_documentation.md

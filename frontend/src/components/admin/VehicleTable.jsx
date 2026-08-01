@@ -1,6 +1,6 @@
 import React from "react";
 
-export default function VehicleTable({ vehicles, branchMap, onEditStatus, onDelete }) {
+export default function VehicleTable({ vehicles, branchMap, onEditStatus, onDelete, readOnly = false }) {
   if (!vehicles || vehicles.length === 0) {
     return <p className="p-6 text-sm text-gray-500 text-center">No vehicles found.</p>;
   }
@@ -14,7 +14,7 @@ export default function VehicleTable({ vehicles, branchMap, onEditStatus, onDele
           <th className="p-3">Status</th>
           <th className="p-3">Branch</th>
           <th className="p-3">Max Payload</th>
-          <th className="p-3 text-right">Actions</th>
+          {!readOnly && <th className="p-3 text-right">Actions</th>}
         </tr>
       </thead>
       <tbody className="divide-y divide-gray-200">
@@ -37,22 +37,24 @@ export default function VehicleTable({ vehicles, branchMap, onEditStatus, onDele
             </td>
             <td className="p-3 text-gray-700">{branchMap[veh.branchId] || veh.branchId}</td>
             <td className="p-3 font-mono text-xs">{veh.maxPayloadKg ? `${veh.maxPayloadKg.toLocaleString()} kg` : "-"}</td>
-            <td className="p-3 text-right space-x-2">
-              <button
-                type="button"
-                onClick={() => onEditStatus(veh)}
-                className="text-xs font-bold text-secondary hover:underline cursor-pointer"
-              >
-                Update Status
-              </button>
-              <button
-                type="button"
-                onClick={() => onDelete(veh, "vehicles")}
-                className="text-xs font-bold text-accent hover:underline cursor-pointer"
-              >
-                Delete
-              </button>
-            </td>
+            {!readOnly && (
+              <td className="p-3 text-right space-x-2">
+                <button
+                  type="button"
+                  onClick={() => onEditStatus(veh)}
+                  className="text-xs font-bold text-secondary hover:underline cursor-pointer"
+                >
+                  Update Status
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDelete(veh, "vehicles")}
+                  className="text-xs font-bold text-accent hover:underline cursor-pointer"
+                >
+                  Delete
+                </button>
+              </td>
+            )}
           </tr>
         ))}
       </tbody>

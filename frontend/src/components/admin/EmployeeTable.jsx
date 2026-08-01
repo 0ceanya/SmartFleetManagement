@@ -1,6 +1,6 @@
 import React from "react";
 
-export default function EmployeeTable({ employees, branchMap, onEdit, onDelete }) {
+export default function EmployeeTable({ employees, branchMap, onEdit, onDelete, readOnly = false }) {
   if (!employees || employees.length === 0) {
     return <p className="p-6 text-sm text-gray-500 text-center">No employees found.</p>;
   }
@@ -14,7 +14,7 @@ export default function EmployeeTable({ employees, branchMap, onEdit, onDelete }
           <th className="p-3">Email</th>
           <th className="p-3">Branch</th>
           <th className="p-3">License / Department</th>
-          <th className="p-3 text-right">Actions</th>
+          {!readOnly && <th className="p-3 text-right">Actions</th>}
         </tr>
       </thead>
       <tbody className="divide-y divide-gray-200">
@@ -39,22 +39,24 @@ export default function EmployeeTable({ employees, branchMap, onEdit, onDelete }
             <td className="p-3 text-gray-600 text-xs font-mono">
               {emp.licenseNumber ? `Lic: ${emp.licenseNumber}` : emp.department ? `Dept: ${emp.department}` : "-"}
             </td>
-            <td className="p-3 text-right space-x-2">
-              <button
-                type="button"
-                onClick={() => onEdit(emp)}
-                className="text-xs font-bold text-secondary hover:underline cursor-pointer"
-              >
-                Edit
-              </button>
-              <button
-                type="button"
-                onClick={() => onDelete(emp, "employees")}
-                className="text-xs font-bold text-accent hover:underline cursor-pointer"
-              >
-                Delete
-              </button>
-            </td>
+            {!readOnly && (
+              <td className="p-3 text-right space-x-2">
+                <button
+                  type="button"
+                  onClick={() => onEdit(emp)}
+                  className="text-xs font-bold text-secondary hover:underline cursor-pointer"
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDelete(emp, "employees")}
+                  className="text-xs font-bold text-accent hover:underline cursor-pointer"
+                >
+                  Delete
+                </button>
+              </td>
+            )}
           </tr>
         ))}
       </tbody>

@@ -8,7 +8,7 @@ const roles = [
     key: "customer",
     name: "Customer",
     description: "Place and track freight orders",
-    route: "/order/new",
+    route: "/orders",
   },
   {
     key: "staff",
@@ -25,8 +25,8 @@ const roles = [
   {
     key: "manager",
     name: "Manager",
-    description: "Generate reports, view audit log",
-    route: "/manager/reports",
+    description: "Dashboard: reports, assignments, incidents, master data, audit log",
+    route: "/manager",
   },
   {
     key: "admin",

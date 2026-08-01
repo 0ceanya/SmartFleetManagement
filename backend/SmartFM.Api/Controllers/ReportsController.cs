@@ -20,7 +20,7 @@ public class ReportsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ReportResponse>> GenerateReport(GenerateReportRequest request)
     {
-        var report = await _coordinator.GenerateReportAsync(request.ReportType, request.From, request.To);
+        var report = await _coordinator.GenerateReportAsync(request.ReportType, request.From, request.To, request.BranchId);
         var response = ReportResponse.FromEntity(report);
         return CreatedAtAction(nameof(GetReports), response);
     }

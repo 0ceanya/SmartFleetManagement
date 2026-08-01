@@ -15,6 +15,8 @@ public record GenerateReportRequest : IValidatableObject
     [Required]
     public DateTime To { get; init; }
 
+    public Guid? BranchId { get; init; }
+
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
         if (To < From)
@@ -22,10 +24,38 @@ public record GenerateReportRequest : IValidatableObject
     }
 }
 
-public record ReportResponse(string ReportType, DateTime From, DateTime To, string Content, DateTime GeneratedAt)
+public record ReportResponse(
+    string ReportType,
+    DateTime From,
+    DateTime To,
+    string Content,
+    DateTime GeneratedAt,
+    Guid? BranchId,
+    int TotalAssignments,
+    int ActiveVehicles,
+    int IncidentCount,
+    decimal TotalCargoWeightKg,
+    decimal Revenue,
+    string AssignmentsByDayJson,
+    string AssignmentsByBranchJson,
+    string AssignmentsByDriverJson)
 {
     public static ReportResponse FromEntity(Report report) =>
-        new(report.ReportType, report.From, report.To, report.Content, report.GeneratedAt);
+        new(
+            ReportType: report.ReportType,
+            From: report.From,
+            To: report.To,
+            Content: report.Content,
+            GeneratedAt: report.GeneratedAt,
+            BranchId: report.BranchId,
+            TotalAssignments: report.TotalAssignments,
+            ActiveVehicles: report.ActiveVehicles,
+            IncidentCount: report.IncidentCount,
+            TotalCargoWeightKg: report.TotalCargoWeightKg,
+            Revenue: report.Revenue,
+            AssignmentsByDayJson: report.AssignmentsByDayJson,
+            AssignmentsByBranchJson: report.AssignmentsByBranchJson,
+            AssignmentsByDriverJson: report.AssignmentsByDriverJson);
 }
 
 public record AuditRecordResponse(Guid Id, string Action, string PerformedBy, string Details, DateTime CreatedAt)
