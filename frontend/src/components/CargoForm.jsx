@@ -19,7 +19,7 @@ export default function CargoForm({ orderData = {}, onChange }) {
 
   const totalOrderWeightKg = cargoItems.reduce(
     (sum, cargo) => sum + (Number(cargo.weightKg) || 0),
-    0
+    0,
   );
 
   const handleCargoChange = (index, field, value) => {
@@ -29,7 +29,7 @@ export default function CargoForm({ orderData = {}, onChange }) {
 
     const newTotalWeight = updatedCargoes.reduce(
       (sum, cargo) => sum + (Number(cargo.weightKg) || 0),
-      0
+      0,
     );
     onChange("orderWeightKg", newTotalWeight);
   };
@@ -50,7 +50,7 @@ export default function CargoForm({ orderData = {}, onChange }) {
 
     const newTotalWeight = updatedCargoes.reduce(
       (sum, cargo) => sum + (Number(cargo.weightKg) || 0),
-      0
+      0,
     );
     onChange("orderWeightKg", newTotalWeight);
   };
@@ -62,7 +62,7 @@ export default function CargoForm({ orderData = {}, onChange }) {
 
     const newTotalWeight = updatedCargoes.reduce(
       (sum, cargo) => sum + (Number(cargo.weightKg) || 0),
-      0
+      0,
     );
     onChange("orderWeightKg", newTotalWeight);
   };
@@ -91,9 +91,9 @@ export default function CargoForm({ orderData = {}, onChange }) {
         const weight = parseFloat(parts[1]) || 0;
         const volume = parts.length >= 3 ? parseFloat(parts[2]) || 0 : 0;
         const isHaz =
-          parts.length >= 4
-            ? ["true", "yes", "1"].includes(parts[3].toLowerCase())
-            : false;
+          parts.length >= 4 ?
+            ["true", "yes", "1"].includes(parts[3].toLowerCase())
+          : false;
 
         items.push({
           description: desc,
@@ -124,16 +124,17 @@ export default function CargoForm({ orderData = {}, onChange }) {
       if (parsedItems.length > 0) {
         const totalParsedWeight = parsedItems.reduce(
           (sum, item) => sum + (item.weightKg || 0),
-          0
+          0,
         );
         const totalParsedVolume = parsedItems.reduce(
           (sum, item) => sum + (item.volumeCbm || 0),
-          0
+          0,
         );
         const hasHazardous = parsedItems.some((item) => item.isHazardous);
 
         if (totalParsedWeight > 0) cargo.weightKg = totalParsedWeight;
-        if (totalParsedVolume > 0) cargo.volumeCbm = Number(totalParsedVolume.toFixed(2));
+        if (totalParsedVolume > 0)
+          cargo.volumeCbm = Number(totalParsedVolume.toFixed(2));
         if (hasHazardous) cargo.isHazardous = true;
 
         if (!cargo.description || cargo.description.startsWith("Cargo ")) {
@@ -146,7 +147,7 @@ export default function CargoForm({ orderData = {}, onChange }) {
 
       const newTotalWeight = updatedCargoes.reduce(
         (sum, c) => sum + (Number(c.weightKg) || 0),
-        0
+        0,
       );
       onChange("orderWeightKg", newTotalWeight);
 
@@ -161,38 +162,14 @@ export default function CargoForm({ orderData = {}, onChange }) {
 
   return (
     <div className="bg-white p-6 space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="bg-tertiary border-1 border-gray-200 p-4 flex items-center justify-between">
         <div>
-          <label className="block text-xs font-bold tracking-wider text-gray-700 mb-2">
-            Pickup Address
-          </label>
-          <input
-            type="text"
-            placeholder="e.g. 12 Le Loi Street, District 1, Ho Chi Minh City"
-            value={orderData.pickupAddress || ""}
-            onChange={(e) => onChange("pickupAddress", e.target.value)}
-            className="w-full border-1 border-gray-300 p-3.5 text-sm font-medium focus:border-primary focus:outline-none bg-white transition-colors"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-bold tracking-wider text-gray-700 mb-2">
-            Delivery Address
-          </label>
-          <input
-            type="text"
-            placeholder="e.g. 45 Tran Hung Dao Street, Hoan Kiem, Hanoi"
-            value={orderData.deliveryAddress || ""}
-            onChange={(e) => onChange("deliveryAddress", e.target.value)}
-            className="w-full border-1 border-gray-300 p-3.5 text-sm font-medium focus:border-primary focus:outline-none bg-white transition-colors"
-          />
-        </div>
-      </div>
-
-      <div className="bg-gray-50 border-1 border-gray-200 p-4 rounded-sm flex items-center justify-between">
-        <div>
-          <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Calculated Total Order Weight</span>
-          <p className="text-2xl font-bold text-black">{totalOrderWeightKg.toFixed(2)} kg</p>
+          <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+            Calculated Total Order Weight
+          </span>
+          <p className="text-2xl font-bold text-black">
+            {totalOrderWeightKg.toFixed(2)} kg
+          </p>
         </div>
         <button
           type="button"
@@ -206,7 +183,9 @@ export default function CargoForm({ orderData = {}, onChange }) {
       {cargoItems.map((cargo, cIdx) => (
         <div key={cIdx} className="border-1 border-gray-300 p-5 space-y-5">
           <div className="flex justify-between items-center border-b pb-2">
-            <h3 className="font-bold text-sm text-secondary">Cargo Item #{cIdx + 1}</h3>
+            <h3 className="font-bold text-sm text-secondary">
+              Cargo Item #{cIdx + 1}
+            </h3>
             {cargoItems.length > 1 && (
               <button
                 type="button"
@@ -220,35 +199,47 @@ export default function CargoForm({ orderData = {}, onChange }) {
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="md:col-span-2">
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Cargo Description</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">
+                Cargo Description
+              </label>
               <input
                 type="text"
                 placeholder="e.g. Pallet of Dairy Products"
                 value={cargo.description || ""}
-                onChange={(e) => handleCargoChange(cIdx, "description", e.target.value)}
+                onChange={(e) =>
+                  handleCargoChange(cIdx, "description", e.target.value)
+                }
                 className="w-full border border-gray-300 p-2 text-xs"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Weight (Kg)</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">
+                Weight (Kg)
+              </label>
               <input
                 type="number"
                 step="1"
                 min="0.1"
                 placeholder="Weight in Kg"
                 value={cargo.weightKg || ""}
-                onChange={(e) => handleCargoChange(cIdx, "weightKg", Number(e.target.value))}
+                onChange={(e) =>
+                  handleCargoChange(cIdx, "weightKg", Number(e.target.value))
+                }
                 className="w-full border border-gray-300 p-2 text-xs font-bold"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Volume (m³)</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">
+                Volume (m³)
+              </label>
               <input
                 type="number"
                 step="0.1"
                 placeholder="Volume in m³"
                 value={cargo.volumeCbm || ""}
-                onChange={(e) => handleCargoChange(cIdx, "volumeCbm", Number(e.target.value))}
+                onChange={(e) =>
+                  handleCargoChange(cIdx, "volumeCbm", Number(e.target.value))
+                }
                 className="w-full border border-gray-300 p-2 text-xs"
               />
             </div>
@@ -259,7 +250,9 @@ export default function CargoForm({ orderData = {}, onChange }) {
               <input
                 type="checkbox"
                 checked={cargo.isHazardous || false}
-                onChange={(e) => handleCargoChange(cIdx, "isHazardous", e.target.checked)}
+                onChange={(e) =>
+                  handleCargoChange(cIdx, "isHazardous", e.target.checked)
+                }
                 className="mr-2"
               />
               Hazardous Material
@@ -273,12 +266,15 @@ export default function CargoForm({ orderData = {}, onChange }) {
                 Upload Load Manifest (CSV / Excel)
               </p>
               <p className="text-xs text-gray-500 mt-0.5">
-                Attach SKU item manifest sheet to auto-calculate cargo specifications and validate receiving dock items.
+                Attach SKU item manifest sheet to auto-calculate cargo
+                specifications and validate receiving dock items.
               </p>
               {cargo.manifestFileName && (
                 <div className="mt-2 text-xs font-bold text-emerald-700 flex items-center gap-1">
-                  ✓ Attached: <span className="underline">{cargo.manifestFileName}</span>
-                  {cargo.manifestItems?.length > 0 && ` (${cargo.manifestItems.length} items parsed)`}
+                  ✓ Attached:{" "}
+                  <span className="underline">{cargo.manifestFileName}</span>
+                  {cargo.manifestItems?.length > 0 &&
+                    ` (${cargo.manifestItems.length} items parsed)`}
                 </div>
               )}
             </div>
@@ -296,20 +292,31 @@ export default function CargoForm({ orderData = {}, onChange }) {
               onClick={() => fileInputRefs.current[cIdx]?.click()}
               className="bg-white border border-gray-400 px-4 py-2 text-xs font-bold text-black hover:bg-black hover:text-white transition-all cursor-pointer whitespace-nowrap"
             >
-              {cargo.manifestFileName ? "Change Manifest Sheet" : "+ Upload Load Manifest"}
+              {cargo.manifestFileName ?
+                "Change Manifest Sheet"
+              : "+ Upload Load Manifest"}
             </button>
           </div>
 
           {/* Display parsed manifest items if uploaded */}
           {cargo.manifestItems && cargo.manifestItems.length > 0 && (
             <div className="bg-white p-3 border border-gray-200 space-y-2">
-              <span className="text-xs font-bold text-gray-700 uppercase">Parsed Load Manifest Items</span>
+              <span className="text-xs font-bold text-gray-700 uppercase">
+                Parsed Load Manifest Items
+              </span>
               <div className="max-h-40 overflow-y-auto space-y-1">
                 {cargo.manifestItems.map((item, idx) => (
-                  <div key={idx} className="flex justify-between items-center text-xs py-1 px-2 bg-gray-50 border-b border-gray-100">
-                    <span className="font-medium text-gray-800">{item.description}</span>
+                  <div
+                    key={idx}
+                    className="flex justify-between items-center text-xs py-1 px-2 bg-gray-50 border-b border-gray-100"
+                  >
+                    <span className="font-medium text-gray-800">
+                      {item.description}
+                    </span>
                     <span className="text-gray-500 font-mono">
-                      {item.weightKg} kg {item.volumeCbm ? `| ${item.volumeCbm} m³` : ""} {item.isHazardous ? "| ⚠️ Hazardous" : ""}
+                      {item.weightKg} kg{" "}
+                      {item.volumeCbm ? `| ${item.volumeCbm} m³` : ""}{" "}
+                      {item.isHazardous ? "| ⚠️ Hazardous" : ""}
                     </span>
                   </div>
                 ))}

@@ -4,7 +4,7 @@
   --font-heading: var(--font-heading), sans-serif;
 
   --color-black: #0f3330;
-  --color-white: #f2f0ef;
+  --color-white: #fffdfc;
   --color-primary: #49c9c1;
   --color-primary-hover: #41b3b0;
   --color-secondary: #0c8783;
@@ -13,8 +13,7 @@
   --color-accent: #ef504e;
   --color-accent-light: #f68f81;
   --color-sub: #0284c7;
-  /* Màu nền tổng thể */
-  --color-surface-bg: #e6e4e3;
+  --color-surface-bg: #f2f0ef;
   --color-surface-border: #e2e8f0;
 }
 
