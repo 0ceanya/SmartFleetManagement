@@ -44,7 +44,7 @@ export default function VehicleTable({ vehicles, branchMap, onEditStatus, onDele
                   onClick={() => onEditStatus(veh)}
                   className="text-xs font-bold text-secondary hover:underline cursor-pointer"
                 >
-                  Update Status
+                  Edit
                 </button>
                 <button
                   type="button"

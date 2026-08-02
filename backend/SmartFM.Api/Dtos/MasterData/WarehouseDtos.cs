@@ -27,6 +27,14 @@ public record UpdateWarehouseRequest
     public string Address { get; init; } = string.Empty;
 }
 
+public record PatchWarehouseRequest
+{
+    public string? Name { get; init; }
+    public string? Address { get; init; }
+    public Guid? BranchId { get; init; }
+    public decimal? CapacityKg { get; init; }
+}
+
 public record WarehouseResponse(Guid Id, string Name, string Address, Guid BranchId, decimal CapacityKg)
 {
     public static WarehouseResponse FromEntity(Warehouse warehouse) =>

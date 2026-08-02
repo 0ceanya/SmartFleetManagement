@@ -25,10 +25,12 @@ public class Offering
         VehicleClass = vehicleClass;
     }
 
-    public void UpdateDetails(string description, decimal basePrice, decimal maxWeightKg, decimal maxVolumeCbm)
+    public void UpdateDetails(string description, decimal basePrice, decimal maxWeightKg, decimal maxVolumeCbm, string? name = null, string? vehicleClass = null)
     {
         if (basePrice <= 0) throw new ArgumentException("BasePrice must be positive.", nameof(basePrice));
         if (maxWeightKg <= 0) throw new ArgumentException("MaxWeightKg must be positive.", nameof(maxWeightKg));
+        if (!string.IsNullOrWhiteSpace(name)) Name = name;
+        if (!string.IsNullOrWhiteSpace(vehicleClass)) VehicleClass = vehicleClass;
         Description = description;
         BasePrice = basePrice;
         MaxWeightKg = maxWeightKg;

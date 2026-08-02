@@ -191,6 +191,113 @@ public class MasterDataCoordinator
         return offering;
     }
 
+    public async Task<Branch> PatchBranchAsync(Guid id, string? name, string? city)
+    {
+        var branch = await _branches.GetByIdAsync(id)
+            ?? throw new InvalidOperationException($"Branch {id} not found.");
+
+        var newName = string.IsNullOrWhiteSpace(name) ? branch.Name : name.Trim();
+        var newCity = string.IsNullOrWhiteSpace(city) ? branch.City : city.Trim();
+
+        if (!string.Equals(branch.Name, newName, StringComparison.OrdinalIgnoreCase))
+        {
+            await EnsureBranchNameAvailableAsync(newName, excludeId: id);
+        }
+
+        branch.Rename(newName, newCity);
+        _branches.Update(branch);
+        await _unitOfWork.SaveChangesAsync();
+        return branch;
+    }
+
+    public async Task<Warehouse> PatchWarehouseAsync(Guid id, string? name, string? address, Guid? branchId, decimal? capacityKg)
+    {
+        var warehouse = await _warehouses.GetByIdAsync(id)
+            ?? throw new InvalidOperationException($"Warehouse {id} not found.");
+
+        var newName = string.IsNullOrWhiteSpace(name) ? warehouse.Name : name.Trim();
+        var newAddress = string.IsNullOrWhiteSpace(address) ? warehouse.Address : address.Trim();
+
+        warehouse.UpdateDetails(newName, newAddress, branchId, capacityKg);
+        _warehouses.Update(warehouse);
+        await _unitOfWork.SaveChangesAsync();
+        return warehouse;
+    }
+
+    public async Task<Employee> PatchEmployeeAsync(Guid id, string? name, string? email, Guid? branchId, string? department, string? licenseNumber, bool promoteToManager)
+    {
+        var employee = await _employees.GetByIdAsync(id)
+            ?? throw new InvalidOperationException($"Employee {id} not found.");
+
+        var updatedName = string.IsNullOrWhiteSpace(name) ? employee.Name : name.Trim();
+        var updatedEmail = string.IsNullOrWhiteSpace(email) ? employee.Email : email.Trim();
+        var updatedBranchId = (branchId.HasValue && branchId.Value != Guid.Empty) ? branchId.Value : employee.BranchId;
+
+        if (promoteToManager && employee is not Manager)
+        {
+            _employees.Remove(employee);
+            var manager = new Manager(employee.Id, updatedName, updatedEmail, updatedBranchId);
+            await _employees.AddAsync(manager);
+            await _unitOfWork.SaveChangesAsync();
+            return manager;
+        }
+
+        employee.UpdateContactInfo(updatedName, updatedEmail);
+        employee.SetBranch(updatedBranchId);
+
+        if (employee is Staff staff && !string.IsNullOrWhiteSpace(department))
+        {
+            staff.UpdateDepartment(department.Trim());
+        }
+
+        if (employee is Driver driver && !string.IsNullOrWhiteSpace(licenseNumber))
+        {
+            driver.UpdateLicenseNumber(licenseNumber.Trim());
+        }
+
+        _employees.Update(employee);
+        await _unitOfWork.SaveChangesAsync();
+        return employee;
+    }
+
+    public async Task<Vehicle> PatchVehicleAsync(Guid id, Guid? branchId, string? status)
+    {
+        var vehicle = await _vehicles.GetByIdAsync(id)
+            ?? throw new InvalidOperationException($"Vehicle {id} not found.");
+
+        if (branchId.HasValue && branchId.Value != Guid.Empty)
+        {
+            vehicle.SetBranch(branchId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            vehicle.SetStatus(status.Trim());
+        }
+
+        _vehicles.Update(vehicle);
+        await _unitOfWork.SaveChangesAsync();
+        return vehicle;
+    }
+
+    public async Task<Offering> PatchOfferingAsync(Guid id, string? name, string? description, decimal? basePrice, decimal? maxWeightKg, decimal? maxVolumeCbm, string? vehicleClass)
+    {
+        var offering = await _offerings.GetByIdAsync(id)
+            ?? throw new InvalidOperationException($"Offering {id} not found.");
+
+        var newDesc = description != null ? description.Trim() : offering.Description;
+        var newPrice = basePrice.HasValue ? basePrice.Value : offering.BasePrice;
+        var newWeight = maxWeightKg.HasValue ? maxWeightKg.Value : offering.MaxWeightKg;
+        var newVolume = maxVolumeCbm.HasValue ? maxVolumeCbm.Value : offering.MaxVolumeCbm;
+        var newName = !string.IsNullOrWhiteSpace(name) ? name.Trim() : offering.Name;
+        var newClass = !string.IsNullOrWhiteSpace(vehicleClass) ? vehicleClass.Trim() : offering.VehicleClass;
+
+        offering.UpdateDetails(newDesc, newPrice, newWeight, newVolume, newName, newClass);
+        _offerings.Update(offering);
+        await _unitOfWork.SaveChangesAsync();
+        return offering;
+    }
+
     public async Task DeleteOfferingAsync(Guid id)
     {
         var offering = await _offerings.GetByIdAsync(id)

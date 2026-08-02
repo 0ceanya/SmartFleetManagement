@@ -54,6 +54,17 @@ public record UpdateEmployeeRequest
     public string Email { get; init; } = string.Empty;
 }
 
+public record PatchEmployeeRequest
+{
+    public string? Name { get; init; }
+    [EmailAddress]
+    public string? Email { get; init; }
+    public Guid? BranchId { get; init; }
+    public string? Department { get; init; }
+    public string? LicenseNumber { get; init; }
+    public bool PromoteToManager { get; init; } = false;
+}
+
 public record EmployeeResponse(
     Guid Id,
     string Type,

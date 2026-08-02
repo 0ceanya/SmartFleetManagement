@@ -21,6 +21,14 @@ public record UpdateVehicleStatusRequest
     public string Status { get; init; } = string.Empty;
 }
 
+public record PatchVehicleRequest
+{
+    public Guid? BranchId { get; init; }
+
+    [AllowedValues("Available", "Assigned", "UnderMaintenance")]
+    public string? Status { get; init; }
+}
+
 public record VehicleResponse(Guid Id, string RegistrationNumber, string CurrentStatus, Guid BranchId, double MaxPayloadKg, string VehicleClass)
 {
     public static VehicleResponse FromEntity(Vehicle vehicle)

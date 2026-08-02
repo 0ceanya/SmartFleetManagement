@@ -35,9 +35,9 @@ export default function MasterDataModal({
           {modalType === "createWarehouse" && "Create New Warehouse"}
           {modalType === "editWarehouse" && `Edit Warehouse: ${editingItem?.name}`}
           {modalType === "createEmployee" && "Add New Employee"}
-          {modalType === "editEmployee" && `Edit Contact: ${editingItem?.name}`}
+          {modalType === "editEmployee" && `Edit Employee: ${editingItem?.name}`}
           {modalType === "createVehicle" && "Register New Vehicle"}
-          {modalType === "editVehicleStatus" && `Update Vehicle Status: ${editingItem?.registrationNumber}`}
+          {(modalType === "editVehicleStatus" || modalType === "editVehicle") && `Edit Vehicle: ${editingItem?.registrationNumber}`}
           {modalType === "createOffering" && "Create New Service Offering"}
           {modalType === "editOffering" && `Edit Offering: ${editingItem?.name}`}
         </h3>
@@ -99,36 +99,32 @@ export default function MasterDataModal({
                 className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
               />
             </div>
-            {modalType === "createWarehouse" && (
-              <>
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Branch</label>
-                  <select
-                    value={warehouseForm.branchId}
-                    onChange={(e) => setWarehouseForm({ ...warehouseForm, branchId: e.target.value })}
-                    className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
-                  >
-                    {branches.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.name} ({b.city})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Capacity (kg)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    step="any"
-                    required
-                    value={warehouseForm.capacityKg}
-                    onChange={(e) => setWarehouseForm({ ...warehouseForm, capacityKg: e.target.value })}
-                    className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
-                  />
-                </div>
-              </>
-            )}
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Branch</label>
+              <select
+                value={warehouseForm.branchId}
+                onChange={(e) => setWarehouseForm({ ...warehouseForm, branchId: e.target.value })}
+                className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
+              >
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name} ({b.city})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Capacity (kg)</label>
+              <input
+                type="number"
+                min="1"
+                step="any"
+                required
+                value={warehouseForm.capacityKg}
+                onChange={(e) => setWarehouseForm({ ...warehouseForm, capacityKg: e.target.value })}
+                className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
+              />
+            </div>
             <div className="flex justify-end gap-2 pt-4">
               <Button variant="outline" onClick={onClose} disabled={submitting}>Cancel</Button>
               <Button type="submit" disabled={submitting}>{submitting ? "Saving..." : "Save Warehouse"}</Button>
@@ -175,46 +171,60 @@ export default function MasterDataModal({
                 className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
               />
             </div>
-            {modalType === "createEmployee" && (
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Branch</label>
+              <select
+                value={employeeForm.branchId}
+                onChange={(e) => setEmployeeForm({ ...employeeForm, branchId: e.target.value })}
+                className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
+              >
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name} ({b.city})
+                  </option>
+                ))}
+              </select>
+            </div>
+            {employeeForm.employeeRole === "Driver" && (
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Driver License Number</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. D-9901"
+                  value={employeeForm.licenseNumber}
+                  onChange={(e) => setEmployeeForm({ ...employeeForm, licenseNumber: e.target.value })}
+                  className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
+                />
+              </div>
+            )}
+            {employeeForm.employeeRole === "Staff" && (
               <>
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Branch</label>
-                  <select
-                    value={employeeForm.branchId}
-                    onChange={(e) => setEmployeeForm({ ...employeeForm, branchId: e.target.value })}
+                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Department</label>
+                  <input
+                    type="text"
+                    required={!employeeForm.promoteToManager}
+                    placeholder="e.g. Operations"
+                    value={employeeForm.department}
+                    onChange={(e) => setEmployeeForm({ ...employeeForm, department: e.target.value })}
                     className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
-                  >
-                    {branches.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.name} ({b.city})
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </div>
-                {employeeForm.employeeRole === "Driver" && (
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Driver License Number</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. D-9901"
-                      value={employeeForm.licenseNumber}
-                      onChange={(e) => setEmployeeForm({ ...employeeForm, licenseNumber: e.target.value })}
-                      className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
-                    />
-                  </div>
-                )}
-                {employeeForm.employeeRole === "Staff" && (
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Department</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Operations"
-                      value={employeeForm.department}
-                      onChange={(e) => setEmployeeForm({ ...employeeForm, department: e.target.value })}
-                      className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
-                    />
+                {modalType === "editEmployee" && (
+                  <div className="pt-2 border-t border-gray-200">
+                    <label className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-purple-900 bg-purple-50 p-2.5 border border-purple-200 rounded">
+                      <input
+                        type="checkbox"
+                        checked={employeeForm.promoteToManager || false}
+                        onChange={(e) => setEmployeeForm({ ...employeeForm, promoteToManager: e.target.checked })}
+                        className="w-4 h-4 text-purple-600 focus:ring-purple-500 rounded border-gray-300"
+                      />
+                      <span>Promote Staff to Manager</span>
+                    </label>
+                    <p className="text-xs text-gray-500 mt-1 pl-6">
+                      Promoting to Manager elevates this employee's administrative status and converts their role.
+                    </p>
                   </div>
                 )}
               </>
@@ -227,7 +237,7 @@ export default function MasterDataModal({
         )}
 
         {/* VEHICLE FORM */}
-        {(modalType === "createVehicle" || modalType === "editVehicleStatus") && (
+        {(modalType === "createVehicle" || modalType === "editVehicleStatus" || modalType === "editVehicle") && (
           <form onSubmit={onSubmitVehicle} className="space-y-4">
             {modalType === "createVehicle" ? (
               <>
@@ -270,18 +280,34 @@ export default function MasterDataModal({
                 </div>
               </>
             ) : (
-              <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Status</label>
-                <select
-                  value={vehicleForm.status}
-                  onChange={(e) => setVehicleForm({ ...vehicleForm, status: e.target.value })}
-                  className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
-                >
-                  <option value="Available">Available</option>
-                  <option value="Assigned">Assigned</option>
-                  <option value="UnderMaintenance">UnderMaintenance</option>
-                </select>
-              </div>
+              <>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Branch Location</label>
+                  <select
+                    value={vehicleForm.branchId}
+                    onChange={(e) => setVehicleForm({ ...vehicleForm, branchId: e.target.value })}
+                    className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
+                  >
+                    {branches.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name} ({b.city})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Status</label>
+                  <select
+                    value={vehicleForm.status}
+                    onChange={(e) => setVehicleForm({ ...vehicleForm, status: e.target.value })}
+                    className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
+                  >
+                    <option value="Available">Available</option>
+                    <option value="Assigned">Assigned</option>
+                    <option value="UnderMaintenance">UnderMaintenance</option>
+                  </select>
+                </div>
+              </>
             )}
             <div className="flex justify-end gap-2 pt-4">
               <Button variant="outline" onClick={onClose} disabled={submitting}>Cancel</Button>
@@ -293,19 +319,17 @@ export default function MasterDataModal({
         {/* OFFERING FORM */}
         {(modalType === "createOffering" || modalType === "editOffering") && (
           <form onSubmit={onSubmitOffering} className="space-y-4">
-            {modalType === "createOffering" && (
-              <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Offering Name</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Express Freight"
-                  value={offeringForm.name}
-                  onChange={(e) => setOfferingForm({ ...offeringForm, name: e.target.value })}
-                  className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
-                />
-              </div>
-            )}
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Offering Name</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Express Freight"
+                value={offeringForm.name}
+                onChange={(e) => setOfferingForm({ ...offeringForm, name: e.target.value })}
+                className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
+              />
+            </div>
             <div>
               <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Description</label>
               <textarea
@@ -352,20 +376,18 @@ export default function MasterDataModal({
                 />
               </div>
             </div>
-            {modalType === "createOffering" && (
-              <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Required Vehicle Class</label>
-                <select
-                  value={offeringForm.vehicleClass}
-                  onChange={(e) => setOfferingForm({ ...offeringForm, vehicleClass: e.target.value })}
-                  className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
-                >
-                  <option value="Light">Light</option>
-                  <option value="Medium">Medium</option>
-                  <option value="Heavy">Heavy</option>
-                </select>
-              </div>
-            )}
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Required Vehicle Class</label>
+              <select
+                value={offeringForm.vehicleClass}
+                onChange={(e) => setOfferingForm({ ...offeringForm, vehicleClass: e.target.value })}
+                className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
+              >
+                <option value="Light">Light</option>
+                <option value="Medium">Medium</option>
+                <option value="Heavy">Heavy</option>
+              </select>
+            </div>
             <div className="flex justify-end gap-2 pt-4">
               <Button variant="outline" onClick={onClose} disabled={submitting}>Cancel</Button>
               <Button type="submit" disabled={submitting}>{submitting ? "Saving..." : "Save Offering"}</Button>

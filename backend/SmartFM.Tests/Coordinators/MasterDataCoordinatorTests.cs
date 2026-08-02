@@ -155,6 +155,35 @@ public class MasterDataCoordinatorTests : IDisposable
         Assert.DoesNotContain(offerings, o => o.Id == offering.Id);
     }
 
+    [Fact]
+    public async Task MasterDataCoordinatorPatchesVehicleBranchAndStatus()
+    {
+        var branch1 = await _coordinator.CreateBranchAsync("Branch Alpha", "City A");
+        var branch2 = await _coordinator.CreateBranchAsync("Branch Beta", "City B");
+        var vehicle = await _coordinator.CreateVehicleAsync("29A-99999", branch1.Id, "Light");
+
+        var patched = await _coordinator.PatchVehicleAsync(vehicle.Id, branch2.Id, "UnderMaintenance");
+
+        Assert.Equal(branch2.Id, patched.BranchId);
+        Assert.Equal("UnderMaintenance", patched.CurrentStatus);
+    }
+
+    [Fact]
+    public async Task MasterDataCoordinatorPatchesEmployeeBranchAndPromotesStaffToManager()
+    {
+        var branch1 = await _coordinator.CreateBranchAsync("Branch Gamma", "City C");
+        var branch2 = await _coordinator.CreateBranchAsync("Branch Delta", "City D");
+        var staff = await _coordinator.CreateStaffAsync("Nguyen Staff", "staff@smartfm.vn", branch1.Id, "Support");
+
+        var promoted = await _coordinator.PatchEmployeeAsync(staff.Id, "Nguyen Manager", "manager@smartfm.vn", branch2.Id, null, null, promoteToManager: true);
+
+        Assert.IsType<Manager>(promoted);
+        Assert.Equal(staff.Id, promoted.Id);
+        Assert.Equal("Nguyen Manager", promoted.Name);
+        Assert.Equal("manager@smartfm.vn", promoted.Email);
+        Assert.Equal(branch2.Id, promoted.BranchId);
+    }
+
     public void Dispose()
     {
         _context.Dispose();

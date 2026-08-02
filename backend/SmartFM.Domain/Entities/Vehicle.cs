@@ -32,4 +32,6 @@ public abstract class Vehicle : ITrackable
     }
 
     public void SetStatus(string status) => CurrentStatus = status;
+
+    public void SetBranch(Guid branchId) => BranchId = branchId;
 }

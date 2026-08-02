@@ -161,6 +161,7 @@ export default function AdminMasterDataPage() {
       branchId: emp.branchId,
       licenseNumber: emp.licenseNumber || "",
       department: emp.department || "",
+      promoteToManager: false,
     });
     setModalType("editEmployee");
     setModalOpen(true);
@@ -176,7 +177,7 @@ export default function AdminMasterDataPage() {
   const openEditVehicleStatusModal = (veh) => {
     setEditingItem(veh);
     setVehicleForm({ registrationNumber: veh.registrationNumber, branchId: veh.branchId, vehicleClass: veh.vehicleClass, status: veh.currentStatus });
-    setModalType("editVehicleStatus");
+    setModalType("editVehicle");
     setModalOpen(true);
   };
 
@@ -227,7 +228,7 @@ export default function AdminMasterDataPage() {
         showNotification("Branch created successfully.");
       } else {
         await apiFetch(`/api/master-data/branches/${editingItem.id}`, {
-          method: "PUT",
+          method: "PATCH",
           body: JSON.stringify({ name: branchForm.name.trim(), city: branchForm.city.trim() }),
         });
         showNotification("Branch updated successfully.");
@@ -258,10 +259,12 @@ export default function AdminMasterDataPage() {
         showNotification("Warehouse created successfully.");
       } else {
         await apiFetch(`/api/master-data/warehouses/${editingItem.id}`, {
-          method: "PUT",
+          method: "PATCH",
           body: JSON.stringify({
             name: warehouseForm.name.trim(),
             address: warehouseForm.address.trim(),
+            branchId: warehouseForm.branchId,
+            capacityKg: parseFloat(warehouseForm.capacityKg),
           }),
         });
         showNotification("Warehouse details updated successfully.");
@@ -304,13 +307,17 @@ export default function AdminMasterDataPage() {
         showNotification(`${employeeForm.employeeRole} created successfully.`);
       } else {
         await apiFetch(`/api/master-data/employees/${editingItem.id}`, {
-          method: "PUT",
+          method: "PATCH",
           body: JSON.stringify({
             name: employeeForm.name.trim(),
             email: employeeForm.email.trim(),
+            branchId: employeeForm.branchId,
+            department: employeeForm.employeeRole === "Staff" ? employeeForm.department.trim() : undefined,
+            licenseNumber: employeeForm.employeeRole === "Driver" ? employeeForm.licenseNumber.trim() : undefined,
+            promoteToManager: employeeForm.employeeRole === "Staff" ? !!employeeForm.promoteToManager : false,
           }),
         });
-        showNotification("Employee contact info updated successfully.");
+        showNotification("Employee updated successfully.");
       }
       closeModal();
       await fetchAllData();
@@ -336,13 +343,14 @@ export default function AdminMasterDataPage() {
         });
         showNotification("Vehicle registered successfully.");
       } else {
-        await apiFetch(`/api/master-data/vehicles/${editingItem.id}/status`, {
-          method: "PUT",
+        await apiFetch(`/api/master-data/vehicles/${editingItem.id}`, {
+          method: "PATCH",
           body: JSON.stringify({
+            branchId: vehicleForm.branchId,
             status: vehicleForm.status,
           }),
         });
-        showNotification("Vehicle status updated successfully.");
+        showNotification("Vehicle details updated successfully.");
       }
       closeModal();
       await fetchAllData();
@@ -372,12 +380,14 @@ export default function AdminMasterDataPage() {
         showNotification("Service offering created successfully.");
       } else {
         await apiFetch(`/api/master-data/offerings/${editingItem.id}`, {
-          method: "PUT",
+          method: "PATCH",
           body: JSON.stringify({
+            name: offeringForm.name.trim(),
             description: offeringForm.description.trim(),
             basePrice: parseFloat(offeringForm.basePrice),
             maxWeightKg: parseFloat(offeringForm.maxWeightKg),
             maxVolumeCbm: parseFloat(offeringForm.maxVolumeCbm),
+            vehicleClass: offeringForm.vehicleClass,
           }),
         });
         showNotification("Service offering updated successfully.");

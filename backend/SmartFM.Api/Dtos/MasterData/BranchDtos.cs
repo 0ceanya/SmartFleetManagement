@@ -21,6 +21,12 @@ public record UpdateBranchRequest
     public string City { get; init; } = string.Empty;
 }
 
+public record PatchBranchRequest
+{
+    public string? Name { get; init; }
+    public string? City { get; init; }
+}
+
 public record BranchResponse(Guid Id, string Name, string City)
 {
     public static BranchResponse FromEntity(Branch branch) => new(branch.Id, branch.Name, branch.City);

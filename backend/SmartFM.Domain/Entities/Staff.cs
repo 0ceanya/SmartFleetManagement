@@ -11,4 +11,10 @@ public class Staff : Employee
     {
         Department = department;
     }
+
+    public void UpdateDepartment(string department)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(department);
+        Department = department;
+    }
 }

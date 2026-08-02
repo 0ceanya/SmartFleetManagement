@@ -56,6 +56,17 @@ public class MasterDataController : ControllerBase
         return Ok(BranchResponse.FromEntity(branch));
     }
 
+    [HttpPatch("branches/{id:guid}")]
+    [ProducesResponseType(typeof(BranchResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<BranchResponse>> PatchBranch(Guid id, PatchBranchRequest request)
+    {
+        var branch = await _coordinator.PatchBranchAsync(id, request.Name, request.City);
+        return Ok(BranchResponse.FromEntity(branch));
+    }
+
     [HttpDelete("branches/{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -102,6 +113,16 @@ public class MasterDataController : ControllerBase
     public async Task<ActionResult<WarehouseResponse>> UpdateWarehouse(Guid id, UpdateWarehouseRequest request)
     {
         var warehouse = await _coordinator.UpdateWarehouseAsync(id, request.Name, request.Address);
+        return Ok(WarehouseResponse.FromEntity(warehouse));
+    }
+
+    [HttpPatch("warehouses/{id:guid}")]
+    [ProducesResponseType(typeof(WarehouseResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<WarehouseResponse>> PatchWarehouse(Guid id, PatchWarehouseRequest request)
+    {
+        var warehouse = await _coordinator.PatchWarehouseAsync(id, request.Name, request.Address, request.BranchId, request.CapacityKg);
         return Ok(WarehouseResponse.FromEntity(warehouse));
     }
 
@@ -174,6 +195,16 @@ public class MasterDataController : ControllerBase
         return Ok(EmployeeResponse.FromEntity(employee));
     }
 
+    [HttpPatch("employees/{id:guid}")]
+    [ProducesResponseType(typeof(EmployeeResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<EmployeeResponse>> PatchEmployee(Guid id, PatchEmployeeRequest request)
+    {
+        var employee = await _coordinator.PatchEmployeeAsync(id, request.Name, request.Email, request.BranchId, request.Department, request.LicenseNumber, request.PromoteToManager);
+        return Ok(EmployeeResponse.FromEntity(employee));
+    }
+
     [HttpDelete("employees/{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -220,6 +251,16 @@ public class MasterDataController : ControllerBase
     public async Task<ActionResult<VehicleResponse>> UpdateVehicleStatus(Guid id, UpdateVehicleStatusRequest request)
     {
         var vehicle = await _coordinator.UpdateVehicleStatusAsync(id, request.Status);
+        return Ok(VehicleResponse.FromEntity(vehicle));
+    }
+
+    [HttpPatch("vehicles/{id:guid}")]
+    [ProducesResponseType(typeof(VehicleResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<VehicleResponse>> PatchVehicle(Guid id, PatchVehicleRequest request)
+    {
+        var vehicle = await _coordinator.PatchVehicleAsync(id, request.BranchId, request.Status);
         return Ok(VehicleResponse.FromEntity(vehicle));
     }
 
@@ -270,6 +311,16 @@ public class MasterDataController : ControllerBase
     public async Task<ActionResult<OfferingResponse>> UpdateOffering(Guid id, UpdateOfferingRequest request)
     {
         var offering = await _coordinator.UpdateOfferingAsync(id, request.Description, request.BasePrice, request.MaxWeightKg, request.MaxVolumeCbm);
+        return Ok(OfferingResponse.FromEntity(offering));
+    }
+
+    [HttpPatch("offerings/{id:guid}")]
+    [ProducesResponseType(typeof(OfferingResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<OfferingResponse>> PatchOffering(Guid id, PatchOfferingRequest request)
+    {
+        var offering = await _coordinator.PatchOfferingAsync(id, request.Name, request.Description, request.BasePrice, request.MaxWeightKg, request.MaxVolumeCbm, request.VehicleClass);
         return Ok(OfferingResponse.FromEntity(offering));
     }
 

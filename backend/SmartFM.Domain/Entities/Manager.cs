@@ -6,4 +6,7 @@ public class Manager : Employee
 
     public Manager(string name, string email, Guid branchId)
         : base(name, email, branchId) { }
+
+    public Manager(Guid id, string name, string email, Guid branchId)
+        : base(id, name, email, branchId) { }
 }

@@ -10,9 +10,13 @@ public abstract class Employee
     protected Employee() { }
 
     protected Employee(string name, string email, Guid branchId)
+        : this(Guid.NewGuid(), name, email, branchId) { }
+
+    protected Employee(Guid id, string name, string email, Guid branchId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentException.ThrowIfNullOrWhiteSpace(email);
+        Id = id;
         Name = name;
         Email = email;
         BranchId = branchId;
@@ -24,5 +28,10 @@ public abstract class Employee
         ArgumentException.ThrowIfNullOrWhiteSpace(email);
         Name = name;
         Email = email;
+    }
+
+    public void SetBranch(Guid branchId)
+    {
+        BranchId = branchId;
     }
 }

@@ -15,4 +15,10 @@ public class Driver : Employee
     }
 
     public void SetAvailability(bool available) => IsAvailable = available;
+
+    public void UpdateLicenseNumber(string licenseNumber)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(licenseNumber);
+        LicenseNumber = licenseNumber;
+    }
 }

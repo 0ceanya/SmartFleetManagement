@@ -37,6 +37,16 @@ public record UpdateOfferingRequest
     public decimal MaxVolumeCbm { get; init; }
 }
 
+public record PatchOfferingRequest
+{
+    public string? Name { get; init; }
+    public string? Description { get; init; }
+    public decimal? BasePrice { get; init; }
+    public decimal? MaxWeightKg { get; init; }
+    public decimal? MaxVolumeCbm { get; init; }
+    public string? VehicleClass { get; init; }
+}
+
 public record OfferingResponse(Guid Id, string Name, string Description, decimal BasePrice, decimal MaxWeightKg, decimal MaxVolumeCbm, string VehicleClass)
 {
     public static OfferingResponse FromEntity(Offering offering) =>

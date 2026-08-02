@@ -21,11 +21,18 @@ public class Warehouse
         CapacityKg = capacityKg;
     }
 
-    public void UpdateDetails(string name, string address)
+    public void UpdateDetails(string name, string address, Guid? branchId = null, decimal? capacityKg = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentException.ThrowIfNullOrWhiteSpace(address);
         Name = name;
         Address = address;
+        if (branchId.HasValue && branchId.Value != Guid.Empty)
+            BranchId = branchId.Value;
+        if (capacityKg.HasValue)
+        {
+            if (capacityKg.Value <= 0) throw new ArgumentException("CapacityKg must be positive.", nameof(capacityKg));
+            CapacityKg = capacityKg.Value;
+        }
     }
 }
