@@ -34,7 +34,9 @@ export default function OrdersPage() {
       
       const customerMap = {};
       customersData.forEach(c => {
-        customerMap[c.id] = c;
+        if (c && c.id) {
+          customerMap[c.id.toLowerCase()] = c;
+        }
       });
       setCustomers(customerMap);
     } catch (err) {
@@ -67,10 +69,10 @@ export default function OrdersPage() {
         // Search by ID or Email
         if (searchQuery) {
           const q = searchQuery.toLowerCase();
-          const customerEmail = customers[order.customerId]?.email?.toLowerCase() || "";
+          const customerEmail = customers[order.customerId?.toLowerCase()]?.email?.toLowerCase() || "";
           
-          if (!order.id.toLowerCase().includes(q) && 
-              !order.customerId.toLowerCase().includes(q) &&
+          if (!order.id?.toLowerCase().includes(q) && 
+              !order.customerId?.toLowerCase().includes(q) &&
               !customerEmail.includes(q)) {
             return false;
           }
@@ -98,7 +100,7 @@ export default function OrdersPage() {
         const dateB = new Date(b.createdAt).getTime();
         return sortOrder === "desc" ? dateB - dateA : dateA - dateB;
       });
-  }, [allOrders, searchQuery, statusFilter, startDate, endDate, sortOrder]);
+  }, [allOrders, customers, searchQuery, statusFilter, startDate, endDate, sortOrder]);
 
   return (
     <Box className="max-w-7xl mx-auto my-8 px-4">
