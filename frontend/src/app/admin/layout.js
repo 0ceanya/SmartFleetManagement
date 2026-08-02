@@ -1,6 +1,10 @@
 import AppHeader from "@/components/AppHeader";
 import AppFooter from "@/components/AppFooter";
 
+export const metadata = {
+  title: "SmartFM - Admin Portal",
+};
+
 export default function AdminLayout({ children }) {
   return (
     <div className="min-h-screen bg-surface-bg flex flex-col">

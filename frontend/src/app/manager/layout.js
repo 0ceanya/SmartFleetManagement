@@ -1,5 +1,10 @@
+import { Container } from "@mui/material";
 import AppHeader from "@/components/AppHeader";
 import AppFooter from "@/components/AppFooter";
+
+export const metadata = {
+  title: "SmartFM - Manager Portal",
+};
 
 const navItems = [
   { label: "Dashboard", href: "/manager" },

@@ -1,6 +1,10 @@
 import AppHeader from "@/components/AppHeader";
 import AppFooter from "@/components/AppFooter";
 
+export const metadata = {
+  title: "SmartFM - Staff Portal",
+};
+
 const navItems = [
   { label: "Orders", href: "/staff/orders" },
   { label: "Assignments", href: "/staff/assignments" },
