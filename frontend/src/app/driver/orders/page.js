@@ -6,6 +6,7 @@ import DriverAuthGuard from "@/components/driver/DriverAuthGuard";
 import DriverPageShell from "@/components/driver/DriverPageShell";
 import DriverPageHeader from "@/components/driver/DriverPageHeader";
 import DriverStatTile from "@/components/driver/DriverStatTile";
+import { getStatusChipClasses } from "@/lib/driverStatus";
 import {
   simulateWeather,
   simulateTraffic,
@@ -61,8 +62,8 @@ function OrderCard({ assignment, vehicleMap, detail }) {
             )}
           </p>
         </div>
-        <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 uppercase">
-          Completed
+        <span className={`${getStatusChipClasses(assignment.status)} text-[10px] font-bold px-2 py-0.5 uppercase`}>
+          {assignment.status}
         </span>
       </div>
 
@@ -105,7 +106,7 @@ function MyOrderContent({ driverId }) {
       setError(null);
       try {
         const [assignmentsData, vehiclesData] = await Promise.all([
-          apiFetch(`/api/fleet/assignments?driverId=${driverId}&status=Completed`),
+          apiFetch(`/api/fleet/assignments?driverId=${driverId}&status=Delivered`),
           apiFetch("/api/master-data/vehicles"),
         ]);
         const list = assignmentsData || [];

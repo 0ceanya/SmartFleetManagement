@@ -53,7 +53,7 @@ public class TrackingCoordinator : ITelemetryObserver
     private async Task RecordTelemetryAsync(Vehicle vehicle, TelemetryData data)
     {
         var assignments = await _assignments.GetAllAsync();
-        var activeAssignment = assignments.FirstOrDefault(a => a.VehicleId == vehicle.Id && a.Status == AssignmentStatus.Active);
+        var activeAssignment = assignments.FirstOrDefault(a => a.VehicleId == vehicle.Id && a.Status is AssignmentStatus.Assigned or AssignmentStatus.Loaded or AssignmentStatus.Delivering);
 
         var affectedShipmentIds = activeAssignment is null
             ? new List<Guid>()

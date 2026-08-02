@@ -120,3 +120,5 @@ public record LoadManifestResponse(
             manifest.ContainsHazardous, manifest.CreatedAt, manifest.LoadedCargoIds, manifest.IsPickupResolved,
             manifest.IsDropoffResolved, manifest.DamagedOrMissingItems);
 }
+
+public record ShipmentStatusResponse(Guid ShipmentId, string Status);

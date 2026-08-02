@@ -41,24 +41,22 @@ function AssignmentsContent({ driverId, driverInfo }) {
   }, [driverId]);
 
   const activeAssignments = useMemo(
-    () => assignments.filter((a) => a.status === "Pending" || a.status === "Active"),
+    () => assignments.filter((a) => a.status !== "Delivered" && a.status !== "Rejected"),
     [assignments]
   );
 
   return (
     <DriverPageShell maxWidth="6xl">
       <DriverPageHeader
-        eyebrow={
-          <span className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse" />
-            Authenticated Driver Session
-          </span>
+        title={
+          <>
+          Driver: <strong className="text-secondary">{driverInfo?.name || driverInfo?.email || "Signed In"}</strong> 
+          </>
         }
-        title="My Assignment"
         subtitle={
           <>
-            Driver: <strong className="text-secondary">{driverInfo?.name || driverInfo?.email || "Signed In"}</strong> | ID:{" "}
-            <span className="text-primary font-bold">{driverId}</span>
+            ID:{" "}
+            <span>{driverId}</span>
           </>
         }
         actions={

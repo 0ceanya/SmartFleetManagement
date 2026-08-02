@@ -61,6 +61,14 @@ public class OrderFulfilmentCoordinatorTests : IDisposable
         await _context.SaveChangesAsync();
     }
 
+    private async Task ActivateOrderAsync(Order order)
+    {
+        var storedOrder = await _orders.GetByIdAsync(order.Id) ?? throw new InvalidOperationException("Order not found.");
+        storedOrder.SetStatus(OrderStatus.Active);
+        _orders.Update(storedOrder);
+        await _context.SaveChangesAsync();
+    }
+
     private async Task DispatchShipmentAsync(Shipment shipment)
     {
         var branch = new Branch("Hanoi Branch", "Hanoi");
@@ -227,13 +235,14 @@ public class OrderFulfilmentCoordinatorTests : IDisposable
     }
 
     [Fact]
-    public async Task OrderFulfilmentCoordinatorFulfilsApprovedOrder()
+    public async Task OrderFulfilmentCoordinatorFulfilsActiveOrder()
     {
         var offering = await SeedOfferingAsync();
         var (_, order, _) = await _coordinator.PlaceOrderAsync(
             "Fulfil Customer", "fulfil@example.com", "0900000010", offering.Id, PickupAddress, DeliveryAddress,
             new[] { ("Boxed goods", 10m, (decimal?)1m, false) }, 10m);
         await ApproveOrderAsync(order);
+        await ActivateOrderAsync(order);
 
         var fulfilled = await _coordinator.MarkOrderFulfilledAsync(order.Id);
 
@@ -241,14 +250,14 @@ public class OrderFulfilmentCoordinatorTests : IDisposable
     }
 
     [Fact]
-    public async Task OrderFulfilmentCoordinatorRejectsFulfillingOrderThatIsNotApproved()
+    public async Task OrderFulfilmentCoordinatorRejectsFulfillingOrderThatIsNotActive()
     {
         var offering = await SeedOfferingAsync();
         var (_, order, _) = await _coordinator.PlaceOrderAsync(
             "Unapproved Customer", "unapproved@example.com", "0900000011", offering.Id, PickupAddress, DeliveryAddress,
             new[] { ("Boxed goods", 10m, (decimal?)1m, false) }, 10m);
 
-        // Order is only "Pending Payment" at this point, never approved.
+        // Order is only "Pending" at this point (or "Approved" without an accepted driver) - never Active.
         await Assert.ThrowsAsync<InvalidOperationException>(() => _coordinator.MarkOrderFulfilledAsync(order.Id));
     }
 

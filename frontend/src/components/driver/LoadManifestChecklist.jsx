@@ -102,20 +102,39 @@ export default function LoadManifestChecklist({ shipmentId, onManifestChange }) 
         <p className="text-xs text-gray-500">No cargo items recorded for this shipment.</p>
       ) : (
         <div className="space-y-2">
-          {manifest.cargoIds.map((cargoId, index) => (
-            <label
-              key={cargoId}
-              className="flex items-center gap-2 text-xs text-gray-700 border border-gray-200 p-2 cursor-pointer"
-            >
-              <input
-                type="checkbox"
-                checked={loadedCargoIds.includes(cargoId)}
-                onChange={() => toggleItem(cargoId)}
-                disabled={manifest.isPickupResolved}
-              />
-              {manifest.cargoDescriptions[index]}
-            </label>
-          ))}
+          {manifest.cargoIds.map((cargoId, index) => {
+            const isLoaded = loadedCargoIds.includes(cargoId);
+            return (
+              <div
+                key={cargoId}
+                className="flex items-center gap-2 text-xs text-gray-700 border border-gray-200 p-2"
+              >
+                <label className="flex items-center gap-2 flex-1 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isLoaded}
+                    onChange={() => toggleItem(cargoId)}
+                    disabled={manifest.isPickupResolved}
+                  />
+                  {manifest.cargoDescriptions[index]}
+                </label>
+                {!isLoaded && !manifest.isPickupResolved && (
+                  <button
+                    type="button"
+                    onClick={() => toggleItem(cargoId)}
+                    aria-label="Scan QR to check off item"
+                    title="Scan QR"
+                    className="shrink-0 w-8 h-8 flex items-center justify-center bg-secondary text-white hover:bg-secondary-hover transition-colors cursor-pointer"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+                      <path d="M3 7V4a1 1 0 0 1 1-1h3M17 3h3a1 1 0 0 1 1 1v3M21 17v3a1 1 0 0 1-1 1h-3M7 21H4a1 1 0 0 1-1-1v-3" />
+                      <path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 

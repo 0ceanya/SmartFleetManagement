@@ -31,5 +31,7 @@ public class Shipment
         AssignmentId = assignmentId;
     }
 
+    public void Unassign() => AssignmentId = null;
+
     public void SetWarehouse(Guid warehouseId) => WarehouseId = warehouseId;
 }

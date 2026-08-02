@@ -9,7 +9,7 @@ function formatDate(iso) {
   return new Date(iso).toLocaleString();
 }
 
-const STATUSES = ["Pending", "Active", "Completed", "Cancelled"];
+const STATUSES = ["Pending", "Assigned", "Loaded", "Delivering", "Delivered", "Rejected"];
 
 export default function AssignmentBrowser({ assignmentFilter, onClearFilter, vehicleMap, driverMap }) {
   const [assignments, setAssignments] = useState([]);

@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SmartFM.Domain.Entities;
+using SmartFM.Domain.Records;
+using SmartFM.Domain.ValueObjects;
 using SmartFM.Infrastructure.Persistence;
 
 namespace SmartFM.Infrastructure.Seed;
@@ -9,7 +11,10 @@ public static class SeedData
     public static async Task SeedAsync(SmartFMDbContext context)
     {
         if (await context.Branches.AnyAsync())
+        {
+            await SeedDriverOrderHistoryAsync(context);
             return;
+        }
 
         var hanoi = new Branch("Hanoi Branch", "Hanoi");
         var hcmc = new Branch("Ho Chi Minh City Branch", "Ho Chi Minh City");
@@ -41,5 +46,191 @@ public static class SeedData
 
         await context.SaveChangesAsync();
         Console.WriteLine("Seed completed");
+
+        await SeedDriverOrderHistoryAsync(context);
+    }
+
+    private static async Task SeedDriverOrderHistoryAsync(SmartFMDbContext context)
+    {
+        if (await context.Orders.AnyAsync())
+            return;
+
+        var offering = await context.Offerings.FirstOrDefaultAsync(o => o.Name == "Light Delivery");
+        if (offering is null)
+            return;
+
+        var trackedOrders = new List<(Order Order, Shipment Shipment, Assignment Assignment, DateTime CreatedAt)>();
+        var seedIndex = 0;
+
+        var driverA = await context.Employees.OfType<Driver>().FirstOrDefaultAsync(d => d.Email == "driver.a@smartfm.vn");
+        var vehicleA = await context.Vehicles.FirstOrDefaultAsync(v => v.RegistrationNumber == "29A-00001");
+        if (driverA is not null && vehicleA is not null)
+        {
+            var olderDaysAgo = new[] { 3, 10, 25, 40, 65, 95, 130, 200, 380 };
+            foreach (var daysAgo in olderDaysAgo)
+                trackedOrders.Add(SeedDeliveredOrder(context, driverA, vehicleA, offering, "Hanoi", ++seedIndex, DateTime.UtcNow.AddDays(-daysAgo)));
+
+            var augustDatesA = new[]
+            {
+                new DateTime(2026, 8, 1, 6, 0, 0, DateTimeKind.Utc),
+                new DateTime(2026, 8, 1, 11, 0, 0, DateTimeKind.Utc),
+                new DateTime(2026, 8, 1, 16, 0, 0, DateTimeKind.Utc),
+                new DateTime(2026, 8, 1, 21, 0, 0, DateTimeKind.Utc),
+            };
+            var incidentDescriptionsA = new[] { "Customer reported a scuffed box on arrival", "Recipient asked about a missing accessory" };
+            for (var i = 0; i < augustDatesA.Length; i++)
+            {
+                var entry = SeedDeliveredOrder(context, driverA, vehicleA, offering, "Hanoi", ++seedIndex, augustDatesA[i]);
+                trackedOrders.Add(entry);
+                if (i == 0 || i == 2)
+                {
+                    context.Set<IncidentRecord>().Add(new IncidentRecord
+                    {
+                        VehicleId = vehicleA.Id,
+                        ShipmentId = entry.Shipment.Id,
+                        Description = incidentDescriptionsA[i == 0 ? 0 : 1],
+                        Severity = "Low",
+                        Category = "CustomerComplaint",
+                        CreatedAt = augustDatesA[i].AddHours(2),
+                    });
+                }
+            }
+
+            trackedOrders.Add(SeedPendingAssignment(context, driverA, vehicleA, offering, "Hanoi", ++seedIndex, DateTime.UtcNow.AddHours(-2)));
+        }
+
+        var driverB = await context.Employees.OfType<Driver>().FirstOrDefaultAsync(d => d.Email == "driver.b@smartfm.vn");
+        var vehicleB = await context.Vehicles.FirstOrDefaultAsync(v => v.RegistrationNumber == "51A-00001");
+        if (driverB is not null && vehicleB is not null)
+        {
+            var augustDatesB = new[]
+            {
+                new DateTime(2026, 8, 1, 7, 0, 0, DateTimeKind.Utc),
+                new DateTime(2026, 8, 1, 12, 0, 0, DateTimeKind.Utc),
+                new DateTime(2026, 8, 1, 17, 0, 0, DateTimeKind.Utc),
+                new DateTime(2026, 8, 1, 22, 0, 0, DateTimeKind.Utc),
+            };
+            var incidentDescriptionsB = new[] { "Customer reported the driver was delayed by traffic", "Cargo box slightly damaged in transit" };
+            for (var i = 0; i < augustDatesB.Length; i++)
+            {
+                var entry = SeedDeliveredOrder(context, driverB, vehicleB, offering, "Ho Chi Minh City", ++seedIndex, augustDatesB[i]);
+                trackedOrders.Add(entry);
+                if (i == 1 || i == 3)
+                {
+                    context.Set<IncidentRecord>().Add(new IncidentRecord
+                    {
+                        VehicleId = vehicleB.Id,
+                        ShipmentId = entry.Shipment.Id,
+                        Description = incidentDescriptionsB[i == 1 ? 0 : 1],
+                        Severity = i == 1 ? "Low" : "Medium",
+                        Category = i == 1 ? "CustomerComplaint" : "CargoDamage",
+                        CreatedAt = augustDatesB[i].AddHours(2),
+                    });
+                }
+            }
+
+            trackedOrders.Add(SeedPendingAssignment(context, driverB, vehicleB, offering, "Ho Chi Minh City", ++seedIndex, DateTime.UtcNow.AddHours(-1)));
+        }
+
+        await context.SaveChangesAsync();
+
+        foreach (var (order, shipment, assignment, createdAt) in trackedOrders)
+        {
+            context.Entry(order).Property(nameof(Order.CreatedAt)).CurrentValue = createdAt;
+            context.Entry(shipment).Property(nameof(Shipment.CreatedAt)).CurrentValue = createdAt;
+            context.Entry(assignment).Property(nameof(Assignment.CreatedAt)).CurrentValue = createdAt;
+        }
+
+        await context.SaveChangesAsync();
+        Console.WriteLine("Driver order history seed completed");
+    }
+
+    private static (Order Order, Shipment Shipment, Assignment Assignment, DateTime CreatedAt) SeedDeliveredOrder(
+        SmartFMDbContext context, Driver driver, Vehicle vehicle, Offering offering, string city, int seedIndex, DateTime createdAt)
+    {
+        var customer = new Customer($"Historical Customer {seedIndex}", $"history.customer{seedIndex}@example.com", $"0900{seedIndex:D6}");
+        context.Customers.Add(customer);
+
+        var order = new Order(customer, offering);
+        var cargo = new Cargo(order.Id, $"Historical parcel {seedIndex}", 8m, 1m, false);
+        order.AddCargo(cargo);
+        context.Cargoes.Add(cargo);
+
+        var shipment = new Shipment(order, $"Warehouse {seedIndex}, {city}", $"Customer address {seedIndex}, {city}");
+        order.AttachShipment(shipment);
+        context.Orders.Add(order);
+        context.Shipments.Add(shipment);
+
+        var route = new Route($"Warehouse {seedIndex}, {city}", $"Customer address {seedIndex}, {city}", null, 8.0, 20);
+        context.Routes.Add(route);
+
+        var assignment = new Assignment(new[] { shipment }, driver, vehicle, route);
+        context.Assignments.Add(assignment);
+
+        shipment.AssignTo(assignment.Id);
+        shipment.SetStatus(ShipmentStatus.Assigned);
+
+        order.SetStatus(OrderStatus.Approved);
+
+        assignment.Approve();
+        var manifest = new LoadManifest(
+            shipment.Id,
+            new[] { cargo.Id },
+            new[] { cargo.Description },
+            cargo.WeightKg,
+            false,
+            createdAt,
+            LoadedCargoIds: new[] { cargo.Id },
+            IsPickupResolved: true);
+        context.LoadManifests.Add(manifest);
+        assignment.MarkLoaded();
+        assignment.MarkDelivering();
+        shipment.SetStatus(ShipmentStatus.InTransit);
+
+        var confirmedAt = createdAt.AddHours(3);
+        var confirmation = new DeliveryConfirmation(
+            shipment.Id, driver.Id, customer.Name, "Confirmed by driver", null, null, confirmedAt);
+        context.DeliveryConfirmations.Add(confirmation);
+        shipment.SetStatus(ShipmentStatus.Delivered);
+        assignment.Deliver();
+
+        order.Activate();
+        order.Fulfil();
+
+        return (order, shipment, assignment, createdAt);
+    }
+
+    private static (Order Order, Shipment Shipment, Assignment Assignment, DateTime CreatedAt) SeedPendingAssignment(
+        SmartFMDbContext context, Driver driver, Vehicle vehicle, Offering offering, string city, int seedIndex, DateTime createdAt)
+    {
+        var customer = new Customer($"New Customer {seedIndex}", $"new.customer{seedIndex}@example.com", $"0900{seedIndex:D6}");
+        context.Customers.Add(customer);
+
+        var order = new Order(customer, offering);
+        var cargo = new Cargo(order.Id, $"New parcel {seedIndex}", 12m, 1.5m, false);
+        order.AddCargo(cargo);
+        context.Cargoes.Add(cargo);
+
+        var shipment = new Shipment(order, $"Warehouse {seedIndex}, {city}", $"Customer address {seedIndex}, {city}");
+        order.AttachShipment(shipment);
+        context.Orders.Add(order);
+        context.Shipments.Add(shipment);
+
+        var route = new Route($"Warehouse {seedIndex}, {city}", $"Customer address {seedIndex}, {city}", null, 9.5, 22);
+        context.Routes.Add(route);
+
+        // Just created by staff - assignment stays Pending (awaiting driver acceptance), order becomes
+        // Approved (vehicle scheduled), matching FleetAssignmentCoordinator.CreateAssignmentAsync exactly.
+        var assignment = new Assignment(new[] { shipment }, driver, vehicle, route);
+        context.Assignments.Add(assignment);
+
+        shipment.AssignTo(assignment.Id);
+        shipment.SetStatus(ShipmentStatus.Assigned);
+        order.SetStatus(OrderStatus.Approved);
+
+        driver.SetAvailability(false);
+        vehicle.SetStatus(VehicleStatus.Assigned);
+
+        return (order, shipment, assignment, createdAt);
     }
 }

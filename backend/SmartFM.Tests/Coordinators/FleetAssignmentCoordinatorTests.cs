@@ -273,7 +273,21 @@ public class FleetAssignmentCoordinatorTests : IDisposable
         var assignment = await _coordinator.CreateAssignmentAsync(new[] { shipment.Id }, driver.Id, vehicle.Id);
         var approved = await _coordinator.ApproveAssignmentAsync(assignment.Id);
 
-        Assert.Equal(AssignmentStatus.Active, approved.Status);
+        Assert.Equal(AssignmentStatus.Assigned, approved.Status);
+    }
+
+    [Fact]
+    public async Task FleetAssignmentCoordinatorApprovingAssignmentActivatesOrder()
+    {
+        var driver = await SeedDriverAsync();
+        var vehicle = await SeedVehicleAsync();
+        var shipment = await SeedShipmentAsync();
+
+        var assignment = await _coordinator.CreateAssignmentAsync(new[] { shipment.Id }, driver.Id, vehicle.Id);
+        await _coordinator.ApproveAssignmentAsync(assignment.Id);
+
+        var order = await _orders.GetByIdAsync(shipment.OrderId);
+        Assert.Equal(OrderStatus.Active, order!.Status);
     }
 
     [Fact]
@@ -335,7 +349,7 @@ public class FleetAssignmentCoordinatorTests : IDisposable
     }
 
     [Fact]
-    public async Task FleetAssignmentCoordinatorAllowsReassignmentAfterCompletion()
+    public async Task FleetAssignmentCoordinatorAllowsReassignmentAfterDelivery()
     {
         var driver = await SeedDriverAsync();
         var vehicle = await SeedVehicleAsync();
@@ -343,7 +357,7 @@ public class FleetAssignmentCoordinatorTests : IDisposable
         var secondShipment = await SeedShipmentAsync();
 
         var firstAssignment = await _coordinator.CreateAssignmentAsync(new[] { firstShipment.Id }, driver.Id, vehicle.Id);
-        await _coordinator.CompleteAssignmentAsync(firstAssignment.Id);
+        await _coordinator.DeliverAssignmentAsync(firstAssignment.Id);
 
         var secondAssignment = await _coordinator.CreateAssignmentAsync(new[] { secondShipment.Id }, driver.Id, vehicle.Id);
 
@@ -375,7 +389,8 @@ public class FleetAssignmentCoordinatorTests : IDisposable
         var driver = await SeedDriverAsync();
         var vehicle = await SeedVehicleAsync();
         var shipment = await SeedShipmentAsync();
-        await _coordinator.CreateAssignmentAsync(new[] { shipment.Id }, driver.Id, vehicle.Id);
+        var assignment = await _coordinator.CreateAssignmentAsync(new[] { shipment.Id }, driver.Id, vehicle.Id);
+        await _coordinator.ApproveAssignmentAsync(assignment.Id);
 
         var confirmation = await _coordinator.CreateDeliveryConfirmationAsync(
             shipment.Id, driver.Id, "Recipient", "signature-data", 21.0, 105.8);
@@ -392,7 +407,8 @@ public class FleetAssignmentCoordinatorTests : IDisposable
         var driver = await SeedDriverAsync();
         var vehicle = await SeedVehicleAsync();
         var shipment = await SeedShipmentAsync();
-        await _coordinator.CreateAssignmentAsync(new[] { shipment.Id }, driver.Id, vehicle.Id);
+        var assignment = await _coordinator.CreateAssignmentAsync(new[] { shipment.Id }, driver.Id, vehicle.Id);
+        await _coordinator.ApproveAssignmentAsync(assignment.Id);
 
         await _coordinator.CreateDeliveryConfirmationAsync(
             shipment.Id, driver.Id, "Recipient", "signature-data", 21.0, 105.8);
@@ -402,12 +418,33 @@ public class FleetAssignmentCoordinatorTests : IDisposable
     }
 
     [Fact]
+    public async Task FleetAssignmentCoordinatorDeliveryConfirmationSetsAssignmentDeliveredAndReleasesResources()
+    {
+        var driver = await SeedDriverAsync();
+        var vehicle = await SeedVehicleAsync();
+        var shipment = await SeedShipmentAsync();
+        var assignment = await _coordinator.CreateAssignmentAsync(new[] { shipment.Id }, driver.Id, vehicle.Id);
+        await _coordinator.ApproveAssignmentAsync(assignment.Id);
+
+        await _coordinator.CreateDeliveryConfirmationAsync(
+            shipment.Id, driver.Id, "Recipient", "signature-data", 21.0, 105.8);
+
+        var updatedAssignment = await _assignments.GetByIdAsync(assignment.Id);
+        Assert.Equal(AssignmentStatus.Delivered, updatedAssignment!.Status);
+        var updatedDriver = await _drivers.GetByIdAsync(driver.Id);
+        Assert.True(updatedDriver!.IsAvailable);
+        var updatedVehicle = await _vehicles.GetByIdAsync(vehicle.Id);
+        Assert.Equal(VehicleStatus.Available, updatedVehicle!.CurrentStatus);
+    }
+
+    [Fact]
     public async Task FleetAssignmentCoordinatorCreatesDeliveryConfirmationWithoutGpsCoordinates()
     {
         var driver = await SeedDriverAsync();
         var vehicle = await SeedVehicleAsync();
         var shipment = await SeedShipmentAsync();
-        await _coordinator.CreateAssignmentAsync(new[] { shipment.Id }, driver.Id, vehicle.Id);
+        var assignment = await _coordinator.CreateAssignmentAsync(new[] { shipment.Id }, driver.Id, vehicle.Id);
+        await _coordinator.ApproveAssignmentAsync(assignment.Id);
 
         var confirmation = await _coordinator.CreateDeliveryConfirmationAsync(
             shipment.Id, driver.Id, "Recipient", "signature-data", null, null);
@@ -534,6 +571,77 @@ public class FleetAssignmentCoordinatorTests : IDisposable
         var allManifests = (await _loadManifests.GetAllAsync()).Where(m => m.ShipmentId == shipment.Id).ToList();
         Assert.Single(allManifests);
         Assert.True(allManifests[0].IsDropoffResolved);
+    }
+
+    private async Task<(Assignment Assignment, Shipment Shipment, List<Cargo> Cargoes)> SeedAssignedAndLoadedShipmentAsync()
+    {
+        var driver = await SeedDriverAsync();
+        var vehicle = await SeedVehicleAsync();
+        var (shipment, cargoes) = await SeedShipmentWithCargoAsync(cargoCount: 2);
+
+        var assignment = await _coordinator.CreateAssignmentAsync(new[] { shipment.Id }, driver.Id, vehicle.Id);
+        await _coordinator.ApproveAssignmentAsync(assignment.Id);
+        await _coordinator.GetOrCreateLoadManifestAsync(shipment.Id);
+        await _coordinator.UpdateLoadedCargoItemsAsync(shipment.Id, cargoes.Select(c => c.Id).ToList());
+        await _coordinator.MarkLoadingCompleteAsync(shipment.Id);
+
+        return (assignment, shipment, cargoes);
+    }
+
+    [Fact]
+    public async Task FleetAssignmentCoordinatorMarkingLoadingCompleteSetsAssignmentLoaded()
+    {
+        var (assignment, _, _) = await SeedAssignedAndLoadedShipmentAsync();
+
+        var updatedAssignment = await _assignments.GetByIdAsync(assignment.Id);
+        Assert.Equal(AssignmentStatus.Loaded, updatedAssignment!.Status);
+    }
+
+    [Fact]
+    public async Task FleetAssignmentCoordinatorStartTripSetsShipmentInTransitAndAssignmentDelivering()
+    {
+        var (assignment, shipment, _) = await SeedAssignedAndLoadedShipmentAsync();
+
+        var updatedShipment = await _coordinator.MarkShipmentInTransitAsync(shipment.Id);
+
+        Assert.Equal(ShipmentStatus.InTransit, updatedShipment.Status);
+        var updatedAssignment = await _assignments.GetByIdAsync(assignment.Id);
+        Assert.Equal(AssignmentStatus.Delivering, updatedAssignment!.Status);
+    }
+
+    [Fact]
+    public async Task FleetAssignmentCoordinatorRejectsStartTripBeforeLoadingResolved()
+    {
+        var driver = await SeedDriverAsync();
+        var vehicle = await SeedVehicleAsync();
+        var (shipment, _) = await SeedShipmentWithCargoAsync(cargoCount: 1);
+        var assignment = await _coordinator.CreateAssignmentAsync(new[] { shipment.Id }, driver.Id, vehicle.Id);
+        await _coordinator.ApproveAssignmentAsync(assignment.Id);
+        await _coordinator.GetOrCreateLoadManifestAsync(shipment.Id);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _coordinator.MarkShipmentInTransitAsync(shipment.Id));
+    }
+
+    [Fact]
+    public async Task FleetAssignmentCoordinatorRequestReallocationRejectsAssignmentAndUnassignsShipment()
+    {
+        var driver = await SeedDriverAsync();
+        var vehicle = await SeedVehicleAsync();
+        var shipment = await SeedShipmentAsync();
+        var assignment = await _coordinator.CreateAssignmentAsync(new[] { shipment.Id }, driver.Id, vehicle.Id);
+        await _coordinator.ApproveAssignmentAsync(assignment.Id);
+
+        await _coordinator.RequestReallocationAsync(assignment.Id);
+
+        var updatedAssignment = await _assignments.GetByIdAsync(assignment.Id);
+        Assert.Equal(AssignmentStatus.Rejected, updatedAssignment!.Status);
+        var updatedShipment = await _shipments.GetByIdAsync(shipment.Id);
+        Assert.Null(updatedShipment!.AssignmentId);
+        Assert.Equal(ShipmentStatus.Created, updatedShipment.Status);
+        var updatedDriver = await _drivers.GetByIdAsync(driver.Id);
+        Assert.True(updatedDriver!.IsAvailable);
+        var updatedVehicle = await _vehicles.GetByIdAsync(vehicle.Id);
+        Assert.Equal(VehicleStatus.Available, updatedVehicle!.CurrentStatus);
     }
 
     public void Dispose()

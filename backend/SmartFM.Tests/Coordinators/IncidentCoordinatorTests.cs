@@ -114,7 +114,7 @@ public class IncidentCoordinatorTests : IDisposable
     {
         var (driver, vehicle, assignment) = await SeedActiveAssignmentAsync();
 
-        var incident = await _incidentCoordinator.ReportIncidentAsync(vehicle.Id, "Engine overheating", "High");
+        var incident = await _incidentCoordinator.ReportIncidentAsync(vehicle.Id, "Engine overheating", "High", "VehicleBreakdown");
 
         Assert.NotNull(incident);
         Assert.Equal(vehicle.Id, incident.VehicleId);
@@ -135,10 +135,35 @@ public class IncidentCoordinatorTests : IDisposable
         var shipmentId = (await _shipments.GetAllAsync()).Single(s => s.AssignmentId == assignment.Id).Id;
         await _fleetAssignmentCoordinator.GetOrCreateLoadManifestAsync(shipmentId);
 
-        await _incidentCoordinator.ReportIncidentAsync(vehicle.Id, "Engine overheating", "High");
+        await _incidentCoordinator.ReportIncidentAsync(vehicle.Id, "Engine overheating", "High", "VehicleBreakdown");
 
         var manifests = (await _loadManifests.GetAllAsync()).Where(m => m.ShipmentId == shipmentId).ToList();
         Assert.Single(manifests);
+    }
+
+    [Fact]
+    public async Task ReportIncidentReallocatesInProgressAssignment()
+    {
+        var (_, vehicle, assignment) = await SeedActiveAssignmentAsync();
+
+        await _incidentCoordinator.ReportIncidentAsync(vehicle.Id, "Vehicle broke down", "Critical", "VehicleBreakdown");
+
+        var updatedAssignment = await (new Repository<Assignment>(_context)).GetByIdAsync(assignment.Id);
+        Assert.Equal(AssignmentStatus.Rejected, updatedAssignment!.Status);
+    }
+
+    [Fact]
+    public async Task ReportIncidentDoesNotReallocateAlreadyDeliveredAssignment()
+    {
+        var (driver, vehicle, assignment) = await SeedActiveAssignmentAsync();
+        var shipment = (await _shipments.GetAllAsync()).Single(s => s.AssignmentId == assignment.Id);
+        await _fleetAssignmentCoordinator.CreateDeliveryConfirmationAsync(
+            shipment.Id, driver.Id, "Recipient", "signature-data", null, null);
+
+        await _incidentCoordinator.ReportIncidentAsync(vehicle.Id, "Customer complained about a scratch", "Low", "CustomerComplaint");
+
+        var updatedAssignment = await (new Repository<Assignment>(_context)).GetByIdAsync(assignment.Id);
+        Assert.Equal(AssignmentStatus.Delivered, updatedAssignment!.Status);
     }
 
     public void Dispose()

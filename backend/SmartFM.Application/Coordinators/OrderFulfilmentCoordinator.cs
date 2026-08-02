@@ -210,7 +210,7 @@ public class OrderFulfilmentCoordinator
             return false;
 
         var assignments = await _assignments.GetAllAsync();
-        return assignments.Any(a => assignmentIds.Contains(a.Id) && a.Status == AssignmentStatus.Active);
+        return assignments.Any(a => assignmentIds.Contains(a.Id) && a.Status is AssignmentStatus.Assigned or AssignmentStatus.Loaded or AssignmentStatus.Delivering);
     }
 
     private async Task<Customer?> FindCustomerByEmailAsync(string email)

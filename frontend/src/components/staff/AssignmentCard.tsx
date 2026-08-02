@@ -39,11 +39,13 @@ export default function AssignmentCard({ assignment }: { assignment: AssignmentR
             color={
               assignment.status === "Assigned"
                 ? "warning"
-                : assignment.status === "Approved"
+                : assignment.status === "Loaded" || assignment.status === "Delivering"
                   ? "info"
-                  : assignment.status === "Completed"
+                  : assignment.status === "Delivered"
                     ? "success"
-                    : "default"
+                    : assignment.status === "Rejected"
+                      ? "error"
+                      : "default"
             }
           />
         </Box>

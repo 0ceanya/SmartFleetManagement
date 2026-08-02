@@ -8,13 +8,15 @@ function formatDate(iso) {
   return new Date(iso).toLocaleString();
 }
 
-const SEVERITIES = ["Low", "Medium", "High"];
+const SEVERITIES = ["Critical", "High", "Medium", "Low"];
+const CATEGORIES = ["AssignmentDecline", "CargoDamage", "CargoMissing", "CustomerComplaint", "VehicleBreakdown", "Accident", "Other"];
 
 export default function IncidentFeed({ vehicleMap, branchMap, onDrillDown }) {
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [severityFilter, setSeverityFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -31,6 +33,7 @@ export default function IncidentFeed({ vehicleMap, branchMap, onDrillDown }) {
   const filtered = useMemo(() => {
     return incidents.filter((i) => {
       if (severityFilter && i.severity !== severityFilter) return false;
+      if (categoryFilter && i.category !== categoryFilter) return false;
       if (fromDate && new Date(i.createdAt) < new Date(fromDate)) return false;
       if (toDate && new Date(i.createdAt) > new Date(`${toDate}T23:59:59`)) return false;
       if (searchTerm.trim()) {
@@ -42,7 +45,7 @@ export default function IncidentFeed({ vehicleMap, branchMap, onDrillDown }) {
       }
       return true;
     });
-  }, [incidents, severityFilter, fromDate, toDate, searchTerm, vehicleMap]);
+  }, [incidents, severityFilter, categoryFilter, fromDate, toDate, searchTerm, vehicleMap]);
 
   const branchFor = (vehicleId) => {
     const vehicle = vehicleMap[vehicleId];
@@ -70,6 +73,16 @@ export default function IncidentFeed({ vehicleMap, branchMap, onDrillDown }) {
             <option key={s} value={s}>{s}</option>
           ))}
         </select>
+        <select
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+          className="border border-gray-300 p-1.5 text-xs bg-white"
+        >
+          <option value="">All Categories</option>
+          {CATEGORIES.map((c) => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
         <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="border border-gray-300 p-1.5 text-xs" />
         <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="border border-gray-300 p-1.5 text-xs" />
       </div>
@@ -83,6 +96,7 @@ export default function IncidentFeed({ vehicleMap, branchMap, onDrillDown }) {
             <thead className="bg-gray-100 text-gray-600 text-xs font-bold uppercase border-b border-gray-200 sticky top-0">
               <tr>
                 <th className="p-2">Severity</th>
+                <th className="p-2">Category</th>
                 <th className="p-2">Vehicle</th>
                 <th className="p-2">Branch</th>
                 <th className="p-2">Timestamp</th>
@@ -99,7 +113,7 @@ export default function IncidentFeed({ vehicleMap, branchMap, onDrillDown }) {
                   <td className="p-2">
                     <span
                       className={`px-2 py-0.5 text-xs font-bold uppercase rounded ${
-                        incident.severity === "High"
+                        incident.severity === "Critical" || incident.severity === "High"
                           ? "bg-rose-100 text-rose-800"
                           : incident.severity === "Medium"
                           ? "bg-amber-100 text-amber-800"
@@ -109,6 +123,7 @@ export default function IncidentFeed({ vehicleMap, branchMap, onDrillDown }) {
                       {incident.severity}
                     </span>
                   </td>
+                  <td className="p-2 text-gray-700">{incident.category || "-"}</td>
                   <td className="p-2 font-mono text-xs">{vehicleMap[incident.vehicleId]?.registrationNumber || incident.vehicleId}</td>
                   <td className="p-2 text-gray-700">{branchFor(incident.vehicleId)}</td>
                   <td className="p-2 text-gray-600">{formatDate(incident.createdAt)}</td>
@@ -116,7 +131,7 @@ export default function IncidentFeed({ vehicleMap, branchMap, onDrillDown }) {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="p-4 text-center text-gray-500">No incidents match the current filters.</td>
+                  <td colSpan={5} className="p-4 text-center text-gray-500">No incidents match the current filters.</td>
                 </tr>
               )}
             </tbody>

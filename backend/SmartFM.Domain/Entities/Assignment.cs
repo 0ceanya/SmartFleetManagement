@@ -25,8 +25,26 @@ public class Assignment
     public void Approve()
     {
         if (Status != AssignmentStatus.Pending) throw new InvalidOperationException("Only a pending assignment can be approved.");
-        Status = AssignmentStatus.Active;
+        Status = AssignmentStatus.Assigned;
     }
 
-    public void Complete() => Status = AssignmentStatus.Completed;
+    public void MarkLoaded()
+    {
+        if (Status != AssignmentStatus.Assigned) throw new InvalidOperationException("Only an assigned assignment can be marked loaded.");
+        Status = AssignmentStatus.Loaded;
+    }
+
+    public void MarkDelivering()
+    {
+        if (Status != AssignmentStatus.Loaded) throw new InvalidOperationException("Only a loaded assignment can start delivering.");
+        Status = AssignmentStatus.Delivering;
+    }
+
+    public void Deliver() => Status = AssignmentStatus.Delivered;
+
+    public void Reject()
+    {
+        if (Status == AssignmentStatus.Delivered) throw new InvalidOperationException("Cannot reject an already-delivered assignment.");
+        Status = AssignmentStatus.Rejected;
+    }
 }

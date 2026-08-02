@@ -62,11 +62,13 @@ export default function AssignmentsTable({ assignments }: { assignments: Assignm
                   color={
                     assignment.status === "Assigned"
                       ? "warning"
-                      : assignment.status === "Approved"
+                      : assignment.status === "Loaded" || assignment.status === "Delivering"
                         ? "info"
-                        : assignment.status === "Completed"
+                        : assignment.status === "Delivered"
                           ? "success"
-                          : "default"
+                          : assignment.status === "Rejected"
+                            ? "error"
+                            : "default"
                   }
                   size="small"
                 />

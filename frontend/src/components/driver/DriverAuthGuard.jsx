@@ -5,7 +5,7 @@ import DriverLoginForm from "./DriverLoginForm";
 import DriverHeader from "./DriverHeader";
 import AppFooter from "@/components/AppFooter";
 
-export default function DriverAuthGuard({ children }) {
+export default function DriverAuthGuard({ children, chromeless = false }) {
   const [driverId, setDriverId] = useState(null);
   const [driverInfo, setDriverInfo] = useState(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
@@ -75,6 +75,10 @@ export default function DriverAuthGuard({ children }) {
   }
 
   // Render children, passing driver context and sign out handler
+  if (chromeless) {
+    return typeof children === "function" ? children({ driverId, driverInfo, handleSignOut }) : children;
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       <DriverHeader driverId={driverId} driverInfo={driverInfo} onSignOut={handleSignOut} />

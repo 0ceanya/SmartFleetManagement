@@ -6,4 +6,5 @@ public record IncidentRecord : Record
     public Guid? ShipmentId { get; init; }
     public string Description { get; init; } = string.Empty;
     public string Severity { get; init; } = string.Empty;
+    public string Category { get; init; } = string.Empty;
 }

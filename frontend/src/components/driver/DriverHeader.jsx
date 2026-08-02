@@ -1,25 +1,21 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import DriverNavMenu, { DRIVER_NAV_ITEMS } from "./DriverNavMenu";
 
 export default function DriverHeader({ driverId, driverInfo, onSignOut }) {
   const pathname = usePathname();
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  const navItems = [
-    { label: "My Assignment", href: "/driver/assignments" },
-    { label: "My Order", href: "/driver/orders" },
-  ];
-
-  const activeHref = navItems
-    .map((item) => item.href)
+  const activeHref = DRIVER_NAV_ITEMS.map((item) => item.href)
     .filter((href) => pathname === href || pathname.startsWith(`${href}/`))
     .sort((a, b) => b.length - a.length)[0];
 
   return (
-    <header className="sticky top-0 z-40 border-b border-gray-300 bg-secondary px-4 py-3 text-white shadow-sm sm:px-6 lg:px-8 lg:py-4">
-      <div className="mx-auto flex max-w-[1600px] flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-4">
+    <header className="sticky top-0 z-40 border-b border-gray-300 bg-secondary text-white shadow-sm">
+      <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8 lg:py-4">
         <Link href="/driver/assignments" className="flex items-center gap-3 sm:gap-4">
           <span className="font-heading text-lg font-bold tracking-tight text-white hover:opacity-90 sm:text-2xl">
             SmartFM
@@ -29,8 +25,8 @@ export default function DriverHeader({ driverId, driverInfo, onSignOut }) {
           </span>
         </Link>
 
-        <nav className="flex flex-wrap items-center gap-1">
-          {navItems.map((item) => {
+        <nav className="hidden md:flex flex-wrap items-center gap-1">
+          {DRIVER_NAV_ITEMS.map((item) => {
             const isActive = item.href === activeHref;
             return (
               <Link
@@ -46,9 +42,9 @@ export default function DriverHeader({ driverId, driverInfo, onSignOut }) {
           })}
         </nav>
 
-        <div className="flex flex-wrap items-center gap-3 text-xs sm:gap-4 sm:text-sm">
+        <div className="hidden md:flex items-center gap-3 text-xs sm:gap-4 sm:text-sm">
           {driverInfo ? (
-            <div className="hidden md:flex flex-col text-right text-[11px] leading-tight">
+            <div className="flex flex-col text-right text-[11px] leading-tight">
               <span className="font-bold text-white truncate max-w-[150px]">
                 {driverInfo.name || driverInfo.email}
               </span>
@@ -71,7 +67,30 @@ export default function DriverHeader({ driverId, driverInfo, onSignOut }) {
             Switch Role
           </Link>
         </div>
+
+        <button
+          type="button"
+          onClick={() => setMenuOpen((open) => !open)}
+          aria-label="Toggle menu"
+          aria-expanded={menuOpen}
+          className="md:hidden flex flex-col items-center justify-center gap-1.5 w-9 h-9 shrink-0 cursor-pointer"
+        >
+          <span className={`block h-0.5 w-6 bg-white transition-transform ${menuOpen ? "translate-y-2 rotate-45" : ""}`} />
+          <span className={`block h-0.5 w-6 bg-white transition-opacity ${menuOpen ? "opacity-0" : ""}`} />
+          <span className={`block h-0.5 w-6 bg-white transition-transform ${menuOpen ? "-translate-y-2 -rotate-45" : ""}`} />
+        </button>
       </div>
+
+      {menuOpen && (
+        <div className="md:hidden border-t border-white/20 bg-secondary px-4 py-4 sm:px-6">
+          <DriverNavMenu
+            driverId={driverId}
+            driverInfo={driverInfo}
+            onSignOut={onSignOut}
+            onNavigate={() => setMenuOpen(false)}
+          />
+        </div>
+      )}
     </header>
   );
 }

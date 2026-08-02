@@ -39,21 +39,27 @@ public class Order
     {
         ArgumentNullException.ThrowIfNull(shipment);
         Shipments.Add(shipment);
-        Status = OrderStatus.PendingPayment;
     }
 
     public void SetStatus(string status) => Status = status;
 
-    public void Fulfil()
+    public void Activate()
     {
         if (Status != OrderStatus.Approved)
+            throw new InvalidOperationException($"Cannot activate order in status '{Status}'.");
+        Status = OrderStatus.Active;
+    }
+
+    public void Fulfil()
+    {
+        if (Status != OrderStatus.Active)
             throw new InvalidOperationException($"Cannot fulfil order in status '{Status}'.");
         Status = OrderStatus.Fulfilled;
     }
 
     public void Cancel(bool hasDispatchedShipment)
     {
-        if (Status is not (OrderStatus.PendingPayment or OrderStatus.Approved))
+        if (Status is not (OrderStatus.Pending or OrderStatus.Approved))
             throw new InvalidOperationException($"Cannot cancel order in status '{Status}'.");
         if (hasDispatchedShipment)
             throw new InvalidOperationException("Cannot cancel an order that has already been dispatched.");

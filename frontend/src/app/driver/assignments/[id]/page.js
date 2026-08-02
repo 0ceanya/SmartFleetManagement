@@ -2,17 +2,23 @@
 
 import React, { use, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import DriverAuthGuard from "@/components/driver/DriverAuthGuard";
-import DriverPageShell from "@/components/driver/DriverPageShell";
-import DriverPageHeader from "@/components/driver/DriverPageHeader";
+import DriverFloatingNav from "@/components/driver/DriverFloatingNav";
+import DriverBottomSheet from "@/components/driver/DriverBottomSheet";
 import LoadManifestChecklist from "@/components/driver/LoadManifestChecklist";
-import RejectModal from "@/components/driver/RejectModal";
+import DeclineAssignmentModal from "@/components/driver/DeclineAssignmentModal";
+import ReportIncidentModal from "@/components/driver/ReportIncidentModal";
 import RouteMap from "@/components/RouteMap";
 import Button from "@/components/ui/Button";
+import { getStatusChipClasses } from "@/lib/driverStatus";
 import { formatOrderDateTime } from "@/lib/driverOrderDisplay";
 
-function DeliveryConfirmationSection({ shipment, driverId, isLoaded }) {
+const PRIMARY_CTA_CLASSES =
+  "w-full bg-primary hover:bg-primary-hover disabled:opacity-40 disabled:cursor-not-allowed text-white font-heading font-bold text-xs py-2.5 transition-colors cursor-pointer";
+
+function DeliveryConfirmationSection({ shipment, driverId, onFulfilled }) {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [existingConfirmation, setExistingConfirmation] = useState(null);
@@ -48,7 +54,7 @@ function DeliveryConfirmationSection({ shipment, driverId, isLoaded }) {
     setSubmitSuccess(null);
 
     const payload = {
-      driverId: driverId,
+      driverId,
       recipientName: shipment.customerName || "Customer",
       proofSignature: mockMedia ? `Photo attached: ${mockMedia.name}` : "Confirmed by driver",
     };
@@ -59,7 +65,8 @@ function DeliveryConfirmationSection({ shipment, driverId, isLoaded }) {
         body: JSON.stringify(payload),
       });
       setExistingConfirmation(result);
-      setSubmitSuccess("Delivery marked as done.");
+      setSubmitSuccess("Order Fulfilled");
+      setTimeout(() => onFulfilled?.(), 1200);
     } catch (err) {
       console.error("Delivery confirmation failed:", err);
       setError(err.message || "Failed to complete delivery.");
@@ -71,19 +78,15 @@ function DeliveryConfirmationSection({ shipment, driverId, isLoaded }) {
   const orderDateTime = formatOrderDateTime(order?.createdAt);
 
   return (
-    <div className={`bg-white border border-gray-300 p-6 space-y-6 shadow-xs ${!isLoaded ? "opacity-60" : ""}`}>
+    <div className="bg-white border border-gray-300 p-6 space-y-6 shadow-xs">
       <div className="border-b border-gray-200 pb-4">
         <h2 className="text-lg font-heading text-secondary font-bold">Complete Delivery</h2>
-        <p className="text-xs text-gray-500 mt-0.5">
-          {isLoaded
-            ? "Review order details and mark this delivery as done."
-            : "Complete the load manifest checklist above and tap Start before completing delivery."}
-        </p>
+        <p className="text-xs text-gray-500 mt-0.5">Review order details and mark this delivery as done.</p>
       </div>
 
       {submitSuccess && (
-        <div className="bg-emerald-50 border-l-4 border-emerald-500 p-4 text-sm text-emerald-800 font-medium">
-          Success: {submitSuccess}
+        <div className="bg-emerald-50 border-l-4 border-emerald-500 p-4 text-sm text-emerald-800 font-bold">
+          {submitSuccess}
         </div>
       )}
       {existingConfirmation && !submitSuccess && (
@@ -164,7 +167,7 @@ function DeliveryConfirmationSection({ shipment, driverId, isLoaded }) {
             <Button
               type="button"
               onClick={handleComplete}
-              disabled={submitting || !isLoaded}
+              disabled={submitting || !!existingConfirmation}
               className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2.5 px-6"
             >
               {submitting ? "Completing..." : "Mark Delivery as Done"}
@@ -176,18 +179,31 @@ function DeliveryConfirmationSection({ shipment, driverId, isLoaded }) {
   );
 }
 
-function AssignmentDetailContent({ params, driverId }) {
+function AssignmentDetailContent({ params, driverId, driverInfo, handleSignOut }) {
   const resolvedParams = use(params);
   const assignmentId = resolvedParams?.id;
+  const router = useRouter();
 
   const [assignment, setAssignment] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [manifest, setManifest] = useState(null);
-  const [assignmentToReject, setAssignmentToReject] = useState(null);
-  const [rejectSubmitting, setRejectSubmitting] = useState(false);
-  const [rejectError, setRejectError] = useState(null);
-  const [rejectSuccess, setRejectSuccess] = useState(null);
+
+  // Local-only UI gate: no "Arrived" concept exists in the domain model (nothing to persist
+  // between Delivering and the real delivery-confirmation POST), so this resets on refresh.
+  const [arrived, setArrived] = useState(false);
+
+  const [accepting, setAccepting] = useState(false);
+  const [startingTrip, setStartingTrip] = useState(false);
+  const [actionError, setActionError] = useState(null);
+
+  const [assignmentToDecline, setAssignmentToDecline] = useState(null);
+  const [declineSubmitting, setDeclineSubmitting] = useState(false);
+  const [declineError, setDeclineError] = useState(null);
+
+  const [assignmentToReportIncident, setAssignmentToReportIncident] = useState(null);
+  const [incidentSubmitting, setIncidentSubmitting] = useState(false);
+  const [incidentError, setIncidentError] = useState(null);
+  const [incidentSuccess, setIncidentSuccess] = useState(null);
 
   const fetchAssignment = async () => {
     if (!assignmentId) return;
@@ -210,136 +226,252 @@ function AssignmentDetailContent({ params, driverId }) {
 
   const shipment = assignment?.shipments?.[0];
 
-  const handleRejectSubmit = async ({ shipmentId, description, severity }) => {
+  const handleAccept = async () => {
+    setAccepting(true);
+    setActionError(null);
+    try {
+      await apiFetch(`/api/fleet/assignments/${assignmentId}/approve`, { method: "POST" });
+      await fetchAssignment();
+    } catch (err) {
+      setActionError(err.message || "Failed to accept assignment.");
+    } finally {
+      setAccepting(false);
+    }
+  };
+
+  const handleStartTrip = async () => {
+    if (!shipment) return;
+    setStartingTrip(true);
+    setActionError(null);
+    try {
+      await apiFetch(`/api/fleet/shipments/${shipment.id}/start-trip`, { method: "POST" });
+      await fetchAssignment();
+    } catch (err) {
+      setActionError(err.message || "Failed to start trip.");
+    } finally {
+      setStartingTrip(false);
+    }
+  };
+
+  const handleDeclineSubmit = async ({ shipmentId, description }) => {
     if (!description.trim()) {
-      setRejectError("Please enter a reason for rejecting the assignment.");
+      setDeclineError("Please enter a reason for declining this assignment.");
       return;
     }
-    setRejectSubmitting(true);
-    setRejectError(null);
-    setRejectSuccess(null);
+    setDeclineSubmitting(true);
+    setDeclineError(null);
     try {
-      const result = await apiFetch("/api/incidents", {
+      await apiFetch("/api/incidents", {
         method: "POST",
         body: JSON.stringify({
           shipmentId,
-          description: `[ASSIGNMENT REJECTION] ${description.trim()}`,
-          severity,
+          description: `[DRIVER DECLINED] ${description.trim()}`,
+          severity: "Medium",
+          category: "AssignmentDecline",
         }),
       });
-      setRejectSuccess(`Rejection / Incident report submitted successfully (ID: ${result.id || "Recorded"}).`);
-      setAssignmentToReject(null);
+      setAssignmentToDecline(null);
+      router.push("/driver/assignments");
+    } catch (err) {
+      setDeclineError(err.message || "Failed to decline assignment.");
+    } finally {
+      setDeclineSubmitting(false);
+    }
+  };
+
+  const handleIncidentSubmit = async ({ shipmentId, description, severity, category }) => {
+    if (!description.trim()) {
+      setIncidentError("Please enter a description of the incident.");
+      return;
+    }
+    setIncidentSubmitting(true);
+    setIncidentError(null);
+    try {
+      const result = await apiFetch("/api/incidents", {
+        method: "POST",
+        body: JSON.stringify({ shipmentId, description: description.trim(), severity, category }),
+      });
+      setIncidentSuccess(`Incident reported (ID: ${result.id || "Recorded"}).`);
+      setAssignmentToReportIncident(null);
       await fetchAssignment();
     } catch (err) {
-      setRejectError(err.message || "Failed to submit rejection.");
+      setIncidentError(err.message || "Failed to report incident.");
     } finally {
-      setRejectSubmitting(false);
+      setIncidentSubmitting(false);
     }
   };
 
   if (loading) {
     return (
-      <DriverPageShell maxWidth="6xl">
-        <div className="p-8 text-center text-gray-500 text-sm">Loading assignment...</div>
-      </DriverPageShell>
+      <div className="min-h-screen flex items-center justify-center text-sm text-gray-500">
+        Loading assignment...
+      </div>
     );
   }
 
   if (error || !assignment) {
     return (
-      <DriverPageShell maxWidth="6xl">
-        <div className="bg-rose-50 border-l-4 border-rose-500 p-4 text-sm text-rose-800 font-medium">
-          Warning: {error || "Assignment not found."}
-        </div>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
+        <p className="text-sm text-rose-600 font-medium">{error || "Assignment not found."}</p>
         <Link href="/driver/assignments" className="text-xs font-bold text-primary hover:underline">
           Back to My Assignment
         </Link>
-      </DriverPageShell>
+      </div>
     );
   }
 
+  const inProgress = assignment.status !== "Delivered" && assignment.status !== "Rejected";
+  const canDecline = assignment.status === "Pending" || assignment.status === "Assigned" || assignment.status === "Loaded";
+
   return (
-    <DriverPageShell maxWidth="6xl">
-      <Link href="/driver/assignments" className="text-xs font-bold text-primary hover:underline">
-        &larr; Back to My Assignment
-      </Link>
-
-      <DriverPageHeader
-        eyebrow="Assignment Detail"
-        title={shipment ? `${shipment.pickupAddress} -> ${shipment.deliveryAddress}` : assignment.id}
-        subtitle={
-          <span className="flex flex-wrap items-center gap-2">
-            <span className="bg-secondary text-white text-[10px] font-bold px-2 py-0.5 uppercase">
-              {assignment.status}
-            </span>
-            {manifest?.isPickupResolved && (
-              <span className="bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 uppercase">
-                + Loaded
-              </span>
-            )}
-            {shipment?.customerName && <span>{shipment.customerName}</span>}
-            {shipment?.customerPhone && (
-              <a href={`tel:${shipment.customerPhone}`} className="text-primary font-bold hover:underline">
-                {shipment.customerPhone}
-              </a>
-            )}
-          </span>
-        }
-        actions={
-          <button
-            type="button"
-            onClick={() => setAssignmentToReject(assignment)}
-            className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs px-4 py-2 cursor-pointer transition-colors"
-          >
-            Reject Assignment
-          </button>
-        }
-      />
-
-      {rejectSuccess && (
-        <div className="bg-emerald-50 border-l-4 border-emerald-500 p-4 text-sm text-emerald-800 font-medium">
-          Success: {rejectSuccess}
-        </div>
-      )}
+    <div className="relative w-full" style={{ minHeight: "100dvh" }}>
+      <DriverFloatingNav driverId={driverId} driverInfo={driverInfo} onSignOut={handleSignOut} />
 
       {assignment.route?.originAddress && assignment.route?.destinationAddress ? (
-        <RouteMap
-          originAddress={assignment.route.originAddress}
-          destinationAddress={assignment.route.destinationAddress}
-          originLabel="Pickup"
-          destinationLabel="Delivery"
-        />
+        <div className="fixed inset-0 overflow-hidden">
+          <RouteMap
+            originAddress={assignment.route.originAddress}
+            destinationAddress={assignment.route.destinationAddress}
+            originLabel="Pickup"
+            destinationLabel="Delivery"
+            heightClassName="h-[100dvh]"
+          />
+        </div>
       ) : (
-        <div className="border border-dashed border-gray-300 bg-slate-50 p-6 text-center text-xs text-gray-500">
+        <div className="fixed inset-0 bg-slate-100 flex items-center justify-center p-6 text-center text-sm text-gray-500">
           No route information available for this assignment.
         </div>
       )}
 
-      {shipment && <LoadManifestChecklist shipmentId={shipment.id} onManifestChange={setManifest} />}
+      <DriverBottomSheet>
+        <div className="space-y-4 pt-2">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <span
+                className={`${getStatusChipClasses(assignment.status)} inline-block text-[10px] font-bold px-2 py-0.5 uppercase`}
+              >
+                {assignment.status}
+              </span>
+              <h1 className="font-heading text-lg font-bold text-secondary mt-1 truncate">
+                {shipment ? `${shipment.pickupAddress} -> ${shipment.deliveryAddress}` : assignment.id}
+              </h1>
+              {shipment?.customerName && <p className="text-xs text-gray-500 mt-0.5">{shipment.customerName}</p>}
+            </div>
+            {inProgress && (
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                {canDecline && (
+                  <button
+                    type="button"
+                    onClick={() => setAssignmentToDecline(assignment)}
+                    className="text-[11px] font-bold text-rose-600 hover:underline cursor-pointer"
+                  >
+                    Decline
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setAssignmentToReportIncident(assignment)}
+                  className="text-[11px] font-bold text-gray-500 hover:underline cursor-pointer"
+                >
+                  Report Incident
+                </button>
+              </div>
+            )}
+          </div>
 
-      {shipment && (
-        <DeliveryConfirmationSection
-          shipment={shipment}
-          driverId={driverId}
-          isLoaded={!!manifest?.isPickupResolved}
-        />
-      )}
+          {actionError && (
+            <div className="bg-rose-50 border-l-4 border-rose-500 p-3 text-xs text-rose-800 font-medium">
+              {actionError}
+            </div>
+          )}
+          {incidentSuccess && (
+            <div className="bg-blue-50 border-l-4 border-blue-500 p-3 text-xs text-blue-800 font-medium">
+              {incidentSuccess}
+            </div>
+          )}
+          {incidentError && (
+            <div className="bg-rose-50 border-l-4 border-rose-500 p-3 text-xs text-rose-800 font-medium">
+              {incidentError}
+            </div>
+          )}
 
-      <RejectModal
-        assignment={assignmentToReject}
-        onClose={() => setAssignmentToReject(null)}
-        onSubmit={handleRejectSubmit}
-        submitting={rejectSubmitting}
-        error={rejectError}
+          {shipment && (
+            <div className="text-xs text-gray-700 space-y-1 border-t border-gray-200 pt-3">
+              <p>
+                <span className="font-semibold text-gray-500">Pickup:</span> {shipment.pickupAddress}
+              </p>
+              <p>
+                <span className="font-semibold text-gray-500">Delivery:</span> {shipment.deliveryAddress}
+              </p>
+              {shipment.customerPhone && (
+                <p>
+                  <span className="font-semibold text-gray-500">Phone:</span>{" "}
+                  <a href={`tel:${shipment.customerPhone}`} className="text-primary font-bold hover:underline">
+                    {shipment.customerPhone}
+                  </a>
+                </p>
+              )}
+            </div>
+          )}
+
+          {assignment.status === "Pending" && (
+            <button type="button" onClick={handleAccept} disabled={accepting} className={PRIMARY_CTA_CLASSES}>
+              {accepting ? "Accepting..." : "Accept Assignment"}
+            </button>
+          )}
+
+          {shipment && (assignment.status === "Assigned" || assignment.status === "Loaded") && (
+            <div className="space-y-3">
+              <LoadManifestChecklist shipmentId={shipment.id} onManifestChange={fetchAssignment} />
+              {assignment.status === "Loaded" && (
+                <button type="button" onClick={handleStartTrip} disabled={startingTrip} className={PRIMARY_CTA_CLASSES}>
+                  {startingTrip ? "Starting Trip..." : "Start Trip"}
+                </button>
+              )}
+            </div>
+          )}
+
+          {assignment.status === "Delivering" && !arrived && (
+            <button type="button" onClick={() => setArrived(true)} className={PRIMARY_CTA_CLASSES}>
+              Arrived
+            </button>
+          )}
+
+          {shipment && (arrived || assignment.status === "Delivered") && (
+            <DeliveryConfirmationSection
+              shipment={shipment}
+              driverId={driverId}
+              onFulfilled={() => router.push("/driver/assignments")}
+            />
+          )}
+        </div>
+      </DriverBottomSheet>
+
+      <DeclineAssignmentModal
+        assignment={assignmentToDecline}
+        onClose={() => setAssignmentToDecline(null)}
+        onSubmit={handleDeclineSubmit}
+        submitting={declineSubmitting}
+        error={declineError}
       />
-    </DriverPageShell>
+
+      <ReportIncidentModal
+        assignment={assignmentToReportIncident}
+        onClose={() => setAssignmentToReportIncident(null)}
+        onSubmit={handleIncidentSubmit}
+        submitting={incidentSubmitting}
+        error={incidentError}
+      />
+    </div>
   );
 }
 
 export default function AssignmentDetailPage({ params }) {
   return (
-    <DriverAuthGuard>
-      {({ driverId }) => <AssignmentDetailContent params={params} driverId={driverId} />}
+    <DriverAuthGuard chromeless>
+      {({ driverId, driverInfo, handleSignOut }) => (
+        <AssignmentDetailContent params={params} driverId={driverId} driverInfo={driverInfo} handleSignOut={handleSignOut} />
+      )}
     </DriverAuthGuard>
   );
 }

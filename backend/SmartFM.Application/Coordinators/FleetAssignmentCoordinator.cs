@@ -116,6 +116,13 @@ public class FleetAssignmentCoordinator
             if (warehouse is not null)
                 shipment.SetWarehouse(warehouse.Id);
             _shipments.Update(shipment);
+
+            var shipmentOrder = await _orders.GetByIdAsync(shipment.OrderId);
+            if (shipmentOrder is not null)
+            {
+                shipmentOrder.SetStatus(OrderStatus.Approved);
+                _orders.Update(shipmentOrder);
+            }
         }
 
         driver.SetAvailability(false);
@@ -136,16 +143,27 @@ public class FleetAssignmentCoordinator
         assignment.Approve();
         _assignments.Update(assignment);
 
+        var shipments = (await _shipments.GetAllAsync()).Where(s => s.AssignmentId == assignment.Id).ToList();
+        foreach (var shipment in shipments)
+        {
+            var order = await _orders.GetByIdAsync(shipment.OrderId);
+            if (order is not null)
+            {
+                order.Activate();
+                _orders.Update(order);
+            }
+        }
+
         await _unitOfWork.SaveChangesAsync();
         return assignment;
     }
 
-    public async Task<Assignment> CompleteAssignmentAsync(Guid assignmentId)
+    public async Task<Assignment> DeliverAssignmentAsync(Guid assignmentId)
     {
         var assignment = await _assignments.GetByIdAsync(assignmentId)
             ?? throw new InvalidOperationException($"Assignment {assignmentId} not found.");
 
-        assignment.Complete();
+        assignment.Deliver();
         _assignments.Update(assignment);
 
         await ReleaseDriverAndVehicleAsync(assignment);
@@ -159,8 +177,16 @@ public class FleetAssignmentCoordinator
         var assignment = await _assignments.GetByIdAsync(assignmentId)
             ?? throw new InvalidOperationException($"Assignment {assignmentId} not found.");
 
-        assignment.Complete();
+        assignment.Reject();
         _assignments.Update(assignment);
+
+        var shipments = (await _shipments.GetAllAsync()).Where(s => s.AssignmentId == assignment.Id).ToList();
+        foreach (var shipment in shipments)
+        {
+            shipment.Unassign();
+            shipment.SetStatus(ShipmentStatus.Created);
+            _shipments.Update(shipment);
+        }
 
         await ReleaseDriverAndVehicleAsync(assignment);
 
@@ -209,6 +235,10 @@ public class FleetAssignmentCoordinator
 
         shipment.SetStatus(ShipmentStatus.Delivered);
         _shipments.Update(shipment);
+
+        assignment.Deliver();
+        _assignments.Update(assignment);
+        await ReleaseDriverAndVehicleAsync(assignment);
 
         await _unitOfWork.SaveChangesAsync();
 
@@ -276,9 +306,48 @@ public class FleetAssignmentCoordinator
 
         var updatedValues = manifest with { IsPickupResolved = true };
         _loadManifests.UpdateValues(manifest, updatedValues);
+
+        var shipment = await _shipments.GetByIdAsync(shipmentId);
+        if (shipment?.AssignmentId is not null)
+        {
+            var assignment = await _assignments.GetByIdAsync(shipment.AssignmentId.Value);
+            if (assignment is not null)
+            {
+                assignment.MarkLoaded();
+                _assignments.Update(assignment);
+            }
+        }
+
         await _unitOfWork.SaveChangesAsync();
 
         return manifest;
+    }
+
+    public async Task<Shipment> MarkShipmentInTransitAsync(Guid shipmentId)
+    {
+        var shipment = await _shipments.GetByIdAsync(shipmentId)
+            ?? throw new InvalidOperationException($"Shipment {shipmentId} not found.");
+
+        var manifests = await _loadManifests.GetAllAsync();
+        var manifest = manifests.FirstOrDefault(m => m.ShipmentId == shipmentId);
+        if (manifest is null || !manifest.IsPickupResolved)
+            throw new InvalidOperationException("Cannot start trip before loading is confirmed.");
+
+        shipment.SetStatus(ShipmentStatus.InTransit);
+        _shipments.Update(shipment);
+
+        if (shipment.AssignmentId is not null)
+        {
+            var assignment = await _assignments.GetByIdAsync(shipment.AssignmentId.Value);
+            if (assignment is not null)
+            {
+                assignment.MarkDelivering();
+                _assignments.Update(assignment);
+            }
+        }
+
+        await _unitOfWork.SaveChangesAsync();
+        return shipment;
     }
 
     public async Task<LoadManifest> ResolveLoadManifestAtDropoffAsync(Guid shipmentId, IReadOnlyList<string>? damagedOrMissingItems)
@@ -379,11 +448,11 @@ public class FleetAssignmentCoordinator
     private async Task EnsureNotDoubleBookedAsync(Guid driverId, Guid vehicleId)
     {
         var assignments = await _assignments.GetAllAsync();
-        var driverBooked = assignments.Any(a => a.DriverId == driverId && a.Status is AssignmentStatus.Active or AssignmentStatus.Pending);
+        var driverBooked = assignments.Any(a => a.DriverId == driverId && a.Status is not (AssignmentStatus.Delivered or AssignmentStatus.Rejected));
         if (driverBooked)
             throw new InvalidOperationException($"Driver {driverId} already has an active assignment.");
 
-        var vehicleBooked = assignments.Any(a => a.VehicleId == vehicleId && a.Status is AssignmentStatus.Active or AssignmentStatus.Pending);
+        var vehicleBooked = assignments.Any(a => a.VehicleId == vehicleId && a.Status is not (AssignmentStatus.Delivered or AssignmentStatus.Rejected));
         if (vehicleBooked)
             throw new InvalidOperationException($"Vehicle {vehicleId} already has an active assignment.");
     }

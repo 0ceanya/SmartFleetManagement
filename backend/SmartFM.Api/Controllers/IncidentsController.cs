@@ -40,7 +40,7 @@ public class IncidentsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<IncidentRecordResponse>> ReportIncident(ReportIncidentRequest request)
     {
-        var incident = await _coordinator.ReportIncidentForShipmentAsync(request.ShipmentId, request.Description, request.Severity);
+        var incident = await _coordinator.ReportIncidentForShipmentAsync(request.ShipmentId, request.Description, request.Severity, request.Category);
         var response = IncidentRecordResponse.FromEntity(incident);
         return CreatedAtAction(nameof(GetIncidentRecordById), new { id = incident.Id }, response);
     }

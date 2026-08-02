@@ -1,3 +1,7 @@
+export type OrderStatusValue = "Pending" | "Approved" | "Active" | "Fulfilled" | "Cancelled";
+export type AssignmentStatusValue = "Pending" | "Assigned" | "Loaded" | "Delivering" | "Delivered" | "Rejected";
+export type ShipmentStatusValue = "Created" | "Assigned" | "InTransit" | "Delivered" | "Cancelled";
+
 export interface Cargo {
   id: string;
   description: string;
@@ -11,7 +15,7 @@ export interface ShipmentSummary {
   pickupAddress: string;
   deliveryAddress: string;
   warehouseId: string | null;
-  status: string;
+  status: ShipmentStatusValue;
   createdAt: string;
 }
 
@@ -20,7 +24,7 @@ export interface OrderDetails {
   customerId: string;
   offeringId: string;
   orderWeightKg: number;
-  status: string;
+  status: OrderStatusValue;
   createdAt: string;
   cargoes: Cargo[];
   shipments: ShipmentSummary[];
@@ -31,7 +35,7 @@ export interface OrderSummary {
   customerId: string;
   offeringId: string;
   orderWeightKg: number;
-  status: string;
+  status: OrderStatusValue;
   createdAt: string;
 }
 
@@ -103,7 +107,7 @@ export interface AssignmentShipmentResponse {
   orderId: string;
   pickupAddress: string;
   deliveryAddress: string;
-  status: string;
+  status: ShipmentStatusValue;
   customerName: string;
   customerPhone: string;
 }
@@ -115,7 +119,7 @@ export interface AssignmentResponse {
   driverId: string;
   vehicleId: string;
   route: RouteResponse | null;
-  status: string;
+  status: AssignmentStatusValue;
   createdAt: string;
 }
 

@@ -51,12 +51,12 @@ public class FleetController : ControllerBase
         return Ok(AssignmentResponse.FromEntity(assignment, details!.Value.Shipments, details.Value.Route));
     }
 
-    [HttpPost("assignments/{id:guid}/complete")]
+    [HttpPost("assignments/{id:guid}/deliver")]
     [ProducesResponseType(typeof(AssignmentResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<AssignmentResponse>> CompleteAssignment(Guid id)
+    public async Task<ActionResult<AssignmentResponse>> DeliverAssignment(Guid id)
     {
-        var assignment = await _coordinator.CompleteAssignmentAsync(id);
+        var assignment = await _coordinator.DeliverAssignmentAsync(id);
         var details = await _coordinator.GetAssignmentDetailsAsync(id);
         return Ok(AssignmentResponse.FromEntity(assignment, details!.Value.Shipments, details.Value.Route));
     }
@@ -139,5 +139,15 @@ public class FleetController : ControllerBase
     {
         var updatedManifest = await _coordinator.ResolveLoadManifestAtDropoffAsync(id, request.DamagedOrMissingItems);
         return Ok(LoadManifestResponse.FromEntity(updatedManifest));
+    }
+
+    [HttpPost("shipments/{id:guid}/start-trip")]
+    [ProducesResponseType(typeof(ShipmentStatusResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<ShipmentStatusResponse>> StartTrip(Guid id)
+    {
+        var shipment = await _coordinator.MarkShipmentInTransitAsync(id);
+        return Ok(new ShipmentStatusResponse(shipment.Id, shipment.Status));
     }
 }
