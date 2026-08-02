@@ -57,12 +57,19 @@ public record ShipmentSummaryResponse(Guid Id, string PickupAddress, string Deli
         new(shipment.Id, shipment.PickupAddress, shipment.DeliveryAddress, shipment.WarehouseId, shipment.Status, shipment.CreatedAt);
 }
 
-public record OrderDetailsResponse(Guid Id, Guid CustomerId, Guid OfferingId, decimal OrderWeightKg, string Status, DateTime CreatedAt, IReadOnlyList<CargoResponse> Cargoes, IReadOnlyList<ShipmentSummaryResponse> Shipments)
+public record InvoiceSummaryResponse(Guid Id, Guid OrderId, decimal Amount, string Status, DateTime CreatedAt)
 {
-    public static OrderDetailsResponse FromEntity(Order order, IReadOnlyList<Cargo> cargoes, IReadOnlyList<Shipment> shipments) =>
+    public static InvoiceSummaryResponse FromEntity(Invoice invoice) =>
+        new(invoice.Id, invoice.OrderId, invoice.Amount, invoice.Status, invoice.CreatedAt);
+}
+
+public record OrderDetailsResponse(Guid Id, Guid CustomerId, Guid OfferingId, decimal OrderWeightKg, string Status, DateTime CreatedAt, IReadOnlyList<CargoResponse> Cargoes, IReadOnlyList<ShipmentSummaryResponse> Shipments, InvoiceSummaryResponse? Invoice)
+{
+    public static OrderDetailsResponse FromEntity(Order order, IReadOnlyList<Cargo> cargoes, IReadOnlyList<Shipment> shipments, Invoice? invoice = null) =>
         new(order.Id, order.CustomerId, order.OfferingId, order.OrderWeightKg, order.Status, order.CreatedAt,
             cargoes.Select(CargoResponse.FromEntity).ToList(),
-            shipments.Select(ShipmentSummaryResponse.FromEntity).ToList());
+            shipments.Select(ShipmentSummaryResponse.FromEntity).ToList(),
+            invoice != null ? InvoiceSummaryResponse.FromEntity(invoice) : null);
 }
 
 public record OrderSummaryResponse(Guid Id, Guid CustomerId, Guid OfferingId, decimal OrderWeightKg, string Status, DateTime CreatedAt)

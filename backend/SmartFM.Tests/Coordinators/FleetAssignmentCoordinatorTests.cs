@@ -48,6 +48,7 @@ public class FleetAssignmentCoordinatorTests : IDisposable
             _cargoes,
             _offerings,
             _assignments,
+            new Repository<Invoice>(_context),
             unitOfWork);
 
         _coordinator = new FleetAssignmentCoordinator(

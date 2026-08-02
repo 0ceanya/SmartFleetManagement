@@ -2,16 +2,17 @@
 
 import * as React from "react";
 import { 
-  Box, Typography, TextField, Button, Stack, Alert, CircularProgress, 
-  Select, MenuItem, InputLabel, FormControl, Grid, Paper, IconButton
+  Box, Typography, TextField, Button, Alert, CircularProgress, 
+  Select, MenuItem, InputLabel, FormControl, Grid, Paper
 } from "@mui/material";
 import SwapVertIcon from '@mui/icons-material/SwapVert';
-import OrdersTable from "@/components/staff/OrdersTable";
+import InvoicesTable from "@/components/staff/InvoicesTable";
 import { apiFetch } from "@/lib/api";
 
-export default function OrdersPage() {
-  const [allOrders, setAllOrders] = React.useState([]);
+export default function BillingPage() {
+  const [allInvoices, setAllInvoices] = React.useState([]);
   const [customers, setCustomers] = React.useState({});
+  const [orders, setOrders] = React.useState({});
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
   
@@ -26,11 +27,12 @@ export default function OrdersPage() {
     setLoading(true);
     setError(null);
     try {
-      const [ordersData, customersData] = await Promise.all([
-        apiFetch("/api/orders"),
-        apiFetch("/api/customers").catch(() => []) // gracefully handle if endpoint missing
+      const [invoicesData, customersData, ordersData] = await Promise.all([
+        apiFetch("/api/billing/invoices"),
+        apiFetch("/api/customers").catch(() => []),
+        apiFetch("/api/orders").catch(() => [])
       ]);
-      setAllOrders(ordersData);
+      setAllInvoices(invoicesData);
       
       const customerMap = {};
       customersData.forEach(c => {
@@ -39,6 +41,14 @@ export default function OrdersPage() {
         }
       });
       setCustomers(customerMap);
+
+      const orderMap = {};
+      ordersData.forEach(o => {
+        if (o && o.id) {
+          orderMap[o.id.toLowerCase()] = o;
+        }
+      });
+      setOrders(orderMap);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -63,34 +73,36 @@ export default function OrdersPage() {
   };
 
   // Apply filters
-  const filteredOrders = React.useMemo(() => {
-    return allOrders
-      .filter(order => {
-        // Search by ID or Email
+  const filteredInvoices = React.useMemo(() => {
+    return allInvoices
+      .filter(invoice => {
+        // Search by Invoice ID, Order ID, or Customer Email
         if (searchQuery) {
           const q = searchQuery.toLowerCase();
-          const customerEmail = customers[order.customerId?.toLowerCase()]?.email?.toLowerCase() || "";
           
-          if (!order.id?.toLowerCase().includes(q) && 
-              !order.customerId?.toLowerCase().includes(q) &&
-              !customerEmail.includes(q)) {
+          const order = orders[invoice.orderId?.toLowerCase()];
+          const customerEmail = order ? customers[order.customerId?.toLowerCase()]?.email?.toLowerCase() : "";
+          
+          if (!invoice.id?.toLowerCase().includes(q) && 
+              !invoice.orderId?.toLowerCase().includes(q) &&
+              (!customerEmail || !customerEmail.includes(q))) {
             return false;
           }
         }
         
         // Status filter
-        if (statusFilter && order.status !== statusFilter) {
+        if (statusFilter && invoice.status !== statusFilter) {
           return false;
         }
         
         // Date range filter
         if (startDate) {
-          if (new Date(order.createdAt) < new Date(startDate)) return false;
+          if (new Date(invoice.createdAt) < new Date(startDate)) return false;
         }
         if (endDate) {
           const end = new Date(endDate);
           end.setHours(23, 59, 59, 999);
-          if (new Date(order.createdAt) > end) return false;
+          if (new Date(invoice.createdAt) > end) return false;
         }
         
         return true;
@@ -100,19 +112,19 @@ export default function OrdersPage() {
         const dateB = new Date(b.createdAt).getTime();
         return sortOrder === "desc" ? dateB - dateA : dateA - dateB;
       });
-  }, [allOrders, customers, searchQuery, statusFilter, startDate, endDate, sortOrder]);
+  }, [allInvoices, customers, orders, searchQuery, statusFilter, startDate, endDate, sortOrder]);
 
   return (
     <Box className="max-w-7xl mx-auto my-8 px-4">
       <Typography variant="h4" sx={{ mb: 4 }}>
-        Orders Queue
+        Billing & Invoices
       </Typography>
 
       <Paper variant="outlined" sx={{ p: 3, mb: 4 }}>
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={12} md={3}>
             <TextField
-              label="Search Order/Customer ID or Email"
+              label="Search Invoice/Order ID or Email"
               variant="outlined"
               size="small"
               fullWidth
@@ -129,11 +141,9 @@ export default function OrdersPage() {
                 onChange={(e) => setStatusFilter(e.target.value)}
               >
                 <MenuItem value=""><em>Any Status</em></MenuItem>
-                <MenuItem value="Pending">Pending</MenuItem>
                 <MenuItem value="PendingPayment">PendingPayment</MenuItem>
-                <MenuItem value="Approved">Approved</MenuItem>
-                <MenuItem value="Fulfilled">Fulfilled</MenuItem>
-                <MenuItem value="Cancelled">Cancelled</MenuItem>
+                <MenuItem value="Paid">Paid</MenuItem>
+                <MenuItem value="Void">Void</MenuItem>
               </Select>
             </FormControl>
           </Grid>
@@ -181,7 +191,7 @@ export default function OrdersPage() {
           <CircularProgress />
         </Box>
       ) : (
-        <OrdersTable orders={filteredOrders} />
+        <InvoicesTable invoices={filteredInvoices} />
       )}
     </Box>
   );

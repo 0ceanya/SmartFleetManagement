@@ -98,8 +98,10 @@ public class ReportingCoordinatorTests : IDisposable
 
     private async Task<Invoice> SeedInvoiceAsync(decimal amount, bool paid)
     {
-        var shipment = await SeedShipmentAsync();
-        var invoice = new Invoice(shipment, amount);
+        var customer = await AddAndSaveAsync(_customers, new Customer("Nguyen Van Khach", $"khach-{Guid.NewGuid()}@example.com", "0900000000"));
+        var offering = await AddAndSaveAsync(_offerings, new Offering("Light Delivery", "Small parcels", 150000m, 1000m, 3m, "Light"));
+        var order = await AddAndSaveAsync(_orders, new Order(customer, offering));
+        var invoice = new Invoice(order, amount);
         if (paid) invoice.MarkPaid();
         return await AddAndSaveAsync(_invoices, invoice);
     }

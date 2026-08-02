@@ -32,7 +32,9 @@ public class OrdersController : ControllerBase
             request.CustomerName, request.CustomerEmail, request.CustomerPhone, request.OfferingId,
             request.PickupAddress, request.DeliveryAddress, cargoDataList, request.OrderWeightKg);
 
-        var response = OrderDetailsResponse.FromEntity(order, order.Cargoes, new[] { shipment });
+        var details = await _coordinator.GetOrderDetailsAsync(order.Id);
+        
+        var response = OrderDetailsResponse.FromEntity(details!.Value.Order, details.Value.Cargoes, details.Value.Shipments, details.Value.Invoice);
         return CreatedAtAction(nameof(GetOrderById), new { id = order.Id }, response);
     }
 
@@ -44,7 +46,7 @@ public class OrdersController : ControllerBase
         var details = await _coordinator.GetOrderDetailsAsync(id);
         if (details is null)
             return Problem(detail: $"Order {id} not found.", statusCode: StatusCodes.Status404NotFound);
-        return Ok(OrderDetailsResponse.FromEntity(details.Value.Order, details.Value.Cargoes, details.Value.Shipments));
+        return Ok(OrderDetailsResponse.FromEntity(details.Value.Order, details.Value.Cargoes, details.Value.Shipments, details.Value.Invoice));
     }
 
     [HttpGet]

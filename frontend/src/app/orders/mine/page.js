@@ -61,7 +61,7 @@ export default function MyOrdersPage() {
         Enter the email address you used when placing an order to track it or see completed orders.
       </p>
 
-      <form onSubmit={handleSearch} className="bg-white border border-gray-300 p-6 mb-8 flex flex-col sm:flex-row gap-3 items-end">
+      <form onSubmit={handleSearch} className="bg-white p-6 mb-8 flex flex-col sm:flex-row gap-3 items-end">
         <div className="flex-1 w-full">
           <label className="block text-xs font-semibold text-gray-600 mb-1">Email</label>
           <input
@@ -69,7 +69,7 @@ export default function MyOrdersPage() {
             placeholder="you@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full border border-gray-300 p-2 text-sm"
+            className="w-full p-2 text-sm"
           />
         </div>
         <Button type="submit" disabled={loading}>
@@ -80,7 +80,7 @@ export default function MyOrdersPage() {
       {error && <p className="text-sm text-accent mb-4">{error}</p>}
 
       {orders !== null && (
-        <div className="bg-white border border-gray-300">
+        <div className="bg-white">
           <h2 className="font-bold text-sm text-secondary uppercase tracking-wider p-4 pb-0">
             Orders for {searchedEmail}
           </h2>

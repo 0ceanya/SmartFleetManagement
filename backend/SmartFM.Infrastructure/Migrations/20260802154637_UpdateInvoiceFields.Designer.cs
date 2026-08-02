@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SmartFM.Infrastructure.Persistence;
 
@@ -10,9 +11,11 @@ using SmartFM.Infrastructure.Persistence;
 namespace SmartFM.Infrastructure.Migrations
 {
     [DbContext(typeof(SmartFMDbContext))]
-    partial class SmartFMDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260802154637_UpdateInvoiceFields")]
+    partial class UpdateInvoiceFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.0");
@@ -714,10 +717,6 @@ namespace SmartFM.Infrastructure.Migrations
             modelBuilder.Entity("SmartFM.Domain.Records.IncidentRecord", b =>
                 {
                     b.HasBaseType("SmartFM.Domain.Records.Record");
-
-                    b.Property<string>("Category")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
 
                     b.Property<string>("Description")
                         .IsRequired()
