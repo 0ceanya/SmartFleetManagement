@@ -13,8 +13,8 @@ import { apiFetch } from "@/lib/api";
 const defaultCargoItems = [
   {
     description: "Cargo 1",
-    weightKg: 0,
-    volumeCbm: 0,
+    weightKg: 1,
+    volumeCbm: 1,
     isHazardous: false,
   },
 ];
