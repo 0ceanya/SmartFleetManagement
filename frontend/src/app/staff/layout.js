@@ -9,6 +9,7 @@ const navItems = [
   { label: "Orders", href: "/staff/orders" },
   { label: "Assignments", href: "/staff/assignments" },
   { label: "Incidents", href: "/staff/incidents" },
+  { label: "Billing", href: "/staff/billing" },
 ];
 
 export default function StaffLayout({ children }) {

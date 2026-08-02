@@ -129,10 +129,42 @@ export default function OrderDetailsPage() {
                     <Typography variant="subtitle2" color="text.secondary">Customer Phone</Typography>
                     <Typography variant="body2">{customer ? customer.phone : 'Loading...'}</Typography>
                   </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="subtitle2" color="text.secondary">Invoice ID</Typography>
-                    <Typography variant="body2" color="text.secondary">N/A (Not in API)</Typography>
-                  </Grid>
+                  {order.invoice ? (
+                    <>
+                      <Grid item xs={6}>
+                        <Typography variant="subtitle2" color="text.secondary">Invoice ID</Typography>
+                        <Typography variant="body2">{order.invoice.id}</Typography>
+                      </Grid>
+                      <Grid item xs={6}>
+                        <Typography variant="subtitle2" color="text.secondary">Invoice Amount</Typography>
+                        <Typography variant="body2">${order.invoice.amount}</Typography>
+                      </Grid>
+                      <Grid item xs={6}>
+                        <Typography variant="subtitle2" color="text.secondary">Invoice Status</Typography>
+                        <Chip label={order.invoice.status} size="small" color={order.invoice.status === 'Paid' ? 'success' : 'warning'} sx={{ mt: 0.5 }} />
+                      </Grid>
+                      <Grid item xs={6}>
+                        <Typography variant="subtitle2" color="text.secondary">Invoice Created At</Typography>
+                        <Typography variant="body2">{new Date(order.invoice.createdAt).toLocaleString()}</Typography>
+                      </Grid>
+                      <Grid item xs={12}>
+                        <Button 
+                          component={Link} 
+                          href={`/staff/billing/invoices/${order.invoice.id}`} 
+                          variant="outlined" 
+                          size="small" 
+                          sx={{ mt: 1 }}
+                        >
+                          View Invoice
+                        </Button>
+                      </Grid>
+                    </>
+                  ) : (
+                    <Grid item xs={6}>
+                      <Typography variant="subtitle2" color="text.secondary">Invoice</Typography>
+                      <Typography variant="body2" color="text.secondary">No invoice found</Typography>
+                    </Grid>
+                  )}
                 </Grid>
               </CardContent>
             </Card>

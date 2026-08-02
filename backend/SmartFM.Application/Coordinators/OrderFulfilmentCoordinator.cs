@@ -13,6 +13,7 @@ public class OrderFulfilmentCoordinator
     private readonly IRepository<Cargo> _cargoes;
     private readonly IRepository<Offering> _offerings;
     private readonly IRepository<Assignment> _assignments;
+    private readonly IRepository<Invoice> _invoices;
     private readonly IUnitOfWork _unitOfWork;
 
     public OrderFulfilmentCoordinator(
@@ -22,6 +23,7 @@ public class OrderFulfilmentCoordinator
         IRepository<Cargo> cargoes,
         IRepository<Offering> offerings,
         IRepository<Assignment> assignments,
+        IRepository<Invoice> invoices,
         IUnitOfWork unitOfWork)
     {
         _customers = customers;
@@ -30,6 +32,7 @@ public class OrderFulfilmentCoordinator
         _cargoes = cargoes;
         _offerings = offerings;
         _assignments = assignments;
+        _invoices = invoices;
         _unitOfWork = unitOfWork;
     }
 
@@ -62,8 +65,11 @@ public class OrderFulfilmentCoordinator
         var shipment = new Shipment(order, pickupAddress, deliveryAddress);
         order.AttachShipment(shipment);
 
+        var invoice = new Invoice(order, offering.BasePrice);
+
         await _orders.AddAsync(order);
         await _shipments.AddAsync(shipment);
+        await _invoices.AddAsync(invoice);
         await _unitOfWork.SaveChangesAsync();
 
         return (order, shipment);
@@ -131,8 +137,11 @@ public class OrderFulfilmentCoordinator
         var shipment = new Shipment(order, pickupAddress, deliveryAddress);
         order.AttachShipment(shipment);
 
+        var invoice = new Invoice(order, offering.BasePrice);
+
         await _orders.AddAsync(order);
         await _shipments.AddAsync(shipment);
+        await _invoices.AddAsync(invoice);
 
         await CreateCargoesAsync(order, offering, cargoItems);
 
@@ -148,7 +157,7 @@ public class OrderFulfilmentCoordinator
 
     public Task<IEnumerable<Shipment>> GetShipmentsAsync() => _shipments.GetAllAsync();
 
-    public async Task<(Order Order, IReadOnlyList<Cargo> Cargoes, IReadOnlyList<Shipment> Shipments)?> GetOrderDetailsAsync(Guid id)
+    public async Task<(Order Order, IReadOnlyList<Cargo> Cargoes, IReadOnlyList<Shipment> Shipments, Invoice? Invoice)?> GetOrderDetailsAsync(Guid id)
     {
         var order = await _orders.GetByIdAsync(id);
         if (order is null)
@@ -160,7 +169,10 @@ public class OrderFulfilmentCoordinator
         var allCargoes = await _cargoes.GetAllAsync();
         var orderCargoes = allCargoes.Where(c => c.OrderId == order.Id).ToList();
 
-        return (order, orderCargoes, orderShipments);
+        var allInvoices = await _invoices.GetAllAsync();
+        var orderInvoice = allInvoices.FirstOrDefault(i => i.OrderId == order.Id);
+
+        return (order, orderCargoes, orderShipments, orderInvoice);
     }
 
     public async Task<IEnumerable<Order>> GetOrdersByCustomerEmailAsync(string email)

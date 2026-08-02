@@ -53,11 +53,7 @@ public class BillingCoordinator
         var offering = await _offerings.GetByIdAsync(order.OfferingId)
             ?? throw new InvalidOperationException($"Offering {order.OfferingId} not found.");
 
-        var shipments = await _shipments.GetAllAsync();
-        var shipment = shipments.FirstOrDefault(s => s.OrderId == orderId)
-            ?? throw new InvalidOperationException($"No shipment found for order {orderId}.");
-
-        var invoice = new Invoice(shipment, offering.BasePrice);
+        var invoice = new Invoice(order, offering.BasePrice);
         await _invoices.AddAsync(invoice);
         await _unitOfWork.SaveChangesAsync();
         return invoice;
@@ -84,7 +80,7 @@ public class BillingCoordinator
         invoice.MarkPaid();
         _invoices.Update(invoice);
 
-        await ApproveOrderForShipmentAsync(invoice.ShipmentId);
+        await ApproveOrderAsync(invoice.OrderId);
 
         var gatewayResponse = payment switch
         {
@@ -138,12 +134,10 @@ public class BillingCoordinator
         return new DigitalPayment(invoice.Amount, invoice.Id, "Payment processed", walletReference);
     }
 
-    private async Task ApproveOrderForShipmentAsync(Guid shipmentId)
+    private async Task ApproveOrderAsync(Guid orderId)
     {
-        var shipment = await _shipments.GetByIdAsync(shipmentId)
-            ?? throw new InvalidOperationException($"Shipment {shipmentId} not found.");
-        var order = await _orders.GetByIdAsync(shipment.OrderId)
-            ?? throw new InvalidOperationException($"Order not found for shipment {shipmentId}.");
+        var order = await _orders.GetByIdAsync(orderId)
+            ?? throw new InvalidOperationException($"Order {orderId} not found.");
 
         order.SetStatus(OrderStatus.Approved);
         _orders.Update(order);

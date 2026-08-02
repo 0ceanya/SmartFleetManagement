@@ -42,6 +42,7 @@ public class OrderFulfilmentCoordinatorTests : IDisposable
             new Repository<Cargo>(_context),
             _offerings,
             _assignments,
+            new Repository<Invoice>(_context),
             new UnitOfWork(_context));
     }
 

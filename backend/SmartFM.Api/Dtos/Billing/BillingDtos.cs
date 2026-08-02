@@ -10,10 +10,10 @@ public record GenerateInvoiceRequest
     public Guid OrderId { get; init; }
 }
 
-public record InvoiceResponse(Guid Id, Guid ShipmentId, decimal Amount, string Status, DateTime CreatedAt)
+public record InvoiceResponse(Guid Id, Guid OrderId, decimal Amount, string Status, DateTime CreatedAt)
 {
     public static InvoiceResponse FromEntity(Invoice invoice) =>
-        new(invoice.Id, invoice.ShipmentId, invoice.Amount, invoice.Status, invoice.CreatedAt);
+        new(invoice.Id, invoice.OrderId, invoice.Amount, invoice.Status, invoice.CreatedAt);
 }
 
 public record PayInvoiceRequest : IValidatableObject

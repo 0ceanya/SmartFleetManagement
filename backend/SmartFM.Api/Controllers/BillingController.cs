@@ -26,6 +26,14 @@ public class BillingController : ControllerBase
         return CreatedAtAction(nameof(GetInvoiceById), new { id = invoice.Id }, response);
     }
 
+    [HttpGet("invoices")]
+    [ProducesResponseType(typeof(IEnumerable<InvoiceResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IEnumerable<InvoiceResponse>>> GetInvoices()
+    {
+        var invoices = await _coordinator.GetInvoicesAsync();
+        return Ok(invoices.Select(InvoiceResponse.FromEntity));
+    }
+
     [HttpGet("invoices/{id:guid}")]
     [ProducesResponseType(typeof(InvoiceResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
