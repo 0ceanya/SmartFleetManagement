@@ -187,8 +187,7 @@ export default function PlaceOrderForm() {
       <div className="border-b-2 border-black pb-4 mb-6 flex justify-between items-end">
         <div>
           <h1 className="text-3xl font-heading text-black mt-1">
-            {step === 1 && "Select Offering & Cargo Specs"}
-            {step === 2 && "Order Review & Confirmation"}
+            Order Information
           </h1>
         </div>
         <div className="text-xs font-semibold text-gray-500">
