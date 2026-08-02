@@ -5,7 +5,7 @@ public record DeliveryConfirmation(
     Guid DriverId,
     string RecipientName,
     string ProofSignature,
-    double GpsLatitude,
-    double GpsLongitude,
+    double? GpsLatitude,
+    double? GpsLongitude,
     DateTime ConfirmedAt,
     IReadOnlyList<string>? DamagedOrMissingItems = null);

@@ -60,6 +60,7 @@ public class IncidentCoordinatorTests : IDisposable
             _vehicles,
             _shipments,
             _orders,
+            _customers,
             _warehouses,
             new Repository<MaintenanceRecord>(_context),
             new Repository<DeliveryConfirmation>(_context),
@@ -70,10 +71,8 @@ public class IncidentCoordinatorTests : IDisposable
 
         _incidentCoordinator = new IncidentCoordinator(
             new Repository<IncidentRecord>(_context),
-            _loadManifests,
             new Repository<Assignment>(_context),
             _shipments,
-            _cargoes,
             _fleetAssignmentCoordinator,
             unitOfWork);
     }
@@ -127,6 +126,19 @@ public class IncidentCoordinatorTests : IDisposable
         var manifests = (await _loadManifests.GetAllAsync()).ToList();
         Assert.Single(manifests);
         Assert.Contains("Boxed goods", manifests[0].CargoDescriptions);
+    }
+
+    [Fact]
+    public async Task ReportIncidentDoesNotDuplicateLoadManifestAlreadyCreatedForShipment()
+    {
+        var (_, vehicle, assignment) = await SeedActiveAssignmentAsync();
+        var shipmentId = (await _shipments.GetAllAsync()).Single(s => s.AssignmentId == assignment.Id).Id;
+        await _fleetAssignmentCoordinator.GetOrCreateLoadManifestAsync(shipmentId);
+
+        await _incidentCoordinator.ReportIncidentAsync(vehicle.Id, "Engine overheating", "High");
+
+        var manifests = (await _loadManifests.GetAllAsync()).Where(m => m.ShipmentId == shipmentId).ToList();
+        Assert.Single(manifests);
     }
 
     public void Dispose()

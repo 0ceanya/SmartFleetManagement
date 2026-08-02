@@ -9,27 +9,21 @@ namespace SmartFM.Application.Coordinators;
 public class IncidentCoordinator : ITelemetryObserver
 {
     private readonly IRepository<IncidentRecord> _incidentRecords;
-    private readonly IRepository<LoadManifest> _loadManifests;
     private readonly IRepository<Assignment> _assignments;
     private readonly IRepository<Shipment> _shipments;
-    private readonly IRepository<Cargo> _cargoes;
     private readonly FleetAssignmentCoordinator _fleetAssignmentCoordinator;
     private readonly IUnitOfWork _unitOfWork;
 
     public IncidentCoordinator(
         IRepository<IncidentRecord> incidentRecords,
-        IRepository<LoadManifest> loadManifests,
         IRepository<Assignment> assignments,
         IRepository<Shipment> shipments,
-        IRepository<Cargo> cargoes,
         FleetAssignmentCoordinator fleetAssignmentCoordinator,
         IUnitOfWork unitOfWork)
     {
         _incidentRecords = incidentRecords;
-        _loadManifests = loadManifests;
         _assignments = assignments;
         _shipments = shipments;
-        _cargoes = cargoes;
         _fleetAssignmentCoordinator = fleetAssignmentCoordinator;
         _unitOfWork = unitOfWork;
     }
@@ -74,7 +68,7 @@ public class IncidentCoordinator : ITelemetryObserver
         if (activeAssignment is not null)
         {
             foreach (var shipmentId in affectedShipmentIds)
-                await CreateLoadManifestAsync(shipmentId);
+                await _fleetAssignmentCoordinator.GetOrCreateLoadManifestAsync(shipmentId);
 
             await _fleetAssignmentCoordinator.RequestReallocationAsync(activeAssignment.Id);
         }
@@ -100,22 +94,5 @@ public class IncidentCoordinator : ITelemetryObserver
     private async Task HandleIncidentAsync(Vehicle vehicle)
     {
         await ReportIncidentAsync(vehicle.Id, "Telemetry anomaly detected", "Medium");
-    }
-
-    private async Task CreateLoadManifestAsync(Guid shipmentId)
-    {
-        var shipment = await _shipments.GetByIdAsync(shipmentId);
-        if (shipment is null)
-            return;
-
-        var cargoes = (await _cargoes.GetAllAsync()).Where(c => c.OrderId == shipment.OrderId).ToList();
-
-        var manifest = new LoadManifest(
-            shipment.Id,
-            cargoes.Select(c => c.Description).ToList(),
-            cargoes.Sum(c => c.WeightKg),
-            cargoes.Any(c => c.IsHazardous),
-            DateTime.UtcNow);
-        await _loadManifests.AddAsync(manifest);
     }
 }

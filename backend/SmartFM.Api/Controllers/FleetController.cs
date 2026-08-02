@@ -35,8 +35,8 @@ public class FleetController : ControllerBase
     {
         var assignment = await _coordinator.CreateAssignmentAsync(
             request.ShipmentIds, request.DriverId, request.VehicleId, request.Route?.ToRouteData(), request.WarehouseId);
-        var route = assignment.RouteId is null ? null : await _coordinator.GetRouteByIdAsync(assignment.RouteId.Value);
-        var response = AssignmentResponse.FromEntity(assignment, request.ShipmentIds, route);
+        var details = await _coordinator.GetAssignmentDetailsAsync(assignment.Id);
+        var response = AssignmentResponse.FromEntity(assignment, details!.Value.Shipments, details.Value.Route);
         return CreatedAtAction(nameof(GetAssignmentById), new { id = assignment.Id }, response);
     }
 
@@ -48,7 +48,7 @@ public class FleetController : ControllerBase
     {
         var assignment = await _coordinator.ApproveAssignmentAsync(id);
         var details = await _coordinator.GetAssignmentDetailsAsync(id);
-        return Ok(AssignmentResponse.FromEntity(assignment, details!.Value.ShipmentIds, details.Value.Route));
+        return Ok(AssignmentResponse.FromEntity(assignment, details!.Value.Shipments, details.Value.Route));
     }
 
     [HttpPost("assignments/{id:guid}/complete")]
@@ -58,7 +58,7 @@ public class FleetController : ControllerBase
     {
         var assignment = await _coordinator.CompleteAssignmentAsync(id);
         var details = await _coordinator.GetAssignmentDetailsAsync(id);
-        return Ok(AssignmentResponse.FromEntity(assignment, details!.Value.ShipmentIds, details.Value.Route));
+        return Ok(AssignmentResponse.FromEntity(assignment, details!.Value.Shipments, details.Value.Route));
     }
 
     [HttpGet("assignments/{id:guid}")]
@@ -69,7 +69,7 @@ public class FleetController : ControllerBase
         var details = await _coordinator.GetAssignmentDetailsAsync(id);
         if (details is null)
             return Problem(detail: $"Assignment {id} not found.", statusCode: StatusCodes.Status404NotFound);
-        return Ok(AssignmentResponse.FromEntity(details.Value.Assignment, details.Value.ShipmentIds, details.Value.Route));
+        return Ok(AssignmentResponse.FromEntity(details.Value.Assignment, details.Value.Shipments, details.Value.Route));
     }
 
     [HttpGet("assignments")]
@@ -77,7 +77,7 @@ public class FleetController : ControllerBase
     public async Task<ActionResult<IEnumerable<AssignmentResponse>>> GetAssignments([FromQuery] string? status, [FromQuery] Guid? driverId)
     {
         var assignments = await _coordinator.GetAssignmentsAsync(status, driverId);
-        return Ok(assignments.Select(a => AssignmentResponse.FromEntity(a.Assignment, a.ShipmentIds, a.Route)));
+        return Ok(assignments.Select(a => AssignmentResponse.FromEntity(a.Assignment, a.Shipments, a.Route)));
     }
 
     [HttpPost("shipments/{shipmentId:guid}/delivery-confirmation")]
@@ -103,13 +103,33 @@ public class FleetController : ControllerBase
         return Ok(DeliveryConfirmationResponse.FromEntity(confirmation));
     }
 
-    [HttpPost("shipments/{id:guid}/load-manifest")]
-    [ProducesResponseType(typeof(LoadManifestResponse), StatusCodes.Status201Created)]
+    [HttpGet("shipments/{id:guid}/load-manifest")]
+    [ProducesResponseType(typeof(LoadManifestResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<LoadManifestResponse>> CreateLoadManifest(Guid id)
+    public async Task<ActionResult<LoadManifestResponse>> GetLoadManifest(Guid id)
     {
-        var manifest = await _coordinator.GenerateAndResolveLoadManifestAsync(id);
-        return CreatedAtAction(nameof(CreateLoadManifest), new { id }, LoadManifestResponse.FromEntity(manifest));
+        var manifest = await _coordinator.GetOrCreateLoadManifestAsync(id);
+        return Ok(LoadManifestResponse.FromEntity(manifest));
+    }
+
+    [HttpPut("shipments/{id:guid}/load-manifest/loaded-items")]
+    [ProducesResponseType(typeof(LoadManifestResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<LoadManifestResponse>> UpdateLoadedCargoItems(Guid id, UpdateLoadedCargoItemsRequest request)
+    {
+        var manifest = await _coordinator.UpdateLoadedCargoItemsAsync(id, request.LoadedCargoIds);
+        return Ok(LoadManifestResponse.FromEntity(manifest));
+    }
+
+    [HttpPost("shipments/{id:guid}/load-manifest/start")]
+    [ProducesResponseType(typeof(LoadManifestResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<LoadManifestResponse>> StartLoadManifest(Guid id)
+    {
+        var manifest = await _coordinator.MarkLoadingCompleteAsync(id);
+        return Ok(LoadManifestResponse.FromEntity(manifest));
     }
 
     [HttpPut("shipments/{id:guid}/load-manifest/resolve")]

@@ -23,5 +23,8 @@ public class Repository<T> : IRepository<T> where T : class
 
     public void Update(T entity) => _context.Set<T>().Update(entity);
 
+    public void UpdateValues(T trackedEntity, T updatedValues) =>
+        _context.Entry(trackedEntity).CurrentValues.SetValues(updatedValues);
+
     public void Remove(T entity) => _context.Set<T>().Remove(entity);
 }

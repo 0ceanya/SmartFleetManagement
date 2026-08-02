@@ -22,6 +22,8 @@ public class FleetAssignmentCoordinatorTests : IDisposable
     private readonly Repository<Order> _orders;
     private readonly Repository<Shipment> _shipments;
     private readonly Repository<Assignment> _assignments;
+    private readonly Repository<Cargo> _cargoes;
+    private readonly Repository<LoadManifest> _loadManifests;
 
     public FleetAssignmentCoordinatorTests()
     {
@@ -35,13 +37,15 @@ public class FleetAssignmentCoordinatorTests : IDisposable
         _orders = new Repository<Order>(_context);
         _shipments = new Repository<Shipment>(_context);
         _assignments = new Repository<Assignment>(_context);
+        _cargoes = new Repository<Cargo>(_context);
+        _loadManifests = new Repository<LoadManifest>(_context);
 
         var unitOfWork = new UnitOfWork(_context);
         var orderFulfilmentCoordinator = new OrderFulfilmentCoordinator(
             _customers,
             _orders,
             _shipments,
-            new Repository<Cargo>(_context),
+            _cargoes,
             _offerings,
             _assignments,
             unitOfWork);
@@ -53,11 +57,12 @@ public class FleetAssignmentCoordinatorTests : IDisposable
             _vehicles,
             _shipments,
             _orders,
+            _customers,
             _warehouses,
             new Repository<Domain.Records.MaintenanceRecord>(_context),
             new Repository<DeliveryConfirmation>(_context),
-            new Repository<LoadManifest>(_context),
-            new Repository<Cargo>(_context),
+            _loadManifests,
+            _cargoes,
             orderFulfilmentCoordinator,
             unitOfWork);
     }
@@ -91,6 +96,31 @@ public class FleetAssignmentCoordinatorTests : IDisposable
         await _shipments.AddAsync(shipment);
         await _context.SaveChangesAsync();
         return shipment;
+    }
+
+    private async Task<(Shipment Shipment, List<Cargo> Cargoes)> SeedShipmentWithCargoAsync(int cargoCount = 2)
+    {
+        var customer = new Customer("Nguyen Van Khach", "khach@example.com", "0900000000");
+        await _customers.AddAsync(customer);
+        var offering = new Offering("Light Delivery", "Small parcels", 150000m, 1000m, 3m, "Light");
+        await _offerings.AddAsync(offering);
+        var order = new Order(customer, offering);
+        var cargoes = new List<Cargo>();
+        for (var i = 0; i < cargoCount; i++)
+        {
+            var cargo = new Cargo(order.Id, $"Box {i + 1}", 5m, null, false);
+            order.AddCargo(cargo);
+            cargoes.Add(cargo);
+        }
+        var shipment = new Shipment(order, "Customer warehouse, Binh Duong", "Supermarket store, Q1 HCMC");
+        order.AttachShipment(shipment);
+        order.SetStatus(OrderStatus.Approved);
+        await _orders.AddAsync(order);
+        await _shipments.AddAsync(shipment);
+        foreach (var cargo in cargoes)
+            await _cargoes.AddAsync(cargo);
+        await _context.SaveChangesAsync();
+        return (shipment, cargoes);
     }
 
     private async Task<Driver> SeedDriverAsync()
@@ -127,9 +157,10 @@ public class FleetAssignmentCoordinatorTests : IDisposable
         Assert.Equal(AssignmentStatus.Pending, assignment.Status);
         var details = await _coordinator.GetAssignmentDetailsAsync(assignment.Id);
         Assert.NotNull(details);
-        Assert.Equal(2, details!.Value.ShipmentIds.Count);
-        Assert.Contains(firstShipment.Id, details.Value.ShipmentIds);
-        Assert.Contains(secondShipment.Id, details.Value.ShipmentIds);
+        var shipmentIds = details!.Value.Shipments.Select(s => s.Shipment.Id).ToList();
+        Assert.Equal(2, shipmentIds.Count);
+        Assert.Contains(firstShipment.Id, shipmentIds);
+        Assert.Contains(secondShipment.Id, shipmentIds);
     }
 
     [Fact]
@@ -371,6 +402,21 @@ public class FleetAssignmentCoordinatorTests : IDisposable
     }
 
     [Fact]
+    public async Task FleetAssignmentCoordinatorCreatesDeliveryConfirmationWithoutGpsCoordinates()
+    {
+        var driver = await SeedDriverAsync();
+        var vehicle = await SeedVehicleAsync();
+        var shipment = await SeedShipmentAsync();
+        await _coordinator.CreateAssignmentAsync(new[] { shipment.Id }, driver.Id, vehicle.Id);
+
+        var confirmation = await _coordinator.CreateDeliveryConfirmationAsync(
+            shipment.Id, driver.Id, "Recipient", "signature-data", null, null);
+
+        Assert.Null(confirmation.GpsLatitude);
+        Assert.Null(confirmation.GpsLongitude);
+    }
+
+    [Fact]
     public async Task FleetAssignmentCoordinatorRejectsDeliveryConfirmationFromUnassignedDriver()
     {
         var driver = await SeedDriverAsync();
@@ -391,6 +437,103 @@ public class FleetAssignmentCoordinatorTests : IDisposable
         var record = await _coordinator.CreateMaintenanceRecordAsync(vehicle.Id, "Oil change", DateTime.UtcNow.AddDays(7));
 
         Assert.Equal(vehicle.Id, record.VehicleId);
+    }
+
+    [Fact]
+    public async Task FleetAssignmentCoordinatorReturnsShipmentAddressesAndCustomerContactOnAssignment()
+    {
+        var driver = await SeedDriverAsync();
+        var vehicle = await SeedVehicleAsync();
+        var (shipment, _) = await SeedShipmentWithCargoAsync();
+
+        var assignment = await _coordinator.CreateAssignmentAsync(new[] { shipment.Id }, driver.Id, vehicle.Id);
+        var details = await _coordinator.GetAssignmentDetailsAsync(assignment.Id);
+
+        var shipmentData = details!.Value.Shipments.Single();
+        Assert.Equal("Customer warehouse, Binh Duong", shipmentData.Shipment.PickupAddress);
+        Assert.Equal("Supermarket store, Q1 HCMC", shipmentData.Shipment.DeliveryAddress);
+        Assert.Equal("Nguyen Van Khach", shipmentData.CustomerName);
+        Assert.Equal("0900000000", shipmentData.CustomerPhone);
+    }
+
+    [Fact]
+    public async Task FleetAssignmentCoordinatorCreatesLoadManifestOnceAndReusesItOnSubsequentFetches()
+    {
+        var (shipment, cargoes) = await SeedShipmentWithCargoAsync(cargoCount: 2);
+
+        var first = await _coordinator.GetOrCreateLoadManifestAsync(shipment.Id);
+        var second = await _coordinator.GetOrCreateLoadManifestAsync(shipment.Id);
+
+        Assert.Equal(2, first.CargoIds.Count);
+        Assert.Equal(cargoes.Select(c => c.Id).OrderBy(id => id), first.CargoIds.OrderBy(id => id));
+        Assert.Empty(first.LoadedCargoIds);
+        Assert.False(first.IsPickupResolved);
+
+        var allManifests = await _loadManifests.GetAllAsync();
+        Assert.Single(allManifests.Where(m => m.ShipmentId == shipment.Id));
+        Assert.Equal(first.CreatedAt, second.CreatedAt);
+    }
+
+    [Fact]
+    public async Task FleetAssignmentCoordinatorUpdatesLoadedCargoItems()
+    {
+        var (shipment, cargoes) = await SeedShipmentWithCargoAsync(cargoCount: 2);
+        await _coordinator.GetOrCreateLoadManifestAsync(shipment.Id);
+
+        var updated = await _coordinator.UpdateLoadedCargoItemsAsync(shipment.Id, new[] { cargoes[0].Id });
+
+        Assert.Single(updated.LoadedCargoIds);
+        Assert.Contains(cargoes[0].Id, updated.LoadedCargoIds);
+        Assert.False(updated.IsPickupResolved);
+    }
+
+    [Fact]
+    public async Task FleetAssignmentCoordinatorRejectsLoadedCargoItemNotOnManifest()
+    {
+        var (shipment, _) = await SeedShipmentWithCargoAsync(cargoCount: 1);
+        await _coordinator.GetOrCreateLoadManifestAsync(shipment.Id);
+
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => _coordinator.UpdateLoadedCargoItemsAsync(shipment.Id, new[] { Guid.NewGuid() }));
+    }
+
+    [Fact]
+    public async Task FleetAssignmentCoordinatorRejectsStartingBeforeAllCargoLoaded()
+    {
+        var (shipment, cargoes) = await SeedShipmentWithCargoAsync(cargoCount: 2);
+        await _coordinator.GetOrCreateLoadManifestAsync(shipment.Id);
+        await _coordinator.UpdateLoadedCargoItemsAsync(shipment.Id, new[] { cargoes[0].Id });
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _coordinator.MarkLoadingCompleteAsync(shipment.Id));
+    }
+
+    [Fact]
+    public async Task FleetAssignmentCoordinatorMarksLoadingCompleteWhenAllCargoLoaded()
+    {
+        var (shipment, cargoes) = await SeedShipmentWithCargoAsync(cargoCount: 2);
+        await _coordinator.GetOrCreateLoadManifestAsync(shipment.Id);
+        await _coordinator.UpdateLoadedCargoItemsAsync(shipment.Id, cargoes.Select(c => c.Id).ToList());
+
+        var completed = await _coordinator.MarkLoadingCompleteAsync(shipment.Id);
+
+        Assert.True(completed.IsPickupResolved);
+        var allManifests = await _loadManifests.GetAllAsync();
+        Assert.Single(allManifests.Where(m => m.ShipmentId == shipment.Id));
+    }
+
+    [Fact]
+    public async Task FleetAssignmentCoordinatorResolvesLoadManifestAtDropoffWithoutDuplicatingRow()
+    {
+        var (shipment, _) = await SeedShipmentWithCargoAsync(cargoCount: 1);
+        await _coordinator.GetOrCreateLoadManifestAsync(shipment.Id);
+
+        var resolved = await _coordinator.ResolveLoadManifestAtDropoffAsync(shipment.Id, new List<string> { "1 item missing" });
+
+        Assert.True(resolved.IsDropoffResolved);
+        Assert.Equal(new List<string> { "1 item missing" }, resolved.DamagedOrMissingItems);
+        var allManifests = (await _loadManifests.GetAllAsync()).Where(m => m.ShipmentId == shipment.Id).ToList();
+        Assert.Single(allManifests);
+        Assert.True(allManifests[0].IsDropoffResolved);
     }
 
     public void Dispose()

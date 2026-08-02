@@ -165,7 +165,7 @@ export default function DriverLoginForm({ onLoginSuccess }) {
 
         {error && (
           <div className="bg-rose-50 border-l-4 border-rose-500 p-3 text-xs text-rose-800 font-medium">
-            ⚠️ {error}
+            {error}
           </div>
         )}
 

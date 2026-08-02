@@ -14,12 +14,30 @@ public class LoadManifestConfiguration : IEntityTypeConfiguration<LoadManifest>
         builder.Property<Guid>("Id").ValueGeneratedOnAdd();
         builder.HasKey("Id");
 
+        builder.Property(m => m.CargoIds)
+            .HasConversion(
+                v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+                v => JsonSerializer.Deserialize<List<Guid>>(v, (JsonSerializerOptions?)null) ?? new List<Guid>())
+            .Metadata.SetValueComparer(new ValueComparer<IReadOnlyList<Guid>>(
+                (a, b) => (a ?? new List<Guid>()).SequenceEqual(b ?? new List<Guid>()),
+                v => v.Aggregate(0, (hash, s) => HashCode.Combine(hash, s.GetHashCode())),
+                v => v.ToList()));
+
         builder.Property(m => m.CargoDescriptions)
             .HasConversion(
                 v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
                 v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ?? new List<string>())
             .Metadata.SetValueComparer(new ValueComparer<IReadOnlyList<string>>(
                 (a, b) => (a ?? new List<string>()).SequenceEqual(b ?? new List<string>()),
+                v => v.Aggregate(0, (hash, s) => HashCode.Combine(hash, s.GetHashCode())),
+                v => v.ToList()));
+
+        builder.Property(m => m.LoadedCargoIds)
+            .HasConversion(
+                v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+                v => JsonSerializer.Deserialize<List<Guid>>(v, (JsonSerializerOptions?)null) ?? new List<Guid>())
+            .Metadata.SetValueComparer(new ValueComparer<IReadOnlyList<Guid>>(
+                (a, b) => (a ?? new List<Guid>()).SequenceEqual(b ?? new List<Guid>()),
                 v => v.Aggregate(0, (hash, s) => HashCode.Combine(hash, s.GetHashCode())),
                 v => v.ToList()));
 

@@ -34,9 +34,9 @@ export default function RejectModal({ assignment, onClose, onSubmit, submitting,
           <button
             type="button"
             onClick={onClose}
-            className="text-gray-400 hover:text-black font-bold text-lg cursor-pointer"
+            className="text-gray-400 hover:text-black font-bold text-xs uppercase tracking-wider cursor-pointer"
           >
-            ✕
+            Close
           </button>
         </div>
 

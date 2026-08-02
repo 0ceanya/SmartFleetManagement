@@ -7,6 +7,8 @@ namespace SmartFM.Application.Coordinators;
 
 public record RouteData(string OriginAddress, string DestinationAddress, IReadOnlyList<string>? Waypoints, double? DistanceKm, int? EstimatedDurationMinutes);
 
+public record AssignmentShipmentData(Shipment Shipment, string CustomerName, string CustomerPhone);
+
 public class FleetAssignmentCoordinator
 {
     private readonly IRepository<Route> _routes;
@@ -15,6 +17,7 @@ public class FleetAssignmentCoordinator
     private readonly IRepository<Vehicle> _vehicles;
     private readonly IRepository<Shipment> _shipments;
     private readonly IRepository<Order> _orders;
+    private readonly IRepository<Customer> _customers;
     private readonly IRepository<Warehouse> _warehouses;
     private readonly IRepository<MaintenanceRecord> _maintenanceRecords;
     private readonly IRepository<DeliveryConfirmation> _deliveryConfirmations;
@@ -30,6 +33,7 @@ public class FleetAssignmentCoordinator
         IRepository<Vehicle> vehicles,
         IRepository<Shipment> shipments,
         IRepository<Order> orders,
+        IRepository<Customer> customers,
         IRepository<Warehouse> warehouses,
         IRepository<MaintenanceRecord> maintenanceRecords,
         IRepository<DeliveryConfirmation> deliveryConfirmations,
@@ -44,6 +48,7 @@ public class FleetAssignmentCoordinator
         _vehicles = vehicles;
         _shipments = shipments;
         _orders = orders;
+        _customers = customers;
         _warehouses = warehouses;
         _maintenanceRecords = maintenanceRecords;
         _deliveryConfirmations = deliveryConfirmations;
@@ -180,7 +185,7 @@ public class FleetAssignmentCoordinator
     }
 
     public async Task<DeliveryConfirmation> CreateDeliveryConfirmationAsync(
-        Guid shipmentId, Guid driverId, string recipientName, string proofSignature, double gpsLatitude, double gpsLongitude)
+        Guid shipmentId, Guid driverId, string recipientName, string proofSignature, double? gpsLatitude, double? gpsLongitude)
     {
         var shipment = await _shipments.GetByIdAsync(shipmentId)
             ?? throw new InvalidOperationException($"Shipment {shipmentId} not found.");
@@ -212,10 +217,15 @@ public class FleetAssignmentCoordinator
         return confirmation;
     }
 
-    public async Task<LoadManifest> GenerateAndResolveLoadManifestAsync(Guid shipmentId)
+    public async Task<LoadManifest> GetOrCreateLoadManifestAsync(Guid shipmentId)
     {
         var shipment = await _shipments.GetByIdAsync(shipmentId)
             ?? throw new InvalidOperationException($"Shipment {shipmentId} not found.");
+
+        var manifests = await _loadManifests.GetAllAsync();
+        var existing = manifests.FirstOrDefault(m => m.ShipmentId == shipmentId);
+        if (existing is not null)
+            return existing;
 
         var order = await _orders.GetByIdAsync(shipment.OrderId)
             ?? throw new InvalidOperationException($"Order {shipment.OrderId} not found.");
@@ -223,21 +233,49 @@ public class FleetAssignmentCoordinator
         var cargoes = await _cargoes.GetAllAsync();
         var shipmentCargoes = cargoes.Where(c => c.OrderId == shipment.OrderId).ToList();
 
-        var cargoDescriptions = shipmentCargoes.Select(c => c.Description).ToList();
-        var totalWeight = shipmentCargoes.Sum(c => c.WeightKg);
-        var containsHazardous = shipmentCargoes.Any(c => c.IsHazardous);
-
         var manifest = new LoadManifest(
             shipmentId,
-            cargoDescriptions,
-            totalWeight,
-            containsHazardous,
+            shipmentCargoes.Select(c => c.Id).ToList(),
+            shipmentCargoes.Select(c => c.Description).ToList(),
+            shipmentCargoes.Sum(c => c.WeightKg),
+            shipmentCargoes.Any(c => c.IsHazardous),
             DateTime.UtcNow,
-            IsPickupResolved: true,
-            IsDropoffResolved: false,
-            DamagedOrMissingItems: null);
+            LoadedCargoIds: new List<Guid>(),
+            IsPickupResolved: false);
 
         await _loadManifests.AddAsync(manifest);
+        await _unitOfWork.SaveChangesAsync();
+
+        return manifest;
+    }
+
+    public async Task<LoadManifest> UpdateLoadedCargoItemsAsync(Guid shipmentId, IReadOnlyList<Guid> loadedCargoIds)
+    {
+        var manifests = await _loadManifests.GetAllAsync();
+        var manifest = manifests.FirstOrDefault(m => m.ShipmentId == shipmentId)
+            ?? throw new InvalidOperationException($"LoadManifest for shipment {shipmentId} not found.");
+
+        if (loadedCargoIds.Any(id => !manifest.CargoIds.Contains(id)))
+            throw new ArgumentException("loadedCargoIds contains an id not present on this manifest.", nameof(loadedCargoIds));
+
+        var updatedValues = manifest with { LoadedCargoIds = loadedCargoIds };
+        _loadManifests.UpdateValues(manifest, updatedValues);
+        await _unitOfWork.SaveChangesAsync();
+
+        return manifest;
+    }
+
+    public async Task<LoadManifest> MarkLoadingCompleteAsync(Guid shipmentId)
+    {
+        var manifests = await _loadManifests.GetAllAsync();
+        var manifest = manifests.FirstOrDefault(m => m.ShipmentId == shipmentId)
+            ?? throw new InvalidOperationException($"LoadManifest for shipment {shipmentId} not found.");
+
+        if (!manifest.CargoIds.All(id => manifest.LoadedCargoIds.Contains(id)))
+            throw new InvalidOperationException("All cargo items must be checked as loaded before starting.");
+
+        var updatedValues = manifest with { IsPickupResolved = true };
+        _loadManifests.UpdateValues(manifest, updatedValues);
         await _unitOfWork.SaveChangesAsync();
 
         return manifest;
@@ -249,16 +287,16 @@ public class FleetAssignmentCoordinator
         var manifest = manifests.FirstOrDefault(m => m.ShipmentId == shipmentId)
             ?? throw new InvalidOperationException($"LoadManifest for shipment {shipmentId} not found.");
 
-        var updatedManifest = manifest with 
-        { 
+        var updatedValues = manifest with
+        {
             IsDropoffResolved = true,
             DamagedOrMissingItems = damagedOrMissingItems
         };
 
-        _loadManifests.Update(updatedManifest);
+        _loadManifests.UpdateValues(manifest, updatedValues);
         await _unitOfWork.SaveChangesAsync();
 
-        return updatedManifest;
+        return manifest;
     }
 
     public async Task<DeliveryConfirmation?> GetDeliveryConfirmationByShipmentIdAsync(Guid shipmentId)
@@ -267,7 +305,7 @@ public class FleetAssignmentCoordinator
         return confirmations.FirstOrDefault(c => c.ShipmentId == shipmentId);
     }
 
-    public async Task<IEnumerable<(Assignment Assignment, IReadOnlyList<Guid> ShipmentIds, Route? Route)>> GetAssignmentsAsync(string? status = null, Guid? driverId = null)
+    public async Task<IEnumerable<(Assignment Assignment, IReadOnlyList<AssignmentShipmentData> Shipments, Route? Route)>> GetAssignmentsAsync(string? status = null, Guid? driverId = null)
     {
         var assignments = await _assignments.GetAllAsync();
         if (status is not null)
@@ -277,26 +315,50 @@ public class FleetAssignmentCoordinator
 
         var shipments = await _shipments.GetAllAsync();
         var routes = await _routes.GetAllAsync();
+        var orders = await _orders.GetAllAsync();
+        var customers = await _customers.GetAllAsync();
+        var orderMap = orders.ToDictionary(o => o.Id);
+        var customerMap = customers.ToDictionary(c => c.Id);
+
         return assignments
             .Select(a => (
                 a,
-                (IReadOnlyList<Guid>)shipments.Where(s => s.AssignmentId == a.Id).Select(s => s.Id).ToList(),
+                BuildShipmentData(shipments.Where(s => s.AssignmentId == a.Id).ToList(), orderMap, customerMap),
                 a.RouteId is null ? null : routes.FirstOrDefault(r => r.Id == a.RouteId.Value)))
             .ToList();
     }
 
     public async Task<Assignment?> GetAssignmentByIdAsync(Guid id) => await _assignments.GetByIdAsync(id);
 
-    public async Task<(Assignment Assignment, IReadOnlyList<Guid> ShipmentIds, Route? Route)?> GetAssignmentDetailsAsync(Guid id)
+    public async Task<(Assignment Assignment, IReadOnlyList<AssignmentShipmentData> Shipments, Route? Route)?> GetAssignmentDetailsAsync(Guid id)
     {
         var assignment = await _assignments.GetByIdAsync(id);
         if (assignment is null)
             return null;
 
-        var shipments = await _shipments.GetAllAsync();
-        var shipmentIds = shipments.Where(s => s.AssignmentId == assignment.Id).Select(s => s.Id).ToList();
+        var shipments = (await _shipments.GetAllAsync()).Where(s => s.AssignmentId == assignment.Id).ToList();
+        var orders = await _orders.GetAllAsync();
+        var customers = await _customers.GetAllAsync();
+        var orderMap = orders.ToDictionary(o => o.Id);
+        var customerMap = customers.ToDictionary(c => c.Id);
         var route = assignment.RouteId is null ? null : await _routes.GetByIdAsync(assignment.RouteId.Value);
-        return (assignment, shipmentIds, route);
+        return (assignment, BuildShipmentData(shipments, orderMap, customerMap), route);
+    }
+
+    private static IReadOnlyList<AssignmentShipmentData> BuildShipmentData(
+        IReadOnlyList<Shipment> shipments, IReadOnlyDictionary<Guid, Order> orderMap, IReadOnlyDictionary<Guid, Customer> customerMap)
+    {
+        return shipments.Select(s =>
+        {
+            var customerName = string.Empty;
+            var customerPhone = string.Empty;
+            if (orderMap.TryGetValue(s.OrderId, out var order) && customerMap.TryGetValue(order.CustomerId, out var customer))
+            {
+                customerName = customer.Name;
+                customerPhone = customer.Phone;
+            }
+            return new AssignmentShipmentData(s, customerName, customerPhone);
+        }).ToList();
     }
 
     private async Task EnsureWarehouseCapacityAsync(Warehouse warehouse, IReadOnlyList<Shipment> shipments)

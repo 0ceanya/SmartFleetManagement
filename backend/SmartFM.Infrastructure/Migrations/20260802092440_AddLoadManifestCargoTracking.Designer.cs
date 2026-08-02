@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SmartFM.Infrastructure.Persistence;
 
@@ -10,9 +11,11 @@ using SmartFM.Infrastructure.Persistence;
 namespace SmartFM.Infrastructure.Migrations
 {
     [DbContext(typeof(SmartFMDbContext))]
-    partial class SmartFMDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260802092440_AddLoadManifestCargoTracking")]
+    partial class AddLoadManifestCargoTracking
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.0");
@@ -427,10 +430,10 @@ namespace SmartFM.Infrastructure.Migrations
                     b.Property<Guid>("DriverId")
                         .HasColumnType("TEXT");
 
-                    b.Property<double?>("GpsLatitude")
+                    b.Property<double>("GpsLatitude")
                         .HasColumnType("REAL");
 
-                    b.Property<double?>("GpsLongitude")
+                    b.Property<double>("GpsLongitude")
                         .HasColumnType("REAL");
 
                     b.Property<string>("ProofSignature")

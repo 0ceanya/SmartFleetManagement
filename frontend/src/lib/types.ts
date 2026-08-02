@@ -98,14 +98,38 @@ export interface RouteResponse {
   estimatedDurationMinutes: number | null;
 }
 
+export interface AssignmentShipmentResponse {
+  id: string;
+  orderId: string;
+  pickupAddress: string;
+  deliveryAddress: string;
+  status: string;
+  customerName: string;
+  customerPhone: string;
+}
+
 export interface AssignmentResponse {
   id: string;
   shipmentIds: string[];
+  shipments: AssignmentShipmentResponse[];
   driverId: string;
   vehicleId: string;
   route: RouteResponse | null;
   status: string;
   createdAt: string;
+}
+
+export interface LoadManifestResponse {
+  shipmentId: string;
+  cargoIds: string[];
+  cargoDescriptions: string[];
+  totalWeightKg: number;
+  containsHazardous: boolean;
+  createdAt: string;
+  loadedCargoIds: string[];
+  isPickupResolved: boolean;
+  isDropoffResolved: boolean;
+  damagedOrMissingItems: string[] | null;
 }
 
 export interface GeocodeResult {

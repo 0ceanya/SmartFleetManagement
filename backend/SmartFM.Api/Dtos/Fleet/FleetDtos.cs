@@ -50,10 +50,20 @@ public record CreateAssignmentRequest
     public Guid? WarehouseId { get; init; }
 }
 
-public record AssignmentResponse(Guid Id, IReadOnlyList<Guid> ShipmentIds, Guid DriverId, Guid VehicleId, RouteResponse? Route, string Status, DateTime CreatedAt)
+public record AssignmentShipmentResponse(Guid Id, Guid OrderId, string PickupAddress, string DeliveryAddress, string Status, string CustomerName, string CustomerPhone)
 {
-    public static AssignmentResponse FromEntity(Assignment assignment, IReadOnlyList<Guid> shipmentIds, Route? route) =>
-        new(assignment.Id, shipmentIds, assignment.DriverId, assignment.VehicleId,
+    public static AssignmentShipmentResponse FromEntity(AssignmentShipmentData data) =>
+        new(data.Shipment.Id, data.Shipment.OrderId, data.Shipment.PickupAddress, data.Shipment.DeliveryAddress,
+            data.Shipment.Status, data.CustomerName, data.CustomerPhone);
+}
+
+public record AssignmentResponse(Guid Id, IReadOnlyList<Guid> ShipmentIds, IReadOnlyList<AssignmentShipmentResponse> Shipments, Guid DriverId, Guid VehicleId, RouteResponse? Route, string Status, DateTime CreatedAt)
+{
+    public static AssignmentResponse FromEntity(Assignment assignment, IReadOnlyList<AssignmentShipmentData> shipments, Route? route) =>
+        new(assignment.Id,
+            shipments.Select(s => s.Shipment.Id).ToList(),
+            shipments.Select(AssignmentShipmentResponse.FromEntity).ToList(),
+            assignment.DriverId, assignment.VehicleId,
             route is null ? null : RouteResponse.FromEntity(route), assignment.Status, assignment.CreatedAt);
 }
 
@@ -69,13 +79,13 @@ public record CreateDeliveryConfirmationRequest
     public string ProofSignature { get; init; } = string.Empty;
 
     [Range(-90, 90)]
-    public double GpsLatitude { get; init; }
+    public double? GpsLatitude { get; init; }
 
     [Range(-180, 180)]
-    public double GpsLongitude { get; init; }
+    public double? GpsLongitude { get; init; }
 }
 
-public record DeliveryConfirmationResponse(Guid ShipmentId, Guid DriverId, string RecipientName, string ProofSignature, double GpsLatitude, double GpsLongitude, DateTime ConfirmedAt, IReadOnlyList<string>? DamagedOrMissingItems)
+public record DeliveryConfirmationResponse(Guid ShipmentId, Guid DriverId, string RecipientName, string ProofSignature, double? GpsLatitude, double? GpsLongitude, DateTime ConfirmedAt, IReadOnlyList<string>? DamagedOrMissingItems)
 {
     public static DeliveryConfirmationResponse FromEntity(DeliveryConfirmation confirmation) =>
         new(confirmation.ShipmentId, confirmation.DriverId, confirmation.RecipientName, confirmation.ProofSignature,
@@ -87,18 +97,26 @@ public record ResolveLoadManifestRequest
     public List<string>? DamagedOrMissingItems { get; init; }
 }
 
+public record UpdateLoadedCargoItemsRequest
+{
+    [Required]
+    public List<Guid> LoadedCargoIds { get; init; } = [];
+}
+
 public record LoadManifestResponse(
     Guid ShipmentId,
+    IReadOnlyList<Guid> CargoIds,
     IReadOnlyList<string> CargoDescriptions,
     decimal TotalWeightKg,
     bool ContainsHazardous,
     DateTime CreatedAt,
+    IReadOnlyList<Guid> LoadedCargoIds,
     bool IsPickupResolved,
     bool IsDropoffResolved,
     IReadOnlyList<string>? DamagedOrMissingItems)
 {
     public static LoadManifestResponse FromEntity(LoadManifest manifest) =>
-        new(manifest.ShipmentId, manifest.CargoDescriptions, manifest.TotalWeightKg,
-            manifest.ContainsHazardous, manifest.CreatedAt, manifest.IsPickupResolved, 
+        new(manifest.ShipmentId, manifest.CargoIds, manifest.CargoDescriptions, manifest.TotalWeightKg,
+            manifest.ContainsHazardous, manifest.CreatedAt, manifest.LoadedCargoIds, manifest.IsPickupResolved,
             manifest.IsDropoffResolved, manifest.DamagedOrMissingItems);
 }
