@@ -5,10 +5,8 @@ hihi
 download dotnet (if use VSCode)
 dotnet run --project SmartFM.Api  // check if Telemetry on (if not running, change Telemetry:Enabled to false in appsettings.json or through CLI)
 
---> 
-Telemetry__Enabled=false dotnet run --project backend/SmartFM.Api
+dotnet run --project backend/SmartFM.Api
 
-then access /swagger ko cx dc
 http://localhost:5000/swagger/index.html
 
 ## Commands

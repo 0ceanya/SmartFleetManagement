@@ -59,7 +59,8 @@ public static class SeedData
         if (offering is null)
             return;
 
-        var trackedOrders = new List<(Order Order, Shipment Shipment, Assignment Assignment, DateTime CreatedAt)>();
+        // (Order, Shipment, Assignment, CreatedAt, IsDelivered, DriverId)
+        var trackedOrders = new List<(Order Order, Shipment Shipment, Assignment Assignment, DateTime CreatedAt, bool IsDelivered, Guid DriverId)>();
         var seedIndex = 0;
 
         var driverA = await context.Employees.OfType<Driver>().FirstOrDefaultAsync(d => d.Email == "driver.a@smartfm.vn");
@@ -68,7 +69,10 @@ public static class SeedData
         {
             var olderDaysAgo = new[] { 3, 10, 25, 40, 65, 95, 130, 200, 380 };
             foreach (var daysAgo in olderDaysAgo)
-                trackedOrders.Add(SeedDeliveredOrder(context, driverA, vehicleA, offering, "Hanoi", ++seedIndex, DateTime.UtcNow.AddDays(-daysAgo)));
+            {
+                var (o, s, a, t) = SeedDeliveredOrder(context, driverA, vehicleA, offering, "Hanoi", ++seedIndex, DateTime.UtcNow.AddDays(-daysAgo));
+                trackedOrders.Add((o, s, a, t, true, driverA.Id));
+            }
 
             var augustDatesA = new[]
             {
@@ -80,14 +84,14 @@ public static class SeedData
             var incidentDescriptionsA = new[] { "Customer reported a scuffed box on arrival", "Recipient asked about a missing accessory" };
             for (var i = 0; i < augustDatesA.Length; i++)
             {
-                var entry = SeedDeliveredOrder(context, driverA, vehicleA, offering, "Hanoi", ++seedIndex, augustDatesA[i]);
-                trackedOrders.Add(entry);
+                var (o, s, a, t) = SeedDeliveredOrder(context, driverA, vehicleA, offering, "Hanoi", ++seedIndex, augustDatesA[i]);
+                trackedOrders.Add((o, s, a, t, true, driverA.Id));
                 if (i == 0 || i == 2)
                 {
                     context.Set<IncidentRecord>().Add(new IncidentRecord
                     {
                         VehicleId = vehicleA.Id,
-                        ShipmentId = entry.Shipment.Id,
+                        ShipmentId = s.Id,
                         Description = incidentDescriptionsA[i == 0 ? 0 : 1],
                         Severity = "Low",
                         Category = "CustomerComplaint",
@@ -96,7 +100,8 @@ public static class SeedData
                 }
             }
 
-            trackedOrders.Add(SeedPendingAssignment(context, driverA, vehicleA, offering, "Hanoi", ++seedIndex, DateTime.UtcNow.AddHours(-2)));
+            var (pendingO, pendingS, pendingA, pendingT) = SeedPendingAssignment(context, driverA, vehicleA, offering, "Hanoi", ++seedIndex, DateTime.UtcNow.AddHours(-2));
+            trackedOrders.Add((pendingO, pendingS, pendingA, pendingT, false, driverA.Id));
         }
 
         var driverB = await context.Employees.OfType<Driver>().FirstOrDefaultAsync(d => d.Email == "driver.b@smartfm.vn");
@@ -113,14 +118,14 @@ public static class SeedData
             var incidentDescriptionsB = new[] { "Customer reported the driver was delayed by traffic", "Cargo box slightly damaged in transit" };
             for (var i = 0; i < augustDatesB.Length; i++)
             {
-                var entry = SeedDeliveredOrder(context, driverB, vehicleB, offering, "Ho Chi Minh City", ++seedIndex, augustDatesB[i]);
-                trackedOrders.Add(entry);
+                var (o, s, a, t) = SeedDeliveredOrder(context, driverB, vehicleB, offering, "Ho Chi Minh City", ++seedIndex, augustDatesB[i]);
+                trackedOrders.Add((o, s, a, t, true, driverB.Id));
                 if (i == 1 || i == 3)
                 {
                     context.Set<IncidentRecord>().Add(new IncidentRecord
                     {
                         VehicleId = vehicleB.Id,
-                        ShipmentId = entry.Shipment.Id,
+                        ShipmentId = s.Id,
                         Description = incidentDescriptionsB[i == 1 ? 0 : 1],
                         Severity = i == 1 ? "Low" : "Medium",
                         Category = i == 1 ? "CustomerComplaint" : "CargoDamage",
@@ -129,12 +134,13 @@ public static class SeedData
                 }
             }
 
-            trackedOrders.Add(SeedPendingAssignment(context, driverB, vehicleB, offering, "Ho Chi Minh City", ++seedIndex, DateTime.UtcNow.AddHours(-1)));
+            var (pendingO, pendingS, pendingA, pendingT) = SeedPendingAssignment(context, driverB, vehicleB, offering, "Ho Chi Minh City", ++seedIndex, DateTime.UtcNow.AddHours(-1));
+            trackedOrders.Add((pendingO, pendingS, pendingA, pendingT, false, driverB.Id));
         }
 
         await context.SaveChangesAsync();
 
-        foreach (var (order, shipment, assignment, createdAt) in trackedOrders)
+        foreach (var (order, shipment, assignment, createdAt, _, _) in trackedOrders)
         {
             context.Entry(order).Property(nameof(Order.CreatedAt)).CurrentValue = createdAt;
             context.Entry(shipment).Property(nameof(Shipment.CreatedAt)).CurrentValue = createdAt;
@@ -142,7 +148,43 @@ public static class SeedData
         }
 
         await context.SaveChangesAsync();
+
+        // Seed TrackingRecords reflecting every status transition per order/assignment
+        foreach (var (order, _, assignment, createdAt, isDelivered, driverId) in trackedOrders)
+        {
+            var records = BuildTrackingRecords(order.Id, assignment.Id, driverId, createdAt, isDelivered);
+            context.Set<TrackingRecord>().AddRange(records);
+        }
+
+        await context.SaveChangesAsync();
         Console.WriteLine("Driver order history seed completed");
+    }
+
+    private static List<TrackingRecord> BuildTrackingRecords(
+        Guid orderId, Guid assignmentId, Guid driverId, DateTime createdAt, bool isDelivered)
+    {
+        var records = new List<TrackingRecord>
+        {
+            new() { EntityType = "Assignment", EntityId = assignmentId, FromStatus = null,        ToStatus = "Pending",    ChangedBy = "Seed", CreatedAt = createdAt },
+            new() { EntityType = "Driver",     EntityId = driverId,     FromStatus = "Available", ToStatus = "Unavailable", ChangedBy = "Seed", CreatedAt = createdAt },
+            new() { EntityType = "Order",      EntityId = orderId,      FromStatus = "Pending",   ToStatus = "Approved",   ChangedBy = "Seed", CreatedAt = createdAt },
+        };
+
+        if (!isDelivered)
+            return records;
+
+        records.AddRange(new[]
+        {
+            new TrackingRecord { EntityType = "Assignment", EntityId = assignmentId, FromStatus = "Pending",     ToStatus = "Assigned",    ChangedBy = "Seed", CreatedAt = createdAt.AddMinutes(30) },
+            new TrackingRecord { EntityType = "Order",      EntityId = orderId,      FromStatus = "Approved",    ToStatus = "Active",      ChangedBy = "Seed", CreatedAt = createdAt.AddMinutes(30) },
+            new TrackingRecord { EntityType = "Assignment", EntityId = assignmentId, FromStatus = "Assigned",    ToStatus = "Loaded",      ChangedBy = "Seed", CreatedAt = createdAt.AddMinutes(60) },
+            new TrackingRecord { EntityType = "Assignment", EntityId = assignmentId, FromStatus = "Loaded",      ToStatus = "Delivering",  ChangedBy = "Seed", CreatedAt = createdAt.AddMinutes(90) },
+            new TrackingRecord { EntityType = "Assignment", EntityId = assignmentId, FromStatus = "Delivering",  ToStatus = "Delivered",   ChangedBy = "Seed", CreatedAt = createdAt.AddHours(3) },
+            new TrackingRecord { EntityType = "Driver",     EntityId = driverId,     FromStatus = "Unavailable", ToStatus = "Available",   ChangedBy = "Seed", CreatedAt = createdAt.AddHours(3) },
+            new TrackingRecord { EntityType = "Order",      EntityId = orderId,      FromStatus = "Active",      ToStatus = "Fulfilled",   ChangedBy = "Seed", CreatedAt = createdAt.AddHours(3) },
+        });
+
+        return records;
     }
 
     private static (Order Order, Shipment Shipment, Assignment Assignment, DateTime CreatedAt) SeedDeliveredOrder(
