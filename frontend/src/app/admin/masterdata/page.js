@@ -41,7 +41,12 @@ export default function AdminMasterDataPage() {
 
   // Form states
   const [branchForm, setBranchForm] = useState({ name: "", city: "" });
-  const [warehouseForm, setWarehouseForm] = useState({ name: "", address: "", branchId: "", capacityKg: "" });
+  const [warehouseForm, setWarehouseForm] = useState({
+    name: "",
+    address: "",
+    branchId: "",
+    capacityKg: "",
+  });
   const [employeeForm, setEmployeeForm] = useState({
     employeeRole: "Driver",
     name: "",
@@ -50,7 +55,12 @@ export default function AdminMasterDataPage() {
     licenseNumber: "",
     department: "",
   });
-  const [vehicleForm, setVehicleForm] = useState({ registrationNumber: "", branchId: "", vehicleClass: "Light", status: "Available" });
+  const [vehicleForm, setVehicleForm] = useState({
+    registrationNumber: "",
+    branchId: "",
+    vehicleClass: "Light",
+    status: "Available",
+  });
   const [offeringForm, setOfferingForm] = useState({
     name: "",
     description: "",
@@ -68,7 +78,13 @@ export default function AdminMasterDataPage() {
     setLoading(true);
     setError(null);
     try {
-      const [branchesData, warehousesData, employeesData, vehiclesData, offeringsData] = await Promise.all([
+      const [
+        branchesData,
+        warehousesData,
+        employeesData,
+        vehiclesData,
+        offeringsData,
+      ] = await Promise.all([
         apiFetch("/api/master-data/branches"),
         apiFetch("/api/master-data/warehouses"),
         apiFetch("/api/master-data/employees"),
@@ -125,7 +141,12 @@ export default function AdminMasterDataPage() {
   };
 
   const openCreateWarehouseModal = () => {
-    setWarehouseForm({ name: "", address: "", branchId: branches[0]?.id || "", capacityKg: 10000 });
+    setWarehouseForm({
+      name: "",
+      address: "",
+      branchId: branches[0]?.id || "",
+      capacityKg: 10000,
+    });
     setEditingItem(null);
     setModalType("createWarehouse");
     setModalOpen(true);
@@ -133,7 +154,12 @@ export default function AdminMasterDataPage() {
 
   const openEditWarehouseModal = (wh) => {
     setEditingItem(wh);
-    setWarehouseForm({ name: wh.name, address: wh.address, branchId: wh.branchId, capacityKg: wh.capacityKg });
+    setWarehouseForm({
+      name: wh.name,
+      address: wh.address,
+      branchId: wh.branchId,
+      capacityKg: wh.capacityKg,
+    });
     setModalType("editWarehouse");
     setModalOpen(true);
   };
@@ -168,7 +194,12 @@ export default function AdminMasterDataPage() {
   };
 
   const openCreateVehicleModal = () => {
-    setVehicleForm({ registrationNumber: "", branchId: branches[0]?.id || "", vehicleClass: "Light", status: "Available" });
+    setVehicleForm({
+      registrationNumber: "",
+      branchId: branches[0]?.id || "",
+      vehicleClass: "Light",
+      status: "Available",
+    });
     setEditingItem(null);
     setModalType("createVehicle");
     setModalOpen(true);
@@ -176,7 +207,12 @@ export default function AdminMasterDataPage() {
 
   const openEditVehicleStatusModal = (veh) => {
     setEditingItem(veh);
-    setVehicleForm({ registrationNumber: veh.registrationNumber, branchId: veh.branchId, vehicleClass: veh.vehicleClass, status: veh.currentStatus });
+    setVehicleForm({
+      registrationNumber: veh.registrationNumber,
+      branchId: veh.branchId,
+      vehicleClass: veh.vehicleClass,
+      status: veh.currentStatus,
+    });
     setModalType("editVehicle");
     setModalOpen(true);
   };
@@ -223,13 +259,19 @@ export default function AdminMasterDataPage() {
       if (modalType === "createBranch") {
         await apiFetch("/api/master-data/branches", {
           method: "POST",
-          body: JSON.stringify({ name: branchForm.name.trim(), city: branchForm.city.trim() }),
+          body: JSON.stringify({
+            name: branchForm.name.trim(),
+            city: branchForm.city.trim(),
+          }),
         });
         showNotification("Branch created successfully.");
       } else {
         await apiFetch(`/api/master-data/branches/${editingItem.id}`, {
           method: "PATCH",
-          body: JSON.stringify({ name: branchForm.name.trim(), city: branchForm.city.trim() }),
+          body: JSON.stringify({
+            name: branchForm.name.trim(),
+            city: branchForm.city.trim(),
+          }),
         });
         showNotification("Branch updated successfully.");
       }
@@ -244,6 +286,22 @@ export default function AdminMasterDataPage() {
 
   const handleSaveWarehouse = async (e) => {
     e.preventDefault();
+
+    const branchId = warehouseForm.branchId?.trim();
+    if (!branchId || branchId === "" || branchId === "undefined") {
+      showNotification(
+        "Please select a branch before saving a warehouse.",
+        true,
+      );
+      return;
+    }
+
+    const parsedCapacity = Number(warehouseForm.capacityKg);
+    if (!Number.isFinite(parsedCapacity) || parsedCapacity <= 0) {
+      showNotification("Warehouse capacity must be a positive number.", true);
+      return;
+    }
+
     setSubmitting(true);
     try {
       if (modalType === "createWarehouse") {
@@ -252,8 +310,8 @@ export default function AdminMasterDataPage() {
           body: JSON.stringify({
             name: warehouseForm.name.trim(),
             address: warehouseForm.address.trim(),
-            branchId: warehouseForm.branchId,
-            capacityKg: parseFloat(warehouseForm.capacityKg),
+            branchId,
+            capacityKg: parsedCapacity,
           }),
         });
         showNotification("Warehouse created successfully.");
@@ -263,8 +321,8 @@ export default function AdminMasterDataPage() {
           body: JSON.stringify({
             name: warehouseForm.name.trim(),
             address: warehouseForm.address.trim(),
-            branchId: warehouseForm.branchId,
-            capacityKg: parseFloat(warehouseForm.capacityKg),
+            branchId,
+            capacityKg: parsedCapacity,
           }),
         });
         showNotification("Warehouse details updated successfully.");
@@ -312,9 +370,18 @@ export default function AdminMasterDataPage() {
             name: employeeForm.name.trim(),
             email: employeeForm.email.trim(),
             branchId: employeeForm.branchId,
-            department: employeeForm.employeeRole === "Staff" ? employeeForm.department.trim() : undefined,
-            licenseNumber: employeeForm.employeeRole === "Driver" ? employeeForm.licenseNumber.trim() : undefined,
-            promoteToManager: employeeForm.employeeRole === "Staff" ? !!employeeForm.promoteToManager : false,
+            department:
+              employeeForm.employeeRole === "Staff" ?
+                employeeForm.department.trim()
+              : undefined,
+            licenseNumber:
+              employeeForm.employeeRole === "Driver" ?
+                employeeForm.licenseNumber.trim()
+              : undefined,
+            promoteToManager:
+              employeeForm.employeeRole === "Staff" ?
+                !!employeeForm.promoteToManager
+              : false,
           }),
         });
         showNotification("Employee updated successfully.");
@@ -432,7 +499,7 @@ export default function AdminMasterDataPage() {
       searchKeys.some((key) => {
         const val = item[key];
         return val && String(val).toLowerCase().includes(term);
-      })
+      }),
     );
   };
 
@@ -442,8 +509,15 @@ export default function AdminMasterDataPage() {
       <main className="max-w-7xl mx-auto my-8 px-4 flex-1 w-full">
         {role !== "admin" && (
           <div className="mb-6 border-l-4 border-accent bg-tertiary text-accent p-4 text-sm flex items-center justify-between shadow-sm">
-            <span>Notice: You are currently viewing as &quot;{role || "Unset"}&quot;. Please switch to <strong>Admin</strong> role for full administrative permissions.</span>
-            <Link href="/" className="font-bold underline text-secondary hover:text-black">
+            <span>
+              Notice: You are currently viewing as &quot;{role || "Unset"}
+              &quot;. Please switch to <strong>Admin</strong> role for full
+              administrative permissions.
+            </span>
+            <Link
+              href="/"
+              className="font-bold underline text-secondary hover:text-black"
+            >
               Go to Role Picker
             </Link>
           </div>
@@ -453,13 +527,23 @@ export default function AdminMasterDataPage() {
         {actionSuccess && (
           <div className="mb-6 p-4 bg-emerald-100 border border-emerald-400 text-emerald-800 text-sm font-semibold flex items-center justify-between">
             <span>✓ {actionSuccess}</span>
-            <button onClick={() => setActionSuccess(null)} className="text-emerald-900 font-bold">&times;</button>
+            <button
+              onClick={() => setActionSuccess(null)}
+              className="text-emerald-900 font-bold"
+            >
+              &times;
+            </button>
           </div>
         )}
         {actionError && (
           <div className="mb-6 p-4 bg-rose-100 border border-rose-400 text-rose-800 text-sm font-semibold flex items-center justify-between">
             <span>⚠ Error: {actionError}</span>
-            <button onClick={() => setActionError(null)} className="text-rose-900 font-bold">&times;</button>
+            <button
+              onClick={() => setActionError(null)}
+              className="text-rose-900 font-bold"
+            >
+              &times;
+            </button>
           </div>
         )}
 
@@ -491,9 +575,9 @@ export default function AdminMasterDataPage() {
                   setSearchTerm("");
                 }}
                 className={`px-4 py-2 font-heading font-semibold text-sm transition-colors cursor-pointer whitespace-nowrap ${
-                  activeTab === tab.id
-                    ? "bg-secondary text-white shadow-sm"
-                    : "text-gray-600 hover:bg-tertiary hover:text-black"
+                  activeTab === tab.id ?
+                    "bg-secondary text-white shadow-sm"
+                  : "text-gray-600 hover:bg-tertiary hover:text-black"
                 }`}
               >
                 {tab.label}
@@ -509,18 +593,32 @@ export default function AdminMasterDataPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="border border-gray-300 p-2 text-sm w-full md:w-64 focus:outline-none focus:border-primary"
             />
-            {activeTab === "branches" && <Button onClick={openCreateBranchModal}>+ Add Branch</Button>}
-            {activeTab === "warehouses" && <Button onClick={openCreateWarehouseModal}>+ Add Warehouse</Button>}
-            {activeTab === "employees" && <Button onClick={openCreateEmployeeModal}>+ Add Employee</Button>}
-            {activeTab === "vehicles" && <Button onClick={openCreateVehicleModal}>+ Add Vehicle</Button>}
-            {activeTab === "offerings" && <Button onClick={openCreateOfferingModal}>+ Add Offering</Button>}
+            {activeTab === "branches" && (
+              <Button onClick={openCreateBranchModal}>+ Add Branch</Button>
+            )}
+            {activeTab === "warehouses" && (
+              <Button onClick={openCreateWarehouseModal}>
+                + Add Warehouse
+              </Button>
+            )}
+            {activeTab === "employees" && (
+              <Button onClick={openCreateEmployeeModal}>+ Add Employee</Button>
+            )}
+            {activeTab === "vehicles" && (
+              <Button onClick={openCreateVehicleModal}>+ Add Vehicle</Button>
+            )}
+            {activeTab === "offerings" && (
+              <Button onClick={openCreateOfferingModal}>+ Add Offering</Button>
+            )}
           </div>
         </div>
 
         {/* Global Loading / Error */}
         {loading && (
           <div className="bg-white border border-gray-300 p-12 text-center text-gray-500">
-            <div className="inline-block animate-spin text-secondary text-2xl mb-2">↻</div>
+            <div className="inline-block animate-spin text-secondary text-2xl mb-2">
+              ↻
+            </div>
             <p className="font-heading">Loading master data from server...</p>
           </div>
         )}
@@ -529,7 +627,9 @@ export default function AdminMasterDataPage() {
           <div className="bg-white border border-rose-300 p-6 text-center text-rose-700">
             <p className="font-bold">Failed to load master data</p>
             <p className="text-sm text-gray-600 mb-4">{error}</p>
-            <Button variant="outline" onClick={fetchAllData}>Retry Loading</Button>
+            <Button variant="outline" onClick={fetchAllData}>
+              Retry Loading
+            </Button>
           </div>
         )}
 
@@ -553,7 +653,13 @@ export default function AdminMasterDataPage() {
             )}
             {activeTab === "employees" && (
               <EmployeeTable
-                employees={filterList(employees, ["name", "email", "type", "licenseNumber", "department"])}
+                employees={filterList(employees, [
+                  "name",
+                  "email",
+                  "type",
+                  "licenseNumber",
+                  "department",
+                ])}
                 branchMap={branchMap}
                 onEdit={openEditEmployeeModal}
                 onDelete={confirmDelete}
@@ -561,7 +667,11 @@ export default function AdminMasterDataPage() {
             )}
             {activeTab === "vehicles" && (
               <VehicleTable
-                vehicles={filterList(vehicles, ["registrationNumber", "vehicleClass", "currentStatus"])}
+                vehicles={filterList(vehicles, [
+                  "registrationNumber",
+                  "vehicleClass",
+                  "currentStatus",
+                ])}
                 branchMap={branchMap}
                 onEditStatus={openEditVehicleStatusModal}
                 onDelete={confirmDelete}
@@ -569,7 +679,11 @@ export default function AdminMasterDataPage() {
             )}
             {activeTab === "offerings" && (
               <OfferingTable
-                offerings={filterList(offerings, ["name", "description", "vehicleClass"])}
+                offerings={filterList(offerings, [
+                  "name",
+                  "description",
+                  "vehicleClass",
+                ])}
                 onEdit={openEditOfferingModal}
                 onDelete={confirmDelete}
               />

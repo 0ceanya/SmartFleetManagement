@@ -33,43 +33,59 @@ export default function MasterDataModal({
           {modalType === "createBranch" && "Create New Branch"}
           {modalType === "editBranch" && `Edit Branch: ${editingItem?.name}`}
           {modalType === "createWarehouse" && "Create New Warehouse"}
-          {modalType === "editWarehouse" && `Edit Warehouse: ${editingItem?.name}`}
+          {modalType === "editWarehouse" &&
+            `Edit Warehouse: ${editingItem?.name}`}
           {modalType === "createEmployee" && "Add New Employee"}
-          {modalType === "editEmployee" && `Edit Employee: ${editingItem?.name}`}
+          {modalType === "editEmployee" &&
+            `Edit Employee: ${editingItem?.name}`}
           {modalType === "createVehicle" && "Register New Vehicle"}
-          {(modalType === "editVehicleStatus" || modalType === "editVehicle") && `Edit Vehicle: ${editingItem?.registrationNumber}`}
+          {(modalType === "editVehicleStatus" || modalType === "editVehicle") &&
+            `Edit Vehicle: ${editingItem?.registrationNumber}`}
           {modalType === "createOffering" && "Create New Service Offering"}
-          {modalType === "editOffering" && `Edit Offering: ${editingItem?.name}`}
+          {modalType === "editOffering" &&
+            `Edit Offering: ${editingItem?.name}`}
         </h3>
 
         {/* BRANCH FORM */}
         {(modalType === "createBranch" || modalType === "editBranch") && (
           <form onSubmit={onSubmitBranch} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Branch Name</label>
+              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                Branch Name
+              </label>
               <input
                 type="text"
                 required
                 placeholder="e.g. Danang Branch"
                 value={branchForm.name}
-                onChange={(e) => setBranchForm({ ...branchForm, name: e.target.value })}
+                onChange={(e) =>
+                  setBranchForm({ ...branchForm, name: e.target.value })
+                }
                 className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">City</label>
+              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                City
+              </label>
               <input
                 type="text"
                 required
                 placeholder="e.g. Danang"
                 value={branchForm.city}
-                onChange={(e) => setBranchForm({ ...branchForm, city: e.target.value })}
+                onChange={(e) =>
+                  setBranchForm({ ...branchForm, city: e.target.value })
+                }
                 className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
               />
             </div>
             <div className="flex justify-end gap-2 pt-4">
-              <Button variant="outline" onClick={onClose} disabled={submitting}>Cancel</Button>
-              <Button type="submit" disabled={submitting}>{submitting ? "Saving..." : "Save Branch"}</Button>
+              <Button variant="outline" onClick={onClose} disabled={submitting}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting ? "Saving..." : "Save Branch"}
+              </Button>
             </div>
           </form>
         )}
@@ -78,34 +94,56 @@ export default function MasterDataModal({
         {(modalType === "createWarehouse" || modalType === "editWarehouse") && (
           <form onSubmit={onSubmitWarehouse} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Warehouse Name</label>
+              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                Warehouse Name
+              </label>
               <input
                 type="text"
                 required
                 placeholder="e.g. Central Depot"
                 value={warehouseForm.name}
-                onChange={(e) => setWarehouseForm({ ...warehouseForm, name: e.target.value })}
+                onChange={(e) =>
+                  setWarehouseForm({ ...warehouseForm, name: e.target.value })
+                }
                 className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Address</label>
+              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                Address
+              </label>
               <input
                 type="text"
                 required
                 placeholder="e.g. 100 Le Duan Street"
                 value={warehouseForm.address}
-                onChange={(e) => setWarehouseForm({ ...warehouseForm, address: e.target.value })}
+                onChange={(e) =>
+                  setWarehouseForm({
+                    ...warehouseForm,
+                    address: e.target.value,
+                  })
+                }
                 className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Branch</label>
+              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                Branch
+              </label>
               <select
-                value={warehouseForm.branchId}
-                onChange={(e) => setWarehouseForm({ ...warehouseForm, branchId: e.target.value })}
+                value={warehouseForm.branchId || ""}
+                required
+                onChange={(e) =>
+                  setWarehouseForm({
+                    ...warehouseForm,
+                    branchId: e.target.value,
+                  })
+                }
                 className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
               >
+                {!warehouseForm.branchId && (
+                  <option value="">Select a branch</option>
+                )}
                 {branches.map((b) => (
                   <option key={b.id} value={b.id}>
                     {b.name} ({b.city})
@@ -114,20 +152,31 @@ export default function MasterDataModal({
               </select>
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Capacity (kg)</label>
+              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                Capacity (kg)
+              </label>
               <input
                 type="number"
                 min="1"
                 step="any"
                 required
                 value={warehouseForm.capacityKg}
-                onChange={(e) => setWarehouseForm({ ...warehouseForm, capacityKg: e.target.value })}
+                onChange={(e) =>
+                  setWarehouseForm({
+                    ...warehouseForm,
+                    capacityKg: e.target.value,
+                  })
+                }
                 className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
               />
             </div>
             <div className="flex justify-end gap-2 pt-4">
-              <Button variant="outline" onClick={onClose} disabled={submitting}>Cancel</Button>
-              <Button type="submit" disabled={submitting}>{submitting ? "Saving..." : "Save Warehouse"}</Button>
+              <Button variant="outline" onClick={onClose} disabled={submitting}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting ? "Saving..." : "Save Warehouse"}
+              </Button>
             </div>
           </form>
         )}
@@ -137,10 +186,17 @@ export default function MasterDataModal({
           <form onSubmit={onSubmitEmployee} className="space-y-4">
             {modalType === "createEmployee" && (
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Role Type</label>
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                  Role Type
+                </label>
                 <select
                   value={employeeForm.employeeRole}
-                  onChange={(e) => setEmployeeForm({ ...employeeForm, employeeRole: e.target.value })}
+                  onChange={(e) =>
+                    setEmployeeForm({
+                      ...employeeForm,
+                      employeeRole: e.target.value,
+                    })
+                  }
                   className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
                 >
                   <option value="Driver">Driver</option>
@@ -150,32 +206,44 @@ export default function MasterDataModal({
               </div>
             )}
             <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Full Name</label>
+              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                Full Name
+              </label>
               <input
                 type="text"
                 required
                 placeholder="e.g. Nguyen Van A"
                 value={employeeForm.name}
-                onChange={(e) => setEmployeeForm({ ...employeeForm, name: e.target.value })}
+                onChange={(e) =>
+                  setEmployeeForm({ ...employeeForm, name: e.target.value })
+                }
                 className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Email Address</label>
+              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                Email Address
+              </label>
               <input
                 type="email"
                 required
                 placeholder="e.g. employee@smartfm.vn"
                 value={employeeForm.email}
-                onChange={(e) => setEmployeeForm({ ...employeeForm, email: e.target.value })}
+                onChange={(e) =>
+                  setEmployeeForm({ ...employeeForm, email: e.target.value })
+                }
                 className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Branch</label>
+              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                Branch
+              </label>
               <select
                 value={employeeForm.branchId}
-                onChange={(e) => setEmployeeForm({ ...employeeForm, branchId: e.target.value })}
+                onChange={(e) =>
+                  setEmployeeForm({ ...employeeForm, branchId: e.target.value })
+                }
                 className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
               >
                 {branches.map((b) => (
@@ -187,13 +255,20 @@ export default function MasterDataModal({
             </div>
             {employeeForm.employeeRole === "Driver" && (
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Driver License Number</label>
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                  Driver License Number
+                </label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. D-9901"
                   value={employeeForm.licenseNumber}
-                  onChange={(e) => setEmployeeForm({ ...employeeForm, licenseNumber: e.target.value })}
+                  onChange={(e) =>
+                    setEmployeeForm({
+                      ...employeeForm,
+                      licenseNumber: e.target.value,
+                    })
+                  }
                   className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
                 />
               </div>
@@ -201,13 +276,20 @@ export default function MasterDataModal({
             {employeeForm.employeeRole === "Staff" && (
               <>
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Department</label>
+                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                    Department
+                  </label>
                   <input
                     type="text"
                     required={!employeeForm.promoteToManager}
                     placeholder="e.g. Operations"
                     value={employeeForm.department}
-                    onChange={(e) => setEmployeeForm({ ...employeeForm, department: e.target.value })}
+                    onChange={(e) =>
+                      setEmployeeForm({
+                        ...employeeForm,
+                        department: e.target.value,
+                      })
+                    }
                     className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
                   />
                 </div>
@@ -217,46 +299,72 @@ export default function MasterDataModal({
                       <input
                         type="checkbox"
                         checked={employeeForm.promoteToManager || false}
-                        onChange={(e) => setEmployeeForm({ ...employeeForm, promoteToManager: e.target.checked })}
+                        onChange={(e) =>
+                          setEmployeeForm({
+                            ...employeeForm,
+                            promoteToManager: e.target.checked,
+                          })
+                        }
                         className="w-4 h-4 text-purple-600 focus:ring-purple-500 rounded border-gray-300"
                       />
                       <span>Promote Staff to Manager</span>
                     </label>
                     <p className="text-xs text-gray-500 mt-1 pl-6">
-                      Promoting to Manager elevates this employee's administrative status and converts their role.
+                      Promoting to Manager elevates this employee's
+                      administrative status and converts their role.
                     </p>
                   </div>
                 )}
               </>
             )}
             <div className="flex justify-end gap-2 pt-4">
-              <Button variant="outline" onClick={onClose} disabled={submitting}>Cancel</Button>
-              <Button type="submit" disabled={submitting}>{submitting ? "Saving..." : "Save Employee"}</Button>
+              <Button variant="outline" onClick={onClose} disabled={submitting}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting ? "Saving..." : "Save Employee"}
+              </Button>
             </div>
           </form>
         )}
 
         {/* VEHICLE FORM */}
-        {(modalType === "createVehicle" || modalType === "editVehicleStatus" || modalType === "editVehicle") && (
+        {(modalType === "createVehicle" ||
+          modalType === "editVehicleStatus" ||
+          modalType === "editVehicle") && (
           <form onSubmit={onSubmitVehicle} className="space-y-4">
-            {modalType === "createVehicle" ? (
+            {modalType === "createVehicle" ?
               <>
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Registration Number / License Plate</label>
+                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                    Registration Number / License Plate
+                  </label>
                   <input
                     type="text"
                     required
                     placeholder="e.g. 51A-99999"
                     value={vehicleForm.registrationNumber}
-                    onChange={(e) => setVehicleForm({ ...vehicleForm, registrationNumber: e.target.value })}
+                    onChange={(e) =>
+                      setVehicleForm({
+                        ...vehicleForm,
+                        registrationNumber: e.target.value,
+                      })
+                    }
                     className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Branch</label>
+                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                    Branch
+                  </label>
                   <select
                     value={vehicleForm.branchId}
-                    onChange={(e) => setVehicleForm({ ...vehicleForm, branchId: e.target.value })}
+                    onChange={(e) =>
+                      setVehicleForm({
+                        ...vehicleForm,
+                        branchId: e.target.value,
+                      })
+                    }
                     className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
                   >
                     {branches.map((b) => (
@@ -267,10 +375,17 @@ export default function MasterDataModal({
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Vehicle Class</label>
+                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                    Vehicle Class
+                  </label>
                   <select
                     value={vehicleForm.vehicleClass}
-                    onChange={(e) => setVehicleForm({ ...vehicleForm, vehicleClass: e.target.value })}
+                    onChange={(e) =>
+                      setVehicleForm({
+                        ...vehicleForm,
+                        vehicleClass: e.target.value,
+                      })
+                    }
                     className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
                   >
                     <option value="Light">Light Vehicle (1,000 kg)</option>
@@ -279,13 +394,19 @@ export default function MasterDataModal({
                   </select>
                 </div>
               </>
-            ) : (
-              <>
+            : <>
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Branch Location</label>
+                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                    Branch Location
+                  </label>
                   <select
                     value={vehicleForm.branchId}
-                    onChange={(e) => setVehicleForm({ ...vehicleForm, branchId: e.target.value })}
+                    onChange={(e) =>
+                      setVehicleForm({
+                        ...vehicleForm,
+                        branchId: e.target.value,
+                      })
+                    }
                     className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
                   >
                     {branches.map((b) => (
@@ -296,10 +417,14 @@ export default function MasterDataModal({
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Status</label>
+                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                    Status
+                  </label>
                   <select
                     value={vehicleForm.status}
-                    onChange={(e) => setVehicleForm({ ...vehicleForm, status: e.target.value })}
+                    onChange={(e) =>
+                      setVehicleForm({ ...vehicleForm, status: e.target.value })
+                    }
                     className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
                   >
                     <option value="Available">Available</option>
@@ -308,10 +433,14 @@ export default function MasterDataModal({
                   </select>
                 </div>
               </>
-            )}
+            }
             <div className="flex justify-end gap-2 pt-4">
-              <Button variant="outline" onClick={onClose} disabled={submitting}>Cancel</Button>
-              <Button type="submit" disabled={submitting}>{submitting ? "Saving..." : "Save Vehicle"}</Button>
+              <Button variant="outline" onClick={onClose} disabled={submitting}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting ? "Saving..." : "Save Vehicle"}
+              </Button>
             </div>
           </form>
         )}
@@ -320,67 +449,106 @@ export default function MasterDataModal({
         {(modalType === "createOffering" || modalType === "editOffering") && (
           <form onSubmit={onSubmitOffering} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Offering Name</label>
+              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                Offering Name
+              </label>
               <input
                 type="text"
                 required
                 placeholder="e.g. Express Freight"
                 value={offeringForm.name}
-                onChange={(e) => setOfferingForm({ ...offeringForm, name: e.target.value })}
+                onChange={(e) =>
+                  setOfferingForm({ ...offeringForm, name: e.target.value })
+                }
                 className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Description</label>
+              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                Description
+              </label>
               <textarea
                 rows={2}
                 placeholder="Short description of freight service"
                 value={offeringForm.description}
-                onChange={(e) => setOfferingForm({ ...offeringForm, description: e.target.value })}
+                onChange={(e) =>
+                  setOfferingForm({
+                    ...offeringForm,
+                    description: e.target.value,
+                  })
+                }
                 className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
               />
             </div>
             <div className="grid grid-cols-3 gap-2">
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Base Price (VND)</label>
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                  Base Price (VND)
+                </label>
                 <input
                   type="number"
                   required
                   min="0"
                   value={offeringForm.basePrice}
-                  onChange={(e) => setOfferingForm({ ...offeringForm, basePrice: e.target.value })}
+                  onChange={(e) =>
+                    setOfferingForm({
+                      ...offeringForm,
+                      basePrice: e.target.value,
+                    })
+                  }
                   className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Max Weight (kg)</label>
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                  Max Weight (kg)
+                </label>
                 <input
                   type="number"
                   required
                   min="1"
                   value={offeringForm.maxWeightKg}
-                  onChange={(e) => setOfferingForm({ ...offeringForm, maxWeightKg: e.target.value })}
+                  onChange={(e) =>
+                    setOfferingForm({
+                      ...offeringForm,
+                      maxWeightKg: e.target.value,
+                    })
+                  }
                   className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Max Vol (CBM)</label>
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                  Max Vol (CBM)
+                </label>
                 <input
                   type="number"
                   required
                   min="0"
                   step="any"
                   value={offeringForm.maxVolumeCbm}
-                  onChange={(e) => setOfferingForm({ ...offeringForm, maxVolumeCbm: e.target.value })}
+                  onChange={(e) =>
+                    setOfferingForm({
+                      ...offeringForm,
+                      maxVolumeCbm: e.target.value,
+                    })
+                  }
                   className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
                 />
               </div>
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Required Vehicle Class</label>
+              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                Required Vehicle Class
+              </label>
               <select
                 value={offeringForm.vehicleClass}
-                onChange={(e) => setOfferingForm({ ...offeringForm, vehicleClass: e.target.value })}
+                onChange={(e) =>
+                  setOfferingForm({
+                    ...offeringForm,
+                    vehicleClass: e.target.value,
+                  })
+                }
                 className="w-full border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
               >
                 <option value="Light">Light</option>
@@ -389,8 +557,12 @@ export default function MasterDataModal({
               </select>
             </div>
             <div className="flex justify-end gap-2 pt-4">
-              <Button variant="outline" onClick={onClose} disabled={submitting}>Cancel</Button>
-              <Button type="submit" disabled={submitting}>{submitting ? "Saving..." : "Save Offering"}</Button>
+              <Button variant="outline" onClick={onClose} disabled={submitting}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting ? "Saving..." : "Save Offering"}
+              </Button>
             </div>
           </form>
         )}

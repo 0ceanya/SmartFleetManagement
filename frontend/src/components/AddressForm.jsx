@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import RouteMap from "@/components/RouteMap";
+import { apiFetch } from "@/lib/api";
 
 const CITIES = [
   "Hà Nội",
@@ -14,29 +15,73 @@ const CITIES = [
 ];
 
 export default function RouteAddressStep({ orderData, onChange }) {
+  const hasLoadedPickupwarehouses = useRef(false);
+
+  const [pickupOptions, setPickupOptions] = useState([]);
+  const [pickupWarehouseId, setPickupWarehouseId] = useState("");
   const [pickup, setPickup] = useState({
-    city: "Hà Nội",
+    address: "",
     ward: "",
     street: "",
   });
 
   const [delivery, setDelivery] = useState({
-    city: "Hà Nội",
+    address: "Hà Nội",
     ward: "",
     street: "",
   });
 
+  useEffect(() => {
+    if (hasLoadedPickupwarehouses.current) return;
+    hasLoadedPickupwarehouses.current = true;
+
+    async function loadPickupwarehouses() {
+      try {
+        const data = await apiFetch("/api/master-data/warehouses");
+        const warehouses = data || [];
+        setPickupOptions(warehouses);
+
+        if (warehouses.length > 0) {
+          const firstWarehouse = warehouses[0];
+          const initialPickup = {
+            address: firstWarehouse.address || "",
+            ward: "",
+            street: "",
+          };
+          setPickupWarehouseId(firstWarehouse.id);
+          setPickup(initialPickup);
+          onChange("pickupAddress", combineAddress(initialPickup));
+        }
+      } catch {
+        setPickupOptions([]);
+      }
+    }
+
+    loadPickupwarehouses();
+  }, [onChange]);
+
   const combineAddress = (addr) => {
     const parts = [
+      addr.address.trim(),
       addr.street.trim(),
       addr.ward.trim(),
-      addr.city.trim(),
     ].filter((p) => p.length > 0);
     return parts.join(", ");
   };
 
-  const handlePickupChange = (field, value) => {
-    const updated = { ...pickup, [field]: value };
+  const handlePickupWarehouseChange = (WarehouseId) => {
+    const selectedWarehouse = pickupOptions.find(
+      (Warehouse) => Warehouse.id === WarehouseId,
+    );
+    if (!selectedWarehouse) return;
+
+    const updated = {
+      address: selectedWarehouse.address || "",
+      ward: "",
+      street: "",
+    };
+
+    setPickupWarehouseId(WarehouseId);
     setPickup(updated);
     onChange("pickupAddress", combineAddress(updated));
   };
@@ -64,42 +109,31 @@ export default function RouteAddressStep({ orderData, onChange }) {
           <div className="space-y-3">
             <div>
               <label className="block text-xs font-bold uppercase text-gray-700 mb-1">
-                City / Province
+                Pickup Warehouse
               </label>
-              <input
-                type="text"
-                list="cities-list"
-                placeholder="e.g. Hà Nội"
-                value={pickup.city}
-                onChange={(e) => handlePickupChange("city", e.target.value)}
-                className="w-full border border-gray-300 p-2.5 text-sm focus:border-primary focus:outline-none"
-              />
+              <select
+                value={pickupWarehouseId}
+                onChange={(e) => handlePickupWarehouseChange(e.target.value)}
+                className="w-full border border-gray-300 p-2.5 text-sm focus:border-primary focus:outline-none bg-white"
+              >
+                {pickupOptions.length === 0 ?
+                  <option value="">Loading pickup locations...</option>
+                : pickupOptions.map((Warehouse) => (
+                    <option key={Warehouse.id} value={Warehouse.id}>
+                      {Warehouse.name} — {Warehouse.address}
+                    </option>
+                  ))
+                }
+              </select>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold uppercase text-gray-700 mb-1">
-                District & Ward
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. Phường Hàng Bài, Hoàn Kiếm"
-                value={pickup.ward}
-                onChange={(e) => handlePickupChange("ward", e.target.value)}
-                className="w-full border border-gray-300 p-2.5 text-sm focus:border-primary focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold uppercase text-gray-700 mb-1">
-                Detailed Street Address
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. 45 Trần Hưng Đạo, Tòa nhà A"
-                value={pickup.street}
-                onChange={(e) => handlePickupChange("street", e.target.value)}
-                className="w-full border border-gray-300 p-2.5 text-sm focus:border-primary focus:outline-none"
-              />
+            <div className="rounded border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700">
+              <div className="font-semibold text-gray-900">
+                Selected pickup point
+              </div>
+              <div className="text-gray-600 mt-1">
+                {pickup.address || "No Warehouse selected"}
+              </div>
             </div>
           </div>
         </div>
@@ -118,14 +152,16 @@ export default function RouteAddressStep({ orderData, onChange }) {
           <div className="space-y-3">
             <div>
               <label className="block text-xs font-bold uppercase text-gray-700 mb-1">
-                City / Province
+                address / Province
               </label>
               <input
                 type="text"
                 list="cities-list"
                 placeholder="e.g. Hà Nội"
-                value={delivery.city}
-                onChange={(e) => handleDeliveryChange("city", e.target.value)}
+                value={delivery.address}
+                onChange={(e) =>
+                  handleDeliveryChange("address", e.target.value)
+                }
                 className="w-full border border-gray-300 p-2.5 text-sm focus:border-primary focus:outline-none"
               />
             </div>
@@ -159,8 +195,8 @@ export default function RouteAddressStep({ orderData, onChange }) {
         </div>
 
         <datalist id="cities-list">
-          {CITIES.map((city) => (
-            <option key={city} value={city} />
+          {CITIES.map((address) => (
+            <option key={address} value={address} />
           ))}
         </datalist>
       </div>
