@@ -15,35 +15,27 @@ import Switch from "@mui/material/Switch";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import OrderShipmentPicker from "@/components/staff/OrderShipmentPicker";
-import RouteMap, { type RouteResolvedInfo } from "@/components/RouteMap";
+import RouteMap from "@/components/RouteMap";
 import { apiFetch } from "@/lib/api";
-import type {
-  AssignmentResponse,
-  CreateAssignmentRequest,
-  Employee,
-  ShipmentSummary,
-  Vehicle,
-  Warehouse,
-} from "@/lib/types";
 
 export default function CreateAssignmentPage() {
-  const [role, setRole] = React.useState<string | null>(null);
+  const [role, setRole] = React.useState(null);
 
-  const [drivers, setDrivers] = React.useState<Employee[]>([]);
-  const [vehicles, setVehicles] = React.useState<Vehicle[]>([]);
-  const [warehouses, setWarehouses] = React.useState<Warehouse[]>([]);
+  const [drivers, setDrivers] = React.useState([]);
+  const [vehicles, setVehicles] = React.useState([]);
+  const [warehouses, setWarehouses] = React.useState([]);
 
-  const [selectedShipments, setSelectedShipments] = React.useState<ShipmentSummary[]>([]);
-  const [selectedDriver, setSelectedDriver] = React.useState<Employee | null>(null);
-  const [selectedVehicle, setSelectedVehicle] = React.useState<Vehicle | null>(null);
-  const [selectedWarehouse, setSelectedWarehouse] = React.useState<Warehouse | null>(null);
+  const [selectedShipments, setSelectedShipments] = React.useState([]);
+  const [selectedDriver, setSelectedDriver] = React.useState(null);
+  const [selectedVehicle, setSelectedVehicle] = React.useState(null);
+  const [selectedWarehouse, setSelectedWarehouse] = React.useState(null);
   const [includeRoute, setIncludeRoute] = React.useState(true);
   const [routeDistanceKm, setRouteDistanceKm] = React.useState("");
   const [routeDurationMinutes, setRouteDurationMinutes] = React.useState("");
 
   const [submitting, setSubmitting] = React.useState(false);
-  const [submitError, setSubmitError] = React.useState<string | null>(null);
-  const [submitResult, setSubmitResult] = React.useState<AssignmentResponse | null>(null);
+  const [submitError, setSubmitError] = React.useState(null);
+  const [submitResult, setSubmitResult] = React.useState(null);
 
   React.useEffect(() => {
     setRole(sessionStorage.getItem("smartfm.role"));
@@ -52,9 +44,9 @@ export default function CreateAssignmentPage() {
   React.useEffect(() => {
     async function load() {
       const [employees, vehicleList, warehouseList] = await Promise.all([
-        apiFetch<Employee[]>("/api/master-data/employees"),
-        apiFetch<Vehicle[]>("/api/master-data/vehicles"),
-        apiFetch<Warehouse[]>("/api/master-data/warehouses"),
+        apiFetch("/api/master-data/employees"),
+        apiFetch("/api/master-data/vehicles"),
+        apiFetch("/api/master-data/warehouses"),
       ]);
       setDrivers(employees.filter((e) => e.type === "Driver"));
       setVehicles(vehicleList);
@@ -63,7 +55,26 @@ export default function CreateAssignmentPage() {
     load();
   }, []);
 
-  const handleToggleShipment = (shipment: ShipmentSummary) => {
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const shipmentId = params.get("shipmentId");
+    const orderId = params.get("orderId");
+    if (shipmentId && orderId) {
+      apiFetch(`/api/orders/${orderId}`)
+        .then((orderData) => {
+          const shipment = orderData.shipments.find((s) => s.id === shipmentId);
+          if (shipment) {
+            setSelectedShipments((prev) => {
+              if (prev.some((s) => s.id === shipmentId)) return prev;
+              return [...prev, shipment];
+            });
+          }
+        })
+        .catch(console.error);
+    }
+  }, []);
+
+  const handleToggleShipment = (shipment) => {
     setSelectedShipments((prev) => {
       const exists = prev.some((s) => s.id === shipment.id);
       if (exists) return prev.filter((s) => s.id !== shipment.id);
@@ -74,14 +85,14 @@ export default function CreateAssignmentPage() {
   const firstShipment = selectedShipments[0] ?? null;
   const mapDestinationAddress = selectedWarehouse ? selectedWarehouse.address : firstShipment?.deliveryAddress;
   const mapDestinationLabel = selectedWarehouse ? "Staging leg to warehouse" : "Delivery";
-  const mapDestinationVariant: "warehouse" | "delivery" = selectedWarehouse ? "warehouse" : "delivery";
+  const mapDestinationVariant = selectedWarehouse ? "warehouse" : "delivery";
 
-  const handleRouteResolved = React.useCallback((info: RouteResolvedInfo) => {
+  const handleRouteResolved = React.useCallback((info) => {
     setRouteDistanceKm(info.distanceKm.toFixed(1));
     setRouteDurationMinutes(info.durationMinutes !== null ? Math.round(info.durationMinutes).toString() : "");
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitError(null);
     setSubmitResult(null);
@@ -91,7 +102,7 @@ export default function CreateAssignmentPage() {
       return;
     }
 
-    const request: CreateAssignmentRequest = {
+    const request = {
       shipmentIds: selectedShipments.map((s) => s.id),
       driverId: selectedDriver.id,
       vehicleId: selectedVehicle.id,
@@ -109,7 +120,7 @@ export default function CreateAssignmentPage() {
 
     setSubmitting(true);
     try {
-      const result = await apiFetch<AssignmentResponse>("/api/fleet/assignments", {
+      const result = await apiFetch("/api/fleet/assignments", {
         method: "POST",
         body: JSON.stringify(request),
       });

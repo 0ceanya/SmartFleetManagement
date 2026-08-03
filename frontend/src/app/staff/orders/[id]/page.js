@@ -230,12 +230,18 @@ export default function OrderDetailsPage() {
                                 variant="contained" 
                                 size="small"
                               >
-                                View Assignment
+                                Assignment {assignmentId.substring(0, 8)}
                               </Button>
                             ) : (
-                              <Typography variant="body2" color="text.secondary">
-                                Not assigned
-                              </Typography>
+                              <Button 
+                                component={Link} 
+                                href={`/staff/assignments/new?shipmentId=${shipment.id}&orderId=${order.id}`} 
+                                variant="outlined" 
+                                size="small"
+                                color="secondary"
+                              >
+                                Create Assignment
+                              </Button>
                             )}
                           </ListItem>
                           {idx < order.shipments.length - 1 && <Divider component="li" />}
