@@ -1,5 +1,4 @@
 using SmartFM.Application.Coordinators;
-using SmartFM.Domain.Entities;
 using SmartFM.Domain.Records;
 using SmartFM.Domain.ValueObjects;
 using SmartFM.Infrastructure.Persistence;
@@ -23,28 +22,51 @@ public class TrackingCoordinatorTests : IDisposable
         _coordinator = new TrackingCoordinator(
             _trackingRecords,
             new Repository<Notification>(_context),
-            new Repository<Assignment>(_context),
-            new Repository<Shipment>(_context),
             new UnitOfWork(_context));
     }
 
     [Fact]
-    public void TrackingCoordinatorWritesTrackingRecordOnTelemetryReceived()
+    public async Task RecordStatusChangeAsync_CreatesTrackingRecord()
     {
-        var branch = new Branch("Hanoi Branch", "Hanoi");
-        _context.Branches.Add(branch);
-        var vehicle = new LightVehicle("29A-00001", branch.Id);
-        _context.Vehicles.Add(vehicle);
-        _context.SaveChanges();
+        var entityId = Guid.NewGuid();
 
-        var data = new TelemetryData(vehicle.Id, 21.0, 105.8, DateTime.UtcNow);
-
-        _coordinator.OnTelemetryReceived(vehicle, data);
+        await _coordinator.RecordStatusChangeAsync(TrackingEntityType.Assignment, entityId, null, "Pending", "FleetAssignmentCoordinator");
 
         var records = _context.Set<TrackingRecord>().ToList();
         Assert.Single(records);
-        Assert.Equal(vehicle.Id, records[0].VehicleId);
-        Assert.Equal(21.0, records[0].Lat);
+        Assert.Equal(TrackingEntityType.Assignment, records[0].EntityType);
+        Assert.Equal(entityId, records[0].EntityId);
+        Assert.Null(records[0].FromStatus);
+        Assert.Equal("Pending", records[0].ToStatus);
+        Assert.Equal("FleetAssignmentCoordinator", records[0].ChangedBy);
+    }
+
+    [Fact]
+    public async Task GetTrackingRecordsByEntityAsync_FiltersCorrectly()
+    {
+        var assignmentId = Guid.NewGuid();
+        var otherId = Guid.NewGuid();
+
+        await _coordinator.RecordStatusChangeAsync(TrackingEntityType.Assignment, assignmentId, null, "Pending");
+        await _coordinator.RecordStatusChangeAsync(TrackingEntityType.Assignment, assignmentId, "Pending", "Assigned");
+        await _coordinator.RecordStatusChangeAsync(TrackingEntityType.Order, otherId, null, "Active");
+
+        var results = (await _coordinator.GetTrackingRecordsByEntityAsync(TrackingEntityType.Assignment, assignmentId)).ToList();
+
+        Assert.Equal(2, results.Count);
+        Assert.All(results, r => Assert.Equal(TrackingEntityType.Assignment, r.EntityType));
+        Assert.All(results, r => Assert.Equal(assignmentId, r.EntityId));
+    }
+
+    [Fact]
+    public async Task RecordStatusChangeAsync_SetsCreatedAtTimestamp()
+    {
+        var before = DateTime.UtcNow;
+        await _coordinator.RecordStatusChangeAsync(TrackingEntityType.Invoice, Guid.NewGuid(), "Unpaid", "Paid");
+        var after = DateTime.UtcNow;
+
+        var record = _context.Set<TrackingRecord>().Single();
+        Assert.InRange(record.CreatedAt, before, after);
     }
 
     public void Dispose()

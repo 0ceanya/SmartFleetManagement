@@ -1,5 +1,6 @@
 using SmartFM.Application.Coordinators;
 using SmartFM.Domain.Entities;
+using SmartFM.Domain.ValueObjects;
 using SmartFM.Infrastructure.Persistence;
 using SmartFM.Infrastructure.Persistence.Repositories;
 using SmartFM.Tests.TestSupport;
@@ -35,6 +36,11 @@ public class OrderFulfilmentCoordinatorTests : IDisposable
         _drivers = new Repository<Driver>(_context);
         _vehicles = new Repository<Vehicle>(_context);
         _routes = new Repository<Route>(_context);
+        var unitOfWork = new UnitOfWork(_context);
+        var trackingCoordinator = new TrackingCoordinator(
+            new Repository<Domain.Records.TrackingRecord>(_context),
+            new Repository<Notification>(_context),
+            unitOfWork);
         _coordinator = new OrderFulfilmentCoordinator(
             new Repository<Customer>(_context),
             _orders,
@@ -43,7 +49,8 @@ public class OrderFulfilmentCoordinatorTests : IDisposable
             _offerings,
             _assignments,
             new Repository<Invoice>(_context),
-            new UnitOfWork(_context));
+            trackingCoordinator,
+            unitOfWork);
     }
 
     private async Task<Offering> SeedOfferingAsync(decimal maxWeightKg = 1000m, decimal maxVolumeCbm = 3m)

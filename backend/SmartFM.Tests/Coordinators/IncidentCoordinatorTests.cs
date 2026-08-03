@@ -43,6 +43,10 @@ public class IncidentCoordinatorTests : IDisposable
         _assignments = new Repository<Assignment>(_context);
 
         var unitOfWork = new UnitOfWork(_context);
+        var trackingCoordinator = new TrackingCoordinator(
+            new Repository<TrackingRecord>(_context),
+            new Repository<Notification>(_context),
+            unitOfWork);
 
         var orderFulfilmentCoordinator = new OrderFulfilmentCoordinator(
             _customers,
@@ -52,6 +56,7 @@ public class IncidentCoordinatorTests : IDisposable
             _offerings,
             _assignments,
             new Repository<Invoice>(_context),
+            trackingCoordinator,
             unitOfWork);
 
         _fleetAssignmentCoordinator = new FleetAssignmentCoordinator(
@@ -68,6 +73,7 @@ public class IncidentCoordinatorTests : IDisposable
             _loadManifests,
             _cargoes,
             orderFulfilmentCoordinator,
+            trackingCoordinator,
             unitOfWork);
 
         _incidentCoordinator = new IncidentCoordinator(

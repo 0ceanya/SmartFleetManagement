@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using SmartFM.Api.Dtos.Tracking;
 using SmartFM.Application.Coordinators;
+using SmartFM.Domain.Records;
 
 namespace SmartFM.Api.Controllers;
 
@@ -15,11 +16,16 @@ public class TrackingController : ControllerBase
         _coordinator = coordinator;
     }
 
-    [HttpGet("shipments/{shipmentId:guid}/records")]
+    [HttpGet("records")]
     [ProducesResponseType(typeof(IEnumerable<TrackingRecordResponse>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IEnumerable<TrackingRecordResponse>>> GetTrackingRecordsByShipmentId(Guid shipmentId)
+    public async Task<ActionResult<IEnumerable<TrackingRecordResponse>>> GetTrackingRecords(
+        [FromQuery] string? entityType,
+        [FromQuery] Guid? entityId)
     {
-        var records = await _coordinator.GetTrackingRecordsByShipmentIdAsync(shipmentId);
+        IEnumerable<TrackingRecord> records = (entityType is not null && entityId is not null)
+            ? await _coordinator.GetTrackingRecordsByEntityAsync(entityType, entityId.Value)
+            : await _coordinator.GetTrackingRecordsAsync();
+
         return Ok(records.Select(TrackingRecordResponse.FromEntity));
     }
 

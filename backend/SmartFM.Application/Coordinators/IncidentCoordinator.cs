@@ -1,12 +1,10 @@
 using SmartFM.Application.Abstractions;
 using SmartFM.Domain.Entities;
-using SmartFM.Domain.Interfaces;
 using SmartFM.Domain.Records;
-using SmartFM.Domain.ValueObjects;
 
 namespace SmartFM.Application.Coordinators;
 
-public class IncidentCoordinator : ITelemetryObserver
+public class IncidentCoordinator
 {
     private readonly IRepository<IncidentRecord> _incidentRecords;
     private readonly IRepository<Assignment> _assignments;
@@ -32,15 +30,6 @@ public class IncidentCoordinator : ITelemetryObserver
     {
         Console.WriteLine("IncidentCoordinator initialized");
         return Task.CompletedTask;
-    }
-
-    public void OnTelemetryReceived(Vehicle vehicle, TelemetryData data)
-    {
-        if (!data.IsAnomaly)
-            return;
-
-        // ITelemetryObserver is synchronous; the async write is awaited before returning.
-        HandleIncidentAsync(vehicle).GetAwaiter().GetResult();
     }
 
     public Task<IEnumerable<IncidentRecord>> GetIncidentRecordsAsync() => _incidentRecords.GetAllAsync();
@@ -92,8 +81,4 @@ public class IncidentCoordinator : ITelemetryObserver
         return await ReportIncidentAsync(assignment.VehicleId, description, severity, category);
     }
 
-    private async Task HandleIncidentAsync(Vehicle vehicle)
-    {
-        await ReportIncidentAsync(vehicle.Id, "Telemetry anomaly detected", "Medium", "VehicleBreakdown");
-    }
 }

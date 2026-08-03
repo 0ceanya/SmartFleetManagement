@@ -15,6 +15,7 @@ public class BillingCoordinator
     private readonly IRepository<Shipment> _shipments;
     private readonly IRepository<Receipt> _receipts;
     private readonly IRepository<AuditRecord> _auditRecords;
+    private readonly TrackingCoordinator _trackingCoordinator;
     private readonly IPaymentGateway _paymentGateway;
     private readonly IUnitOfWork _unitOfWork;
 
@@ -26,6 +27,7 @@ public class BillingCoordinator
         IRepository<Shipment> shipments,
         IRepository<Receipt> receipts,
         IRepository<AuditRecord> auditRecords,
+        TrackingCoordinator trackingCoordinator,
         IPaymentGateway paymentGateway,
         IUnitOfWork unitOfWork)
     {
@@ -36,6 +38,7 @@ public class BillingCoordinator
         _shipments = shipments;
         _receipts = receipts;
         _auditRecords = auditRecords;
+        _trackingCoordinator = trackingCoordinator;
         _paymentGateway = paymentGateway;
         _unitOfWork = unitOfWork;
     }
@@ -101,6 +104,9 @@ public class BillingCoordinator
         await _auditRecords.AddAsync(audit);
 
         await _unitOfWork.SaveChangesAsync();
+
+        await _trackingCoordinator.RecordStatusChangeAsync(TrackingEntityType.Invoice, invoice.Id, InvoiceStatus.Unpaid, InvoiceStatus.Paid, "BillingCoordinator");
+
         return receipt;
     }
 

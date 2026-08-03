@@ -2,9 +2,9 @@ namespace SmartFM.Domain.Records;
 
 public record TrackingRecord : Record
 {
-    public Guid VehicleId { get; init; }
-    public Guid ShipmentId { get; init; }
-    public double Lat { get; init; }
-    public double Lon { get; init; }
-    public string Status { get; init; } = string.Empty;
+    public string EntityType { get; init; } = string.Empty;  // "Order", "Assignment", "Invoice", "Driver"
+    public Guid EntityId { get; init; }
+    public string? FromStatus { get; init; }                  // null on creation (no prior state)
+    public string ToStatus { get; init; } = string.Empty;
+    public string? ChangedBy { get; init; }
 }

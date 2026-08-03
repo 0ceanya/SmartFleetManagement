@@ -118,7 +118,7 @@ public class ReportingCoordinatorTests : IDisposable
     {
         var from = DateTime.UtcNow.AddMinutes(-5);
 
-        await _trackingRecords.AddAsync(new TrackingRecord { VehicleId = Guid.NewGuid(), ShipmentId = Guid.NewGuid(), Lat = 1, Lon = 1, Status = "Available" });
+        await _trackingRecords.AddAsync(new TrackingRecord { EntityType = "Assignment", EntityId = Guid.NewGuid(), FromStatus = null, ToStatus = "Pending", ChangedBy = "Test" });
         await _incidentRecords.AddAsync(new IncidentRecord { VehicleId = Guid.NewGuid(), Description = "Breakdown", Severity = "High" });
         await _context.SaveChangesAsync();
 

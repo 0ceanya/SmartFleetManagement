@@ -3,10 +3,17 @@ using SmartFM.Domain.ValueObjects;
 
 namespace SmartFM.Api.Dtos.Tracking;
 
-public record TrackingRecordResponse(Guid Id, Guid VehicleId, Guid ShipmentId, double Lat, double Lon, string Status, DateTime CreatedAt)
+public record TrackingRecordResponse(
+    Guid Id,
+    string EntityType,
+    Guid EntityId,
+    string? FromStatus,
+    string ToStatus,
+    string? ChangedBy,
+    DateTime CreatedAt)
 {
-    public static TrackingRecordResponse FromEntity(TrackingRecord record) =>
-        new(record.Id, record.VehicleId, record.ShipmentId, record.Lat, record.Lon, record.Status, record.CreatedAt);
+    public static TrackingRecordResponse FromEntity(TrackingRecord r) =>
+        new(r.Id, r.EntityType, r.EntityId, r.FromStatus, r.ToStatus, r.ChangedBy, r.CreatedAt);
 }
 
 public record NotificationResponse(Guid RecipientId, string Message, DateTime SentAt)

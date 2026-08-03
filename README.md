@@ -29,3 +29,11 @@ dotnet run --project SmartFM.Api                  # run the API (migrates, seeds
 Swagger UI is served at `/swagger` in the Development environment; the JSON spec is at `/swagger/v1/swagger.json`.
 
 Set `Telemetry:Enabled` to `false` in `appsettings.json` (or `Telemetry__Enabled=false` env var) to stop `TelemetrySimulator`'s 10-second background tick — useful when manually testing fleet/incident state that the simulator would otherwise mutate mid-test (it randomly completes assignments via simulated incidents).
+
+
+in vscode:
+1. install C# developer kit
+2. run dotnet run --project backend/SmartFM.Api
+3. open another terminal, cd frontend
+4. npm install
+5. npm run dev

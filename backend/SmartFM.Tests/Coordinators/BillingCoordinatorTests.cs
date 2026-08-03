@@ -27,16 +27,25 @@ public class BillingCoordinatorTests : IDisposable
         _shipments = new Repository<Shipment>(_context);
     }
 
-    private BillingCoordinator CreateCoordinator(FakePaymentGateway gateway) => new(
-        new Repository<Invoice>(_context),
-        new Repository<Payment>(_context),
-        _orders,
-        _offerings,
-        _shipments,
-        new Repository<Receipt>(_context),
-        new Repository<AuditRecord>(_context),
-        gateway,
-        new UnitOfWork(_context));
+    private BillingCoordinator CreateCoordinator(FakePaymentGateway gateway)
+    {
+        var unitOfWork = new UnitOfWork(_context);
+        var trackingCoordinator = new TrackingCoordinator(
+            new Repository<Domain.Records.TrackingRecord>(_context),
+            new Repository<Notification>(_context),
+            unitOfWork);
+        return new(
+            new Repository<Invoice>(_context),
+            new Repository<Payment>(_context),
+            _orders,
+            _offerings,
+            _shipments,
+            new Repository<Receipt>(_context),
+            new Repository<AuditRecord>(_context),
+            trackingCoordinator,
+            gateway,
+            unitOfWork);
+    }
 
     private async Task<Order> SeedOrderWithShipmentAsync()
     {

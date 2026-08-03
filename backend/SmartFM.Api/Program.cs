@@ -40,8 +40,6 @@ builder.Services.AddScoped<BillingCoordinator>();
 builder.Services.AddScoped<ReportingCoordinator>();
 builder.Services.AddScoped<SmartFMSystem>();
 
-builder.Services.AddHostedService<TelemetrySimulator>();
-
 var app = builder.Build();
 
 app.UseExceptionHandler();

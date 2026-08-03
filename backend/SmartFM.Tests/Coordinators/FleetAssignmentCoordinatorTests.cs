@@ -41,6 +41,10 @@ public class FleetAssignmentCoordinatorTests : IDisposable
         _loadManifests = new Repository<LoadManifest>(_context);
 
         var unitOfWork = new UnitOfWork(_context);
+        var trackingCoordinator = new TrackingCoordinator(
+            new Repository<Domain.Records.TrackingRecord>(_context),
+            new Repository<Notification>(_context),
+            unitOfWork);
         var orderFulfilmentCoordinator = new OrderFulfilmentCoordinator(
             _customers,
             _orders,
@@ -49,6 +53,7 @@ public class FleetAssignmentCoordinatorTests : IDisposable
             _offerings,
             _assignments,
             new Repository<Invoice>(_context),
+            trackingCoordinator,
             unitOfWork);
 
         _coordinator = new FleetAssignmentCoordinator(
@@ -65,6 +70,7 @@ public class FleetAssignmentCoordinatorTests : IDisposable
             _loadManifests,
             _cargoes,
             orderFulfilmentCoordinator,
+            trackingCoordinator,
             unitOfWork);
     }
 
