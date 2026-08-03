@@ -11,8 +11,8 @@ using SmartFM.Infrastructure.Persistence;
 namespace SmartFM.Infrastructure.Migrations
 {
     [DbContext(typeof(SmartFMDbContext))]
-    [Migration("20260801183331_AddReportKpiFields")]
-    partial class AddReportKpiFields
+    [Migration("20260803132337_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -165,7 +165,7 @@ namespace SmartFM.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid>("ShipmentId")
+                    b.Property<Guid>("OrderId")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Status")
@@ -403,7 +403,7 @@ namespace SmartFM.Infrastructure.Migrations
 
                     b.Property<string>("RecordType")
                         .IsRequired()
-                        .HasMaxLength(13)
+                        .HasMaxLength(8)
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
@@ -430,10 +430,10 @@ namespace SmartFM.Infrastructure.Migrations
                     b.Property<Guid>("DriverId")
                         .HasColumnType("TEXT");
 
-                    b.Property<double>("GpsLatitude")
+                    b.Property<double?>("GpsLatitude")
                         .HasColumnType("REAL");
 
-                    b.Property<double>("GpsLongitude")
+                    b.Property<double?>("GpsLongitude")
                         .HasColumnType("REAL");
 
                     b.Property<string>("ProofSignature")
@@ -462,6 +462,10 @@ namespace SmartFM.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("CargoIds")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<bool>("ContainsHazardous")
                         .HasColumnType("INTEGER");
 
@@ -476,6 +480,10 @@ namespace SmartFM.Infrastructure.Migrations
 
                     b.Property<bool>("IsPickupResolved")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("LoadedCargoIds")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.Property<Guid>("ShipmentId")
                         .HasColumnType("TEXT");
@@ -691,15 +699,20 @@ namespace SmartFM.Infrastructure.Migrations
                 {
                     b.HasBaseType("SmartFM.Domain.Records.Record");
 
-                    b.Property<string>("Action")
+                    b.Property<string>("ChangedBy")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("EntityId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EntityType")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("Details")
-                        .IsRequired()
+                    b.Property<string>("FromStatus")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("PerformedBy")
+                    b.Property<string>("ToStatus")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
@@ -709,6 +722,10 @@ namespace SmartFM.Infrastructure.Migrations
             modelBuilder.Entity("SmartFM.Domain.Records.IncidentRecord", b =>
                 {
                     b.HasBaseType("SmartFM.Domain.Records.Record");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Description")
                         .IsRequired()
@@ -724,38 +741,15 @@ namespace SmartFM.Infrastructure.Migrations
                     b.Property<Guid>("VehicleId")
                         .HasColumnType("TEXT");
 
-                    b.ToTable("Records", t =>
-                        {
-                            t.Property("Description")
-                                .HasColumnName("IncidentRecord_Description");
-
-                            t.Property("VehicleId")
-                                .HasColumnName("IncidentRecord_VehicleId");
-                        });
-
                     b.HasDiscriminator().HasValue("Incident");
-                });
-
-            modelBuilder.Entity("SmartFM.Domain.Records.MaintenanceRecord", b =>
-                {
-                    b.HasBaseType("SmartFM.Domain.Records.Record");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("ScheduledAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("VehicleId")
-                        .HasColumnType("TEXT");
-
-                    b.HasDiscriminator().HasValue("Maintenance");
                 });
 
             modelBuilder.Entity("SmartFM.Domain.Records.TrackingRecord", b =>
                 {
                     b.HasBaseType("SmartFM.Domain.Records.Record");
+
+                    b.Property<Guid?>("AssignmentId")
+                        .HasColumnType("TEXT");
 
                     b.Property<double>("Lat")
                         .HasColumnType("REAL");
@@ -763,21 +757,14 @@ namespace SmartFM.Infrastructure.Migrations
                     b.Property<double>("Lon")
                         .HasColumnType("REAL");
 
-                    b.Property<Guid>("ShipmentId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
                     b.Property<Guid>("VehicleId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Waypoint")
                         .HasColumnType("TEXT");
 
                     b.ToTable("Records", t =>
                         {
-                            t.Property("ShipmentId")
-                                .HasColumnName("TrackingRecord_ShipmentId");
-
                             t.Property("VehicleId")
                                 .HasColumnName("TrackingRecord_VehicleId");
                         });

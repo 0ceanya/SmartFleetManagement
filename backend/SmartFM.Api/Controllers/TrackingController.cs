@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using SmartFM.Api.Dtos.Tracking;
-using SmartFM.Application.Coordinators;
+using SmartFM.Application.Abstractions;
 using SmartFM.Domain.Records;
 
 namespace SmartFM.Api.Controllers;
@@ -9,31 +9,30 @@ namespace SmartFM.Api.Controllers;
 [Route("api/tracking")]
 public class TrackingController : ControllerBase
 {
-    private readonly TrackingCoordinator _coordinator;
+    private readonly IRepository<TrackingRecord> _trackingRecords;
 
-    public TrackingController(TrackingCoordinator coordinator)
+    public TrackingController(IRepository<TrackingRecord> trackingRecords)
     {
-        _coordinator = coordinator;
+        _trackingRecords = trackingRecords;
     }
 
+    /// <summary>
+    /// Get mock GPS waypoint records for a vehicle or assignment.
+    /// Example: GET /api/tracking/records?vehicleId={id}
+    /// </summary>
     [HttpGet("records")]
     [ProducesResponseType(typeof(IEnumerable<TrackingRecordResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<TrackingRecordResponse>>> GetTrackingRecords(
-        [FromQuery] string? entityType,
-        [FromQuery] Guid? entityId)
+        [FromQuery] Guid? vehicleId,
+        [FromQuery] Guid? assignmentId)
     {
-        IEnumerable<TrackingRecord> records = (entityType is not null && entityId is not null)
-            ? await _coordinator.GetTrackingRecordsByEntityAsync(entityType, entityId.Value)
-            : await _coordinator.GetTrackingRecordsAsync();
+        var all = await _trackingRecords.GetAllAsync();
 
-        return Ok(records.Select(TrackingRecordResponse.FromEntity));
-    }
+        if (vehicleId is not null)
+            all = all.Where(r => r.VehicleId == vehicleId.Value);
+        if (assignmentId is not null)
+            all = all.Where(r => r.AssignmentId == assignmentId.Value);
 
-    [HttpGet("notifications")]
-    [ProducesResponseType(typeof(IEnumerable<NotificationResponse>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IEnumerable<NotificationResponse>>> GetNotifications()
-    {
-        var notifications = await _coordinator.GetNotificationsAsync();
-        return Ok(notifications.Select(NotificationResponse.FromEntity));
+        return Ok(all.OrderBy(r => r.CreatedAt).Select(TrackingRecordResponse.FromEntity));
     }
 }

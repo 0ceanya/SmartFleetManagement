@@ -8,9 +8,9 @@ namespace SmartFM.Api.Controllers;
 [Route("api/incidents")]
 public class IncidentsController : ControllerBase
 {
-    private readonly IncidentCoordinator _coordinator;
+    private readonly RecordCoordinator _coordinator;
 
-    public IncidentsController(IncidentCoordinator coordinator)
+    public IncidentsController(RecordCoordinator coordinator)
     {
         _coordinator = coordinator;
     }

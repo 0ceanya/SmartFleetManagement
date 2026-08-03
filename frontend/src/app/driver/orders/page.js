@@ -27,8 +27,29 @@ function Field({ label, value }) {
 }
 
 function OrderCard({ assignment, vehicleMap, detail }) {
+  const [showAudit, setShowAudit] = useState(false);
+  const [auditRecords, setAuditRecords] = useState(null);
+  const [auditLoading, setAuditLoading] = useState(false);
+
   const shipment = assignment.shipments?.[0];
   if (!shipment) return null;
+
+  const orderId = detail?.order?.id || shipment?.orderId;
+
+  const handleToggleAudit = async () => {
+    if (showAudit) { setShowAudit(false); return; }
+    setShowAudit(true);
+    if (auditRecords !== null) return;
+    setAuditLoading(true);
+    try {
+      const records = await apiFetch(`/api/audit/records?entityType=Order&entityId=${orderId}`);
+      setAuditRecords(records || []);
+    } catch {
+      setAuditRecords([]);
+    } finally {
+      setAuditLoading(false);
+    }
+  };
 
   const vehicle = vehicleMap.get(assignment.vehicleId);
   const orderDateTime = formatOrderDateTime(detail?.order?.createdAt);
@@ -87,6 +108,38 @@ function OrderCard({ assignment, vehicleMap, detail }) {
           <Field label="Eco Points" value={ecoPoints} />
         </div>
       </div>
+
+      <div className="border-t border-gray-200 pt-3">
+        <button
+          type="button"
+          onClick={handleToggleAudit}
+          className="text-xs font-bold text-primary hover:underline cursor-pointer"
+        >
+          {showAudit ? "Hide Audit Trail ▲" : "View Audit Trail ▼"}
+        </button>
+        {showAudit && (
+          <div className="mt-3 space-y-1">
+            {auditLoading ? (
+              <p className="text-xs text-gray-500">Loading audit records...</p>
+            ) : !auditRecords?.length ? (
+              <p className="text-xs text-gray-500">No audit records found.</p>
+            ) : (
+              auditRecords.map((r) => {
+                const dt = formatOrderDateTime(r.createdAt);
+                return (
+                  <div key={r.id} className="flex items-start gap-2 text-xs py-1 border-b border-gray-100 last:border-0">
+                    <span className="text-gray-400 shrink-0">{dt.date} {dt.time}</span>
+                    <span className="text-gray-700 font-medium">
+                      {r.fromStatus ? `${r.fromStatus} → ${r.toStatus}` : r.toStatus}
+                    </span>
+                    {r.changedBy && <span className="text-gray-400 ml-auto shrink-0">{r.changedBy}</span>}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -138,12 +191,17 @@ function MyOrderContent({ driverId }) {
   const range = useMemo(() => getPeriodRange(period), [period]);
 
   const filteredAssignments = useMemo(() => {
-    if (!range.start) return assignments;
-    return assignments.filter((assignment) => {
-      const detail = details[assignment.id];
-      const completedAt = detail?.confirmation?.confirmedAt || assignment.createdAt;
-      const completedDate = new Date(completedAt);
-      return completedDate >= range.start && completedDate <= range.end;
+    const list = !range.start
+      ? assignments
+      : assignments.filter((assignment) => {
+          const detail = details[assignment.id];
+          const completedAt = detail?.confirmation?.confirmedAt || assignment.createdAt;
+          return new Date(completedAt) >= range.start && new Date(completedAt) <= range.end;
+        });
+    return [...list].sort((a, b) => {
+      const dateA = new Date(details[a.id]?.confirmation?.confirmedAt || a.createdAt);
+      const dateB = new Date(details[b.id]?.confirmation?.confirmedAt || b.createdAt);
+      return dateB - dateA;
     });
   }, [assignments, details, range]);
 

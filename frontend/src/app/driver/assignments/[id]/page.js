@@ -6,11 +6,9 @@ import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import DriverAuthGuard from "@/components/driver/DriverAuthGuard";
 import DriverFloatingNav from "@/components/driver/DriverFloatingNav";
-import DriverBottomSheet from "@/components/driver/DriverBottomSheet";
 import LoadManifestChecklist from "@/components/driver/LoadManifestChecklist";
 import DeclineAssignmentModal from "@/components/driver/DeclineAssignmentModal";
 import ReportIncidentModal from "@/components/driver/ReportIncidentModal";
-import RouteMap from "@/components/RouteMap";
 import Button from "@/components/ui/Button";
 import { getStatusChipClasses } from "@/lib/driverStatus";
 import { formatOrderDateTime } from "@/lib/driverOrderDisplay";
@@ -205,17 +203,17 @@ function AssignmentDetailContent({ params, driverId, driverInfo, handleSignOut }
   const [incidentError, setIncidentError] = useState(null);
   const [incidentSuccess, setIncidentSuccess] = useState(null);
 
-  const fetchAssignment = async () => {
+  const fetchAssignment = async (silent = false) => {
     if (!assignmentId) return;
-    setLoading(true);
-    setError(null);
+    if (!silent) setLoading(true);
+    if (!silent) setError(null);
     try {
       const data = await apiFetch(`/api/fleet/assignments/${assignmentId}`);
       setAssignment(data);
     } catch (err) {
-      setError(err.message || "Failed to load assignment.");
+      if (!silent) setError(err.message || "Failed to load assignment.");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -231,7 +229,7 @@ function AssignmentDetailContent({ params, driverId, driverInfo, handleSignOut }
     setActionError(null);
     try {
       await apiFetch(`/api/fleet/assignments/${assignmentId}/approve`, { method: "POST" });
-      await fetchAssignment();
+      await fetchAssignment(true);
     } catch (err) {
       setActionError(err.message || "Failed to accept assignment.");
     } finally {
@@ -245,7 +243,7 @@ function AssignmentDetailContent({ params, driverId, driverInfo, handleSignOut }
     setActionError(null);
     try {
       await apiFetch(`/api/fleet/shipments/${shipment.id}/start-trip`, { method: "POST" });
-      await fetchAssignment();
+      await fetchAssignment(true);
     } catch (err) {
       setActionError(err.message || "Failed to start trip.");
     } finally {
@@ -293,7 +291,7 @@ function AssignmentDetailContent({ params, driverId, driverInfo, handleSignOut }
       });
       setIncidentSuccess(`Incident reported (ID: ${result.id || "Recorded"}).`);
       setAssignmentToReportIncident(null);
-      await fetchAssignment();
+      await fetchAssignment(true);
     } catch (err) {
       setIncidentError(err.message || "Failed to report incident.");
     } finally {
@@ -324,26 +322,11 @@ function AssignmentDetailContent({ params, driverId, driverInfo, handleSignOut }
   const canDecline = assignment.status === "Pending" || assignment.status === "Assigned" || assignment.status === "Loaded";
 
   return (
-    <div className="relative w-full" style={{ minHeight: "100dvh" }}>
+    <div className="h-[100dvh] overflow-hidden bg-white">
       <DriverFloatingNav driverId={driverId} driverInfo={driverInfo} onSignOut={handleSignOut} />
 
-      {assignment.route?.originAddress && assignment.route?.destinationAddress ? (
-        <div className="fixed inset-0 overflow-hidden">
-          <RouteMap
-            originAddress={assignment.route.originAddress}
-            destinationAddress={assignment.route.destinationAddress}
-            originLabel="Pickup"
-            destinationLabel="Delivery"
-            heightClassName="h-[100dvh]"
-          />
-        </div>
-      ) : (
-        <div className="fixed inset-0 bg-slate-100 flex items-center justify-center p-6 text-center text-sm text-gray-500">
-          No route information available for this assignment.
-        </div>
-      )}
-
-      <DriverBottomSheet>
+      <div className="h-full overflow-y-auto px-4 pt-20 pb-8">
+        <div className="max-w-lg mx-auto space-y-4">
         <div className="space-y-4 pt-2">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
@@ -403,6 +386,14 @@ function AssignmentDetailContent({ params, driverId, driverInfo, handleSignOut }
               <p>
                 <span className="font-semibold text-gray-500">Delivery:</span> {shipment.deliveryAddress}
               </p>
+              {assignment.route?.originAddress && assignment.route?.destinationAddress && (
+                <Link
+                  href={`/map?origin=${encodeURIComponent(assignment.route.originAddress)}&destination=${encodeURIComponent(assignment.route.destinationAddress)}&originLabel=Pickup&destinationLabel=Delivery`}
+                  className="inline-block mt-1 text-xs font-bold text-primary hover:underline"
+                >
+                  Route Buddy →
+                </Link>
+              )}
               {shipment.customerPhone && (
                 <p>
                   <span className="font-semibold text-gray-500">Phone:</span>{" "}
@@ -422,7 +413,7 @@ function AssignmentDetailContent({ params, driverId, driverInfo, handleSignOut }
 
           {shipment && (assignment.status === "Assigned" || assignment.status === "Loaded") && (
             <div className="space-y-3">
-              <LoadManifestChecklist shipmentId={shipment.id} onManifestChange={fetchAssignment} />
+              <LoadManifestChecklist shipmentId={shipment.id} onManifestChange={() => fetchAssignment(true)} />
               {assignment.status === "Loaded" && (
                 <button type="button" onClick={handleStartTrip} disabled={startingTrip} className={PRIMARY_CTA_CLASSES}>
                   {startingTrip ? "Starting Trip..." : "Start Trip"}
@@ -445,7 +436,8 @@ function AssignmentDetailContent({ params, driverId, driverInfo, handleSignOut }
             />
           )}
         </div>
-      </DriverBottomSheet>
+        </div>
+      </div>
 
       <DeclineAssignmentModal
         assignment={assignmentToDecline}

@@ -41,9 +41,14 @@ public class FleetAssignmentCoordinatorTests : IDisposable
         _loadManifests = new Repository<LoadManifest>(_context);
 
         var unitOfWork = new UnitOfWork(_context);
-        var trackingCoordinator = new TrackingCoordinator(
-            new Repository<Domain.Records.TrackingRecord>(_context),
+        FleetAssignmentCoordinator? fleet = null;
+        var recordCoordinator = new RecordCoordinator(
+            new Repository<Domain.Records.AuditRecord>(_context),
             new Repository<Notification>(_context),
+            new Repository<Domain.Records.IncidentRecord>(_context),
+            _assignments,
+            _shipments,
+            () => fleet!,
             unitOfWork);
         var orderFulfilmentCoordinator = new OrderFulfilmentCoordinator(
             _customers,
@@ -53,10 +58,10 @@ public class FleetAssignmentCoordinatorTests : IDisposable
             _offerings,
             _assignments,
             new Repository<Invoice>(_context),
-            trackingCoordinator,
+            recordCoordinator,
             unitOfWork);
 
-        _coordinator = new FleetAssignmentCoordinator(
+        _coordinator = fleet = new FleetAssignmentCoordinator(
             new Repository<Route>(_context),
             _assignments,
             _drivers,
@@ -65,12 +70,11 @@ public class FleetAssignmentCoordinatorTests : IDisposable
             _orders,
             _customers,
             _warehouses,
-            new Repository<Domain.Records.MaintenanceRecord>(_context),
             new Repository<DeliveryConfirmation>(_context),
             _loadManifests,
             _cargoes,
             orderFulfilmentCoordinator,
-            trackingCoordinator,
+            recordCoordinator,
             unitOfWork);
     }
 
@@ -471,16 +475,6 @@ public class FleetAssignmentCoordinatorTests : IDisposable
 
         await Assert.ThrowsAsync<ArgumentException>(() => _coordinator.CreateDeliveryConfirmationAsync(
             shipment.Id, otherDriver.Id, "Recipient", "signature-data", 21.0, 105.8));
-    }
-
-    [Fact]
-    public async Task FleetAssignmentCoordinatorCreatesMaintenanceRecordForVehicle()
-    {
-        var vehicle = await SeedVehicleAsync();
-
-        var record = await _coordinator.CreateMaintenanceRecordAsync(vehicle.Id, "Oil change", DateTime.UtcNow.AddDays(7));
-
-        Assert.Equal(vehicle.Id, record.VehicleId);
     }
 
     [Fact]

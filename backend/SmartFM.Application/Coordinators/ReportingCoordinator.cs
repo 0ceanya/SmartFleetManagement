@@ -16,7 +16,6 @@ public class ReportingCoordinator
 
     private readonly IRepository<TrackingRecord> _trackingRecords;
     private readonly IRepository<IncidentRecord> _incidentRecords;
-    private readonly IRepository<AuditRecord> _auditRecords;
     private readonly IRepository<Report> _reports;
     private readonly IRepository<Assignment> _assignments;
     private readonly IRepository<Vehicle> _vehicles;
@@ -27,7 +26,6 @@ public class ReportingCoordinator
     public ReportingCoordinator(
         IRepository<TrackingRecord> trackingRecords,
         IRepository<IncidentRecord> incidentRecords,
-        IRepository<AuditRecord> auditRecords,
         IRepository<Report> reports,
         IRepository<Assignment> assignments,
         IRepository<Vehicle> vehicles,
@@ -37,7 +35,6 @@ public class ReportingCoordinator
     {
         _trackingRecords = trackingRecords;
         _incidentRecords = incidentRecords;
-        _auditRecords = auditRecords;
         _reports = reports;
         _assignments = assignments;
         _vehicles = vehicles;
@@ -56,13 +53,11 @@ public class ReportingCoordinator
     {
         var trackingRecords = await _trackingRecords.GetAllAsync();
         var incidentRecords = await _incidentRecords.GetAllAsync();
-        var auditRecords = await _auditRecords.GetAllAsync();
 
         var trackingCount = trackingRecords.Count(r => r.CreatedAt >= from && r.CreatedAt <= to);
         var incidentCount = incidentRecords.Count(r => r.CreatedAt >= from && r.CreatedAt <= to);
-        var auditCount = auditRecords.Count(r => r.CreatedAt >= from && r.CreatedAt <= to);
 
-        var content = $"TrackingRecords: {trackingCount}, IncidentRecords: {incidentCount}, AuditRecords: {auditCount}";
+        var content = $"TrackingRecords: {trackingCount}, IncidentRecords: {incidentCount}";
 
         var assignments = await _assignments.GetAllAsync();
         var vehicles = await _vehicles.GetAllAsync();
@@ -80,7 +75,6 @@ public class ReportingCoordinator
         var totalAssignments = scopedAssignments.Count;
 
         var scopedVehicles = branchId is null ? vehicles : vehicles.Where(v => v.BranchId == branchId);
-        // Available and Assigned both count as active; VehicleStatus has no literal "Active" value.
         var activeVehicles = scopedVehicles.Count(v => v.CurrentStatus != VehicleStatus.UnderMaintenance);
 
         var scopedIncidentCount = incidentRecords.Count(r =>
@@ -130,19 +124,9 @@ public class ReportingCoordinator
             AssignmentsByDriverJson: JsonSerializer.Serialize(assignmentsByDriver, BreakdownJsonOptions));
         await _reports.AddAsync(report);
 
-        var audit = new AuditRecord
-        {
-            Action = "ReportGenerated",
-            PerformedBy = "ReportingCoordinator",
-            Details = $"Report {reportType} generated for range {from:o} to {to:o}."
-        };
-        await _auditRecords.AddAsync(audit);
-
         await _unitOfWork.SaveChangesAsync();
         return report;
     }
 
     public Task<IEnumerable<Report>> GetReportsAsync() => _reports.GetAllAsync();
-
-    public Task<IEnumerable<AuditRecord>> GetAuditRecordsAsync() => _auditRecords.GetAllAsync();
 }

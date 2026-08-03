@@ -30,9 +30,13 @@ public class BillingCoordinatorTests : IDisposable
     private BillingCoordinator CreateCoordinator(FakePaymentGateway gateway)
     {
         var unitOfWork = new UnitOfWork(_context);
-        var trackingCoordinator = new TrackingCoordinator(
-            new Repository<Domain.Records.TrackingRecord>(_context),
+        var auditCoordinator = new RecordCoordinator(
+            new Repository<Domain.Records.AuditRecord>(_context),
             new Repository<Notification>(_context),
+            new Repository<Domain.Records.IncidentRecord>(_context),
+            new Repository<Assignment>(_context),
+            new Repository<Shipment>(_context),
+            () => null!,  // incident methods not invoked in billing tests
             unitOfWork);
         return new(
             new Repository<Invoice>(_context),
@@ -41,8 +45,7 @@ public class BillingCoordinatorTests : IDisposable
             _offerings,
             _shipments,
             new Repository<Receipt>(_context),
-            new Repository<AuditRecord>(_context),
-            trackingCoordinator,
+            auditCoordinator,
             gateway,
             unitOfWork);
     }
@@ -100,7 +103,7 @@ public class BillingCoordinatorTests : IDisposable
 
         Assert.Equal(1, gateway.CallCount);
         var audits = _context.Set<AuditRecord>().ToList();
-        Assert.Contains(audits, a => a.Action == "PaymentProcessed");
+        Assert.Contains(audits, a => a.EntityType == "Invoice" && a.ToStatus == "Paid");
         Assert.Equal("Payment processed", receipt.GatewayResponse);
         var updatedOrder = await _orders.GetByIdAsync(order.Id);
         Assert.Equal(OrderStatus.Approved, updatedOrder!.Status);

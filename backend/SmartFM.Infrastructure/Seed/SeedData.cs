@@ -52,8 +52,11 @@ public static class SeedData
 
     private static async Task SeedDriverOrderHistoryAsync(SmartFMDbContext context)
     {
-        if (await context.Orders.AnyAsync())
+        if (await context.Orders.AnyAsync() && await context.Set<AuditRecord>().AnyAsync())
             return;
+
+        if (await context.Orders.AnyAsync())
+            return; // orders exist but no audit records — delete smartfm.db to reseed
 
         var offering = await context.Offerings.FirstOrDefaultAsync(o => o.Name == "Light Delivery");
         if (offering is null)
@@ -149,25 +152,31 @@ public static class SeedData
 
         await context.SaveChangesAsync();
 
-        // Seed TrackingRecords reflecting every status transition per order/assignment
+        // Seed AuditRecords reflecting every status transition per order/assignment
         foreach (var (order, _, assignment, createdAt, isDelivered, driverId) in trackedOrders)
         {
-            var records = BuildTrackingRecords(order.Id, assignment.Id, driverId, createdAt, isDelivered);
-            context.Set<TrackingRecord>().AddRange(records);
+            var auditRecords = BuildAuditRecords(order.Id, assignment.Id, driverId, createdAt, isDelivered);
+            context.Set<AuditRecord>().AddRange(auditRecords);
+
+            if (isDelivered)
+            {
+                var gpsRecords = BuildGpsTrackingRecords(assignment.VehicleId, assignment.Id, createdAt);
+                context.Set<TrackingRecord>().AddRange(gpsRecords);
+            }
         }
 
         await context.SaveChangesAsync();
         Console.WriteLine("Driver order history seed completed");
     }
 
-    private static List<TrackingRecord> BuildTrackingRecords(
+    private static List<AuditRecord> BuildAuditRecords(
         Guid orderId, Guid assignmentId, Guid driverId, DateTime createdAt, bool isDelivered)
     {
-        var records = new List<TrackingRecord>
+        var records = new List<AuditRecord>
         {
-            new() { EntityType = "Assignment", EntityId = assignmentId, FromStatus = null,        ToStatus = "Pending",    ChangedBy = "Seed", CreatedAt = createdAt },
+            new() { EntityType = "Assignment", EntityId = assignmentId, FromStatus = null,        ToStatus = "Pending",     ChangedBy = "Seed", CreatedAt = createdAt },
             new() { EntityType = "Driver",     EntityId = driverId,     FromStatus = "Available", ToStatus = "Unavailable", ChangedBy = "Seed", CreatedAt = createdAt },
-            new() { EntityType = "Order",      EntityId = orderId,      FromStatus = "Pending",   ToStatus = "Approved",   ChangedBy = "Seed", CreatedAt = createdAt },
+            new() { EntityType = "Order",      EntityId = orderId,      FromStatus = "Pending",   ToStatus = "Approved",    ChangedBy = "Seed", CreatedAt = createdAt },
         };
 
         if (!isDelivered)
@@ -175,16 +184,29 @@ public static class SeedData
 
         records.AddRange(new[]
         {
-            new TrackingRecord { EntityType = "Assignment", EntityId = assignmentId, FromStatus = "Pending",     ToStatus = "Assigned",    ChangedBy = "Seed", CreatedAt = createdAt.AddMinutes(30) },
-            new TrackingRecord { EntityType = "Order",      EntityId = orderId,      FromStatus = "Approved",    ToStatus = "Active",      ChangedBy = "Seed", CreatedAt = createdAt.AddMinutes(30) },
-            new TrackingRecord { EntityType = "Assignment", EntityId = assignmentId, FromStatus = "Assigned",    ToStatus = "Loaded",      ChangedBy = "Seed", CreatedAt = createdAt.AddMinutes(60) },
-            new TrackingRecord { EntityType = "Assignment", EntityId = assignmentId, FromStatus = "Loaded",      ToStatus = "Delivering",  ChangedBy = "Seed", CreatedAt = createdAt.AddMinutes(90) },
-            new TrackingRecord { EntityType = "Assignment", EntityId = assignmentId, FromStatus = "Delivering",  ToStatus = "Delivered",   ChangedBy = "Seed", CreatedAt = createdAt.AddHours(3) },
-            new TrackingRecord { EntityType = "Driver",     EntityId = driverId,     FromStatus = "Unavailable", ToStatus = "Available",   ChangedBy = "Seed", CreatedAt = createdAt.AddHours(3) },
-            new TrackingRecord { EntityType = "Order",      EntityId = orderId,      FromStatus = "Active",      ToStatus = "Fulfilled",   ChangedBy = "Seed", CreatedAt = createdAt.AddHours(3) },
+            new AuditRecord { EntityType = "Assignment", EntityId = assignmentId, FromStatus = "Pending",     ToStatus = "Assigned",   ChangedBy = "Seed", CreatedAt = createdAt.AddMinutes(30) },
+            new AuditRecord { EntityType = "Order",      EntityId = orderId,      FromStatus = "Approved",    ToStatus = "Active",     ChangedBy = "Seed", CreatedAt = createdAt.AddMinutes(30) },
+            new AuditRecord { EntityType = "Assignment", EntityId = assignmentId, FromStatus = "Assigned",    ToStatus = "Loaded",     ChangedBy = "Seed", CreatedAt = createdAt.AddMinutes(60) },
+            new AuditRecord { EntityType = "Assignment", EntityId = assignmentId, FromStatus = "Loaded",      ToStatus = "Delivering", ChangedBy = "Seed", CreatedAt = createdAt.AddMinutes(90) },
+            new AuditRecord { EntityType = "Assignment", EntityId = assignmentId, FromStatus = "Delivering",  ToStatus = "Delivered",  ChangedBy = "Seed", CreatedAt = createdAt.AddHours(3) },
+            new AuditRecord { EntityType = "Driver",     EntityId = driverId,     FromStatus = "Unavailable", ToStatus = "Available",  ChangedBy = "Seed", CreatedAt = createdAt.AddHours(3) },
+            new AuditRecord { EntityType = "Order",      EntityId = orderId,      FromStatus = "Active",      ToStatus = "Fulfilled",  ChangedBy = "Seed", CreatedAt = createdAt.AddHours(3) },
         });
 
         return records;
+    }
+
+    private static List<TrackingRecord> BuildGpsTrackingRecords(Guid vehicleId, Guid assignmentId, DateTime startedAt)
+    {
+        // Mock GPS waypoints for a delivered trip (Hanoi area — lat/lon realistic for Vietnam)
+        return new List<TrackingRecord>
+        {
+            new() { VehicleId = vehicleId, AssignmentId = assignmentId, Lat = 21.0245, Lon = 105.8412, Waypoint = "Hanoi Warehouse", CreatedAt = startedAt.AddMinutes(5) },
+            new() { VehicleId = vehicleId, AssignmentId = assignmentId, Lat = 20.9800, Lon = 105.8600, Waypoint = "City Outskirts",  CreatedAt = startedAt.AddMinutes(35) },
+            new() { VehicleId = vehicleId, AssignmentId = assignmentId, Lat = 20.8500, Lon = 106.0200, Waypoint = "Highway",         CreatedAt = startedAt.AddMinutes(80) },
+            new() { VehicleId = vehicleId, AssignmentId = assignmentId, Lat = 20.7000, Lon = 106.1800, Waypoint = "Approaching",     CreatedAt = startedAt.AddMinutes(140) },
+            new() { VehicleId = vehicleId, AssignmentId = assignmentId, Lat = 20.5992, Lon = 106.3500, Waypoint = "Customer Site",   CreatedAt = startedAt.AddHours(3) },
+        };
     }
 
     private static (Order Order, Shipment Shipment, Assignment Assignment, DateTime CreatedAt) SeedDeliveredOrder(

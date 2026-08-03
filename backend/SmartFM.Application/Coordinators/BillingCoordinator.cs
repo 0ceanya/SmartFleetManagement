@@ -14,8 +14,7 @@ public class BillingCoordinator
     private readonly IRepository<Offering> _offerings;
     private readonly IRepository<Shipment> _shipments;
     private readonly IRepository<Receipt> _receipts;
-    private readonly IRepository<AuditRecord> _auditRecords;
-    private readonly TrackingCoordinator _trackingCoordinator;
+    private readonly RecordCoordinator _recordCoordinator;
     private readonly IPaymentGateway _paymentGateway;
     private readonly IUnitOfWork _unitOfWork;
 
@@ -26,8 +25,7 @@ public class BillingCoordinator
         IRepository<Offering> offerings,
         IRepository<Shipment> shipments,
         IRepository<Receipt> receipts,
-        IRepository<AuditRecord> auditRecords,
-        TrackingCoordinator trackingCoordinator,
+        RecordCoordinator recordCoordinator,
         IPaymentGateway paymentGateway,
         IUnitOfWork unitOfWork)
     {
@@ -37,8 +35,7 @@ public class BillingCoordinator
         _offerings = offerings;
         _shipments = shipments;
         _receipts = receipts;
-        _auditRecords = auditRecords;
-        _trackingCoordinator = trackingCoordinator;
+        _recordCoordinator = recordCoordinator;
         _paymentGateway = paymentGateway;
         _unitOfWork = unitOfWork;
     }
@@ -95,17 +92,12 @@ public class BillingCoordinator
         var receipt = new Receipt(invoice.Id, invoice.Amount, method, gatewayResponse, DateTime.UtcNow);
         await _receipts.AddAsync(receipt);
 
-        var audit = new AuditRecord
-        {
-            Action = "PaymentProcessed",
-            PerformedBy = "BillingCoordinator",
-            Details = $"Invoice {invoice.Id} paid via {method}."
-        };
-        await _auditRecords.AddAsync(audit);
-
         await _unitOfWork.SaveChangesAsync();
 
-        await _trackingCoordinator.RecordStatusChangeAsync(TrackingEntityType.Invoice, invoice.Id, InvoiceStatus.Unpaid, InvoiceStatus.Paid, "BillingCoordinator");
+        // Record Invoice status change: Unpaid → Paid
+        await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Invoice, invoice.Id, InvoiceStatus.Unpaid, InvoiceStatus.Paid, "BillingCoordinator");
+        // Also surface payment on the Order's audit trail
+        await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Order, invoice.OrderId, null, "InvoicePaid", "BillingCoordinator");
 
         return receipt;
     }

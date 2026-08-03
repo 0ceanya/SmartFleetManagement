@@ -58,8 +58,3 @@ public record ReportResponse(
             AssignmentsByDriverJson: report.AssignmentsByDriverJson);
 }
 
-public record AuditRecordResponse(Guid Id, string Action, string PerformedBy, string Details, DateTime CreatedAt)
-{
-    public static AuditRecordResponse FromEntity(AuditRecord record) =>
-        new(record.Id, record.Action, record.PerformedBy, record.Details, record.CreatedAt);
-}

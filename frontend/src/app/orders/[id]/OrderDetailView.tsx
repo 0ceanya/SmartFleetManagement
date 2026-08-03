@@ -16,17 +16,10 @@ import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
 import { apiFetch } from "@/lib/api";
-import RouteMap from "@/components/RouteMap";
-import type { AddressCorrection } from "@/components/RouteMap";
 import type { Offering, OrderDetails, Warehouse } from "@/lib/types";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString();
-}
-
-interface CorrectedAddresses {
-  origin?: string;
-  destination?: string;
 }
 
 export default function OrderDetailView({ id }: { id: string }) {
@@ -36,8 +29,6 @@ export default function OrderDetailView({ id }: { id: string }) {
   const [warehouses, setWarehouses] = React.useState<Record<string, Warehouse>>({});
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
-  const [correctedAddresses, setCorrectedAddresses] = React.useState<Record<string, CorrectedAddresses>>({});
-
   React.useEffect(() => {
     setRole(sessionStorage.getItem("smartfm.role"));
   }, []);
@@ -207,13 +198,6 @@ export default function OrderDetailView({ id }: { id: string }) {
           <Stack spacing={3} sx={{ flex: "1 1 480px", width: "100%" }}>
             {order.shipments.map((shipment) => {
               const warehouse = shipment.warehouseId ? warehouses[shipment.warehouseId] : null;
-              const corrected = correctedAddresses[shipment.id];
-              const handleAddressCorrected = (correction: AddressCorrection) => {
-                setCorrectedAddresses((prev) => ({
-                  ...prev,
-                  [shipment.id]: { ...prev[shipment.id], [correction.which]: correction.address },
-                }));
-              };
               return (
                 <Card variant="outlined" key={shipment.id}>
                   <CardContent>
@@ -221,23 +205,19 @@ export default function OrderDetailView({ id }: { id: string }) {
                       <Typography variant="h6">Shipment {shipment.id}</Typography>
                       <Chip label={shipment.status} size="small" />
                     </Stack>
-                    <Stack spacing={0.5} sx={{ mb: 2 }}>
+                    <Stack spacing={0.5}>
                       <Typography variant="body2">
                         <strong>Pickup:</strong> {shipment.pickupAddress}
                       </Typography>
-                      {corrected?.origin && (
-                        <Typography variant="caption" color="text.secondary">
-                          Corrected on map: {corrected.origin}
-                        </Typography>
-                      )}
                       <Typography variant="body2">
                         <strong>Delivery:</strong> {shipment.deliveryAddress}
                       </Typography>
-                      {corrected?.destination && (
-                        <Typography variant="caption" color="text.secondary">
-                          Corrected on map: {corrected.destination}
-                        </Typography>
-                      )}
+                      <Link
+                        href={`/map?origin=${encodeURIComponent(shipment.pickupAddress)}&destination=${encodeURIComponent(shipment.deliveryAddress)}`}
+                        style={{ fontSize: 13, fontWeight: 700, color: 'inherit', display: 'inline-block', marginTop: 4 }}
+                      >
+                        See Map →
+                      </Link>
                       <Typography variant="body2" color="text.secondary">
                         Created {formatDate(shipment.createdAt)}
                       </Typography>
@@ -247,11 +227,6 @@ export default function OrderDetailView({ id }: { id: string }) {
                         </Typography>
                       )}
                     </Stack>
-                    <RouteMap
-                      originAddress={shipment.pickupAddress}
-                      destinationAddress={shipment.deliveryAddress}
-                      onAddressCorrected={handleAddressCorrected}
-                    />
                   </CardContent>
                 </Card>
               );

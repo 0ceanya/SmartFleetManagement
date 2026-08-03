@@ -15,7 +15,7 @@ public class OrderFulfilmentCoordinator
     private readonly IRepository<Offering> _offerings;
     private readonly IRepository<Assignment> _assignments;
     private readonly IRepository<Invoice> _invoices;
-    private readonly TrackingCoordinator _trackingCoordinator;
+    private readonly RecordCoordinator _recordCoordinator;
     private readonly IUnitOfWork _unitOfWork;
 
     public OrderFulfilmentCoordinator(
@@ -26,7 +26,7 @@ public class OrderFulfilmentCoordinator
         IRepository<Offering> offerings,
         IRepository<Assignment> assignments,
         IRepository<Invoice> invoices,
-        TrackingCoordinator trackingCoordinator,
+        RecordCoordinator recordCoordinator,
         IUnitOfWork unitOfWork)
     {
         _customers = customers;
@@ -36,7 +36,7 @@ public class OrderFulfilmentCoordinator
         _offerings = offerings;
         _assignments = assignments;
         _invoices = invoices;
-        _trackingCoordinator = trackingCoordinator;
+        _recordCoordinator = recordCoordinator;
         _unitOfWork = unitOfWork;
     }
 
@@ -200,7 +200,7 @@ public class OrderFulfilmentCoordinator
 
         await _unitOfWork.SaveChangesAsync();
 
-        await _trackingCoordinator.RecordStatusChangeAsync(TrackingEntityType.Order, order.Id, prevStatus, OrderStatus.Fulfilled, "OrderFulfilmentCoordinator");
+        await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Order, order.Id, prevStatus, OrderStatus.Fulfilled, "OrderFulfilmentCoordinator");
 
         return order;
     }
@@ -217,7 +217,7 @@ public class OrderFulfilmentCoordinator
 
         await _unitOfWork.SaveChangesAsync();
 
-        await _trackingCoordinator.RecordStatusChangeAsync(TrackingEntityType.Order, order.Id, prevStatus, OrderStatus.Cancelled, "OrderFulfilmentCoordinator");
+        await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Order, order.Id, prevStatus, OrderStatus.Cancelled, "OrderFulfilmentCoordinator");
 
         return order;
     }

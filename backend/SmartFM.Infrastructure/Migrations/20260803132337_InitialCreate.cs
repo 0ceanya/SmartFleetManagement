@@ -12,23 +12,6 @@ namespace SmartFM.Infrastructure.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
-                name: "Assignments",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    ShipmentId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    DriverId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    VehicleId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    RouteId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Status = table.Column<string>(type: "TEXT", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Assignments", x => x.Id);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "Branches",
                 columns: table => new
                 {
@@ -63,7 +46,11 @@ namespace SmartFM.Infrastructure.Migrations
                     ShipmentId = table.Column<Guid>(type: "TEXT", nullable: false),
                     DriverId = table.Column<Guid>(type: "TEXT", nullable: false),
                     RecipientName = table.Column<string>(type: "TEXT", nullable: false),
-                    ConfirmedAt = table.Column<DateTime>(type: "TEXT", nullable: false)
+                    ProofSignature = table.Column<string>(type: "TEXT", nullable: false),
+                    GpsLatitude = table.Column<double>(type: "REAL", nullable: true),
+                    GpsLongitude = table.Column<double>(type: "REAL", nullable: true),
+                    ConfirmedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    DamagedOrMissingItems = table.Column<string>(type: "TEXT", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -93,7 +80,7 @@ namespace SmartFM.Infrastructure.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    ShipmentId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    OrderId = table.Column<Guid>(type: "TEXT", nullable: false),
                     Amount = table.Column<decimal>(type: "TEXT", nullable: false),
                     Status = table.Column<string>(type: "TEXT", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false)
@@ -109,10 +96,15 @@ namespace SmartFM.Infrastructure.Migrations
                 {
                     Id = table.Column<Guid>(type: "TEXT", nullable: false),
                     ShipmentId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    CargoIds = table.Column<string>(type: "TEXT", nullable: false),
                     CargoDescriptions = table.Column<string>(type: "TEXT", nullable: false),
                     TotalWeightKg = table.Column<decimal>(type: "TEXT", nullable: false),
                     ContainsHazardous = table.Column<bool>(type: "INTEGER", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    LoadedCargoIds = table.Column<string>(type: "TEXT", nullable: false),
+                    IsPickupResolved = table.Column<bool>(type: "INTEGER", nullable: false),
+                    IsDropoffResolved = table.Column<bool>(type: "INTEGER", nullable: false),
+                    DamagedOrMissingItems = table.Column<string>(type: "TEXT", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -157,6 +149,7 @@ namespace SmartFM.Infrastructure.Migrations
                     Id = table.Column<Guid>(type: "TEXT", nullable: false),
                     CustomerId = table.Column<Guid>(type: "TEXT", nullable: false),
                     OfferingId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    OrderWeightKg = table.Column<decimal>(type: "TEXT", precision: 18, scale: 2, nullable: false),
                     Status = table.Column<string>(type: "TEXT", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false)
                 },
@@ -205,22 +198,22 @@ namespace SmartFM.Infrastructure.Migrations
                 {
                     Id = table.Column<Guid>(type: "TEXT", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    RecordType = table.Column<string>(type: "TEXT", maxLength: 13, nullable: false),
-                    Action = table.Column<string>(type: "TEXT", nullable: true),
-                    PerformedBy = table.Column<string>(type: "TEXT", nullable: true),
-                    Details = table.Column<string>(type: "TEXT", nullable: true),
-                    IncidentRecord_VehicleId = table.Column<Guid>(type: "TEXT", nullable: true),
-                    ShipmentId = table.Column<Guid>(type: "TEXT", nullable: true),
-                    IncidentRecord_Description = table.Column<string>(type: "TEXT", nullable: true),
-                    Severity = table.Column<string>(type: "TEXT", nullable: true),
+                    RecordType = table.Column<string>(type: "TEXT", maxLength: 8, nullable: false),
+                    EntityType = table.Column<string>(type: "TEXT", nullable: true),
+                    EntityId = table.Column<Guid>(type: "TEXT", nullable: true),
+                    FromStatus = table.Column<string>(type: "TEXT", nullable: true),
+                    ToStatus = table.Column<string>(type: "TEXT", nullable: true),
+                    ChangedBy = table.Column<string>(type: "TEXT", nullable: true),
                     VehicleId = table.Column<Guid>(type: "TEXT", nullable: true),
+                    ShipmentId = table.Column<Guid>(type: "TEXT", nullable: true),
                     Description = table.Column<string>(type: "TEXT", nullable: true),
-                    ScheduledAt = table.Column<DateTime>(type: "TEXT", nullable: true),
+                    Severity = table.Column<string>(type: "TEXT", nullable: true),
+                    Category = table.Column<string>(type: "TEXT", nullable: true),
                     TrackingRecord_VehicleId = table.Column<Guid>(type: "TEXT", nullable: true),
-                    TrackingRecord_ShipmentId = table.Column<Guid>(type: "TEXT", nullable: true),
+                    AssignmentId = table.Column<Guid>(type: "TEXT", nullable: true),
                     Lat = table.Column<double>(type: "REAL", nullable: true),
                     Lon = table.Column<double>(type: "REAL", nullable: true),
-                    Status = table.Column<string>(type: "TEXT", nullable: true)
+                    Waypoint = table.Column<string>(type: "TEXT", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -236,7 +229,16 @@ namespace SmartFM.Infrastructure.Migrations
                     From = table.Column<DateTime>(type: "TEXT", nullable: false),
                     To = table.Column<DateTime>(type: "TEXT", nullable: false),
                     Content = table.Column<string>(type: "TEXT", nullable: false),
-                    GeneratedAt = table.Column<DateTime>(type: "TEXT", nullable: false)
+                    GeneratedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    BranchId = table.Column<Guid>(type: "TEXT", nullable: true),
+                    TotalAssignments = table.Column<int>(type: "INTEGER", nullable: false),
+                    ActiveVehicles = table.Column<int>(type: "INTEGER", nullable: false),
+                    IncidentCount = table.Column<int>(type: "INTEGER", nullable: false),
+                    TotalCargoWeightKg = table.Column<decimal>(type: "TEXT", nullable: false),
+                    Revenue = table.Column<decimal>(type: "TEXT", nullable: false),
+                    AssignmentsByDayJson = table.Column<string>(type: "TEXT", nullable: false),
+                    AssignmentsByBranchJson = table.Column<string>(type: "TEXT", nullable: false),
+                    AssignmentsByDriverJson = table.Column<string>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -248,10 +250,11 @@ namespace SmartFM.Infrastructure.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    OriginWarehouseId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    DestinationWarehouseId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    EstimatedDistanceKm = table.Column<decimal>(type: "TEXT", nullable: false),
-                    EstimatedDurationHours = table.Column<decimal>(type: "TEXT", nullable: false)
+                    OriginAddress = table.Column<string>(type: "TEXT", nullable: false),
+                    DestinationAddress = table.Column<string>(type: "TEXT", nullable: false),
+                    WaypointsJson = table.Column<string>(type: "TEXT", nullable: true),
+                    DistanceKm = table.Column<double>(type: "REAL", nullable: true),
+                    EstimatedDurationMinutes = table.Column<int>(type: "INTEGER", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -281,11 +284,56 @@ namespace SmartFM.Infrastructure.Migrations
                     Id = table.Column<Guid>(type: "TEXT", nullable: false),
                     Name = table.Column<string>(type: "TEXT", nullable: false),
                     Address = table.Column<string>(type: "TEXT", nullable: false),
-                    BranchId = table.Column<Guid>(type: "TEXT", nullable: false)
+                    BranchId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    CapacityKg = table.Column<decimal>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Warehouses", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Cargoes",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    OrderId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Description = table.Column<string>(type: "TEXT", nullable: false),
+                    WeightKg = table.Column<decimal>(type: "TEXT", precision: 18, scale: 2, nullable: false),
+                    VolumeCbm = table.Column<decimal>(type: "TEXT", precision: 18, scale: 2, nullable: true),
+                    IsHazardous = table.Column<bool>(type: "INTEGER", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Cargoes", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Cargoes_Orders_OrderId",
+                        column: x => x.OrderId,
+                        principalTable: "Orders",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Assignments",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    DriverId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    VehicleId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    RouteId = table.Column<Guid>(type: "TEXT", nullable: true),
+                    Status = table.Column<string>(type: "TEXT", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Assignments", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Assignments_Routes_RouteId",
+                        column: x => x.RouteId,
+                        principalTable: "Routes",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
                 });
 
             migrationBuilder.CreateTable(
@@ -294,12 +342,21 @@ namespace SmartFM.Infrastructure.Migrations
                 {
                     Id = table.Column<Guid>(type: "TEXT", nullable: false),
                     OrderId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    PickupAddress = table.Column<string>(type: "TEXT", nullable: false),
+                    DeliveryAddress = table.Column<string>(type: "TEXT", nullable: false),
+                    WarehouseId = table.Column<Guid>(type: "TEXT", nullable: true),
+                    AssignmentId = table.Column<Guid>(type: "TEXT", nullable: true),
                     Status = table.Column<string>(type: "TEXT", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Shipments", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Shipments_Assignments_AssignmentId",
+                        column: x => x.AssignmentId,
+                        principalTable: "Assignments",
+                        principalColumn: "Id");
                     table.ForeignKey(
                         name: "FK_Shipments_Orders_OrderId",
                         column: x => x.OrderId,
@@ -308,46 +365,30 @@ namespace SmartFM.Infrastructure.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
-            migrationBuilder.CreateTable(
-                name: "Cargoes",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    ShipmentId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Description = table.Column<string>(type: "TEXT", nullable: false),
-                    WeightKg = table.Column<decimal>(type: "TEXT", nullable: false),
-                    VolumeCbm = table.Column<decimal>(type: "TEXT", nullable: true),
-                    IsHazardous = table.Column<bool>(type: "INTEGER", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Cargoes", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_Cargoes_Shipments_ShipmentId",
-                        column: x => x.ShipmentId,
-                        principalTable: "Shipments",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+            migrationBuilder.CreateIndex(
+                name: "IX_Assignments_RouteId",
+                table: "Assignments",
+                column: "RouteId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Cargoes_ShipmentId",
+                name: "IX_Cargoes_OrderId",
                 table: "Cargoes",
-                column: "ShipmentId");
+                column: "OrderId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Shipments_AssignmentId",
+                table: "Shipments",
+                column: "AssignmentId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Shipments_OrderId",
                 table: "Shipments",
-                column: "OrderId",
-                unique: true);
+                column: "OrderId");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "Assignments");
-
             migrationBuilder.DropTable(
                 name: "Branches");
 
@@ -388,7 +429,7 @@ namespace SmartFM.Infrastructure.Migrations
                 name: "Reports");
 
             migrationBuilder.DropTable(
-                name: "Routes");
+                name: "Shipments");
 
             migrationBuilder.DropTable(
                 name: "Vehicles");
@@ -397,10 +438,13 @@ namespace SmartFM.Infrastructure.Migrations
                 name: "Warehouses");
 
             migrationBuilder.DropTable(
-                name: "Shipments");
+                name: "Assignments");
 
             migrationBuilder.DropTable(
                 name: "Orders");
+
+            migrationBuilder.DropTable(
+                name: "Routes");
         }
     }
 }

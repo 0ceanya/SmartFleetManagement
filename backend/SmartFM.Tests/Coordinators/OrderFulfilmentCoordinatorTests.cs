@@ -37,9 +37,13 @@ public class OrderFulfilmentCoordinatorTests : IDisposable
         _vehicles = new Repository<Vehicle>(_context);
         _routes = new Repository<Route>(_context);
         var unitOfWork = new UnitOfWork(_context);
-        var trackingCoordinator = new TrackingCoordinator(
-            new Repository<Domain.Records.TrackingRecord>(_context),
+        var auditCoordinator = new RecordCoordinator(
+            new Repository<Domain.Records.AuditRecord>(_context),
             new Repository<Notification>(_context),
+            new Repository<Domain.Records.IncidentRecord>(_context),
+            _assignments,
+            _shipments,
+            () => null!,  // incident methods not invoked in order fulfilment tests
             unitOfWork);
         _coordinator = new OrderFulfilmentCoordinator(
             new Repository<Customer>(_context),
@@ -49,7 +53,7 @@ public class OrderFulfilmentCoordinatorTests : IDisposable
             _offerings,
             _assignments,
             new Repository<Invoice>(_context),
-            trackingCoordinator,
+            auditCoordinator,
             unitOfWork);
     }
 

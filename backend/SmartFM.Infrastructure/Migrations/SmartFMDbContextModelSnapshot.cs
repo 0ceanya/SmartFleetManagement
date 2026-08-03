@@ -400,7 +400,7 @@ namespace SmartFM.Infrastructure.Migrations
 
                     b.Property<string>("RecordType")
                         .IsRequired()
-                        .HasMaxLength(13)
+                        .HasMaxLength(8)
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
@@ -696,15 +696,20 @@ namespace SmartFM.Infrastructure.Migrations
                 {
                     b.HasBaseType("SmartFM.Domain.Records.Record");
 
-                    b.Property<string>("Action")
+                    b.Property<string>("ChangedBy")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("EntityId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EntityType")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("Details")
-                        .IsRequired()
+                    b.Property<string>("FromStatus")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("PerformedBy")
+                    b.Property<string>("ToStatus")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
@@ -733,55 +738,33 @@ namespace SmartFM.Infrastructure.Migrations
                     b.Property<Guid>("VehicleId")
                         .HasColumnType("TEXT");
 
-                    b.ToTable("Records", t =>
-                        {
-                            t.Property("Description")
-                                .HasColumnName("IncidentRecord_Description");
-
-                            t.Property("VehicleId")
-                                .HasColumnName("IncidentRecord_VehicleId");
-                        });
-
                     b.HasDiscriminator().HasValue("Incident");
-                });
-
-            modelBuilder.Entity("SmartFM.Domain.Records.MaintenanceRecord", b =>
-                {
-                    b.HasBaseType("SmartFM.Domain.Records.Record");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("ScheduledAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("VehicleId")
-                        .HasColumnType("TEXT");
-
-                    b.HasDiscriminator().HasValue("Maintenance");
                 });
 
             modelBuilder.Entity("SmartFM.Domain.Records.TrackingRecord", b =>
                 {
                     b.HasBaseType("SmartFM.Domain.Records.Record");
 
-                    b.Property<string>("ChangedBy")
+                    b.Property<Guid?>("AssignmentId")
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid>("EntityId")
+                    b.Property<double>("Lat")
+                        .HasColumnType("REAL");
+
+                    b.Property<double>("Lon")
+                        .HasColumnType("REAL");
+
+                    b.Property<Guid>("VehicleId")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("EntityType")
-                        .IsRequired()
+                    b.Property<string>("Waypoint")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("FromStatus")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ToStatus")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
+                    b.ToTable("Records", t =>
+                        {
+                            t.Property("VehicleId")
+                                .HasColumnName("TrackingRecord_VehicleId");
+                        });
 
                     b.HasDiscriminator().HasValue("Tracking");
                 });

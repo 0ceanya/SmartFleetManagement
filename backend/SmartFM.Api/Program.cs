@@ -34,8 +34,16 @@ builder.Services.AddScoped<IPaymentGateway, PaymentGatewayStub>();
 builder.Services.AddScoped<MasterDataCoordinator>();
 builder.Services.AddScoped<OrderFulfilmentCoordinator>();
 builder.Services.AddScoped<FleetAssignmentCoordinator>();
-builder.Services.AddScoped<TrackingCoordinator>();
-builder.Services.AddScoped<IncidentCoordinator>();
+// RecordCoordinator merges audit + incident concerns. The Func<FleetAssignmentCoordinator>
+// factory breaks the mutual dependency between RecordCoordinator and FleetAssignmentCoordinator.
+builder.Services.AddScoped<RecordCoordinator>(sp => new RecordCoordinator(
+    sp.GetRequiredService<IRepository<SmartFM.Domain.Records.AuditRecord>>(),
+    sp.GetRequiredService<IRepository<SmartFM.Domain.ValueObjects.Notification>>(),
+    sp.GetRequiredService<IRepository<SmartFM.Domain.Records.IncidentRecord>>(),
+    sp.GetRequiredService<IRepository<SmartFM.Domain.Entities.Assignment>>(),
+    sp.GetRequiredService<IRepository<SmartFM.Domain.Entities.Shipment>>(),
+    () => sp.GetRequiredService<FleetAssignmentCoordinator>(),
+    sp.GetRequiredService<IUnitOfWork>()));
 builder.Services.AddScoped<BillingCoordinator>();
 builder.Services.AddScoped<ReportingCoordinator>();
 builder.Services.AddScoped<SmartFMSystem>();

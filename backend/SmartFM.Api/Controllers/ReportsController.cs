@@ -33,11 +33,4 @@ public class ReportsController : ControllerBase
         return Ok(reports.Select(ReportResponse.FromEntity));
     }
 
-    [HttpGet("audit-records")]
-    [ProducesResponseType(typeof(IEnumerable<AuditRecordResponse>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IEnumerable<AuditRecordResponse>>> GetAuditRecords()
-    {
-        var records = await _coordinator.GetAuditRecordsAsync();
-        return Ok(records.Select(AuditRecordResponse.FromEntity));
-    }
 }

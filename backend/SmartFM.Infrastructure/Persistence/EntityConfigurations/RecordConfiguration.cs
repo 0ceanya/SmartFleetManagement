@@ -14,7 +14,6 @@ public class RecordConfiguration : IEntityTypeConfiguration<DomainRecord>
         builder.HasDiscriminator<string>("RecordType")
             .HasValue<TrackingRecord>("Tracking")
             .HasValue<IncidentRecord>("Incident")
-            .HasValue<AuditRecord>("Audit")
-            .HasValue<MaintenanceRecord>("Maintenance");
+            .HasValue<AuditRecord>("Audit");
     }
 }

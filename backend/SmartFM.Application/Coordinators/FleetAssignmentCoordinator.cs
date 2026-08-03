@@ -19,12 +19,11 @@ public class FleetAssignmentCoordinator
     private readonly IRepository<Order> _orders;
     private readonly IRepository<Customer> _customers;
     private readonly IRepository<Warehouse> _warehouses;
-    private readonly IRepository<MaintenanceRecord> _maintenanceRecords;
     private readonly IRepository<DeliveryConfirmation> _deliveryConfirmations;
     private readonly IRepository<LoadManifest> _loadManifests;
     private readonly IRepository<Cargo> _cargoes;
     private readonly OrderFulfilmentCoordinator _orderFulfilmentCoordinator;
-    private readonly TrackingCoordinator _trackingCoordinator;
+    private readonly RecordCoordinator _recordCoordinator;
     private readonly IUnitOfWork _unitOfWork;
 
     public FleetAssignmentCoordinator(
@@ -36,12 +35,11 @@ public class FleetAssignmentCoordinator
         IRepository<Order> orders,
         IRepository<Customer> customers,
         IRepository<Warehouse> warehouses,
-        IRepository<MaintenanceRecord> maintenanceRecords,
         IRepository<DeliveryConfirmation> deliveryConfirmations,
         IRepository<LoadManifest> loadManifests,
         IRepository<Cargo> cargoes,
         OrderFulfilmentCoordinator orderFulfilmentCoordinator,
-        TrackingCoordinator trackingCoordinator,
+        RecordCoordinator recordCoordinator,
         IUnitOfWork unitOfWork)
     {
         _routes = routes;
@@ -52,12 +50,11 @@ public class FleetAssignmentCoordinator
         _orders = orders;
         _customers = customers;
         _warehouses = warehouses;
-        _maintenanceRecords = maintenanceRecords;
         _deliveryConfirmations = deliveryConfirmations;
         _loadManifests = loadManifests;
         _cargoes = cargoes;
         _orderFulfilmentCoordinator = orderFulfilmentCoordinator;
-        _trackingCoordinator = trackingCoordinator;
+        _recordCoordinator = recordCoordinator;
         _unitOfWork = unitOfWork;
     }
 
@@ -136,8 +133,8 @@ public class FleetAssignmentCoordinator
 
         await _unitOfWork.SaveChangesAsync();
 
-        await _trackingCoordinator.RecordStatusChangeAsync(TrackingEntityType.Assignment, assignment.Id, null, AssignmentStatus.Pending, "FleetAssignmentCoordinator");
-        await _trackingCoordinator.RecordStatusChangeAsync(TrackingEntityType.Driver, driver.Id, "Available", "Unavailable", "FleetAssignmentCoordinator");
+        await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Assignment, assignment.Id, null, AssignmentStatus.Pending, "FleetAssignmentCoordinator");
+        await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Driver, driver.Id, "Available", "Unavailable", "FleetAssignmentCoordinator");
 
         return assignment;
     }
@@ -165,9 +162,9 @@ public class FleetAssignmentCoordinator
 
         await _unitOfWork.SaveChangesAsync();
 
-        await _trackingCoordinator.RecordStatusChangeAsync(TrackingEntityType.Assignment, assignment.Id, AssignmentStatus.Pending, AssignmentStatus.Assigned, "FleetAssignmentCoordinator");
+        await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Assignment, assignment.Id, AssignmentStatus.Pending, AssignmentStatus.Assigned, "FleetAssignmentCoordinator");
         foreach (var orderId in activatedOrderIds)
-            await _trackingCoordinator.RecordStatusChangeAsync(TrackingEntityType.Order, orderId, OrderStatus.Approved, OrderStatus.Active, "FleetAssignmentCoordinator");
+            await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Order, orderId, OrderStatus.Approved, OrderStatus.Active, "FleetAssignmentCoordinator");
 
         return assignment;
     }
@@ -185,9 +182,9 @@ public class FleetAssignmentCoordinator
 
         await _unitOfWork.SaveChangesAsync();
 
-        await _trackingCoordinator.RecordStatusChangeAsync(TrackingEntityType.Assignment, assignment.Id, prevStatusDeliver, AssignmentStatus.Delivered, "FleetAssignmentCoordinator");
+        await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Assignment, assignment.Id, prevStatusDeliver, AssignmentStatus.Delivered, "FleetAssignmentCoordinator");
         if (driverIdDeliver != Guid.Empty)
-            await _trackingCoordinator.RecordStatusChangeAsync(TrackingEntityType.Driver, driverIdDeliver, "Unavailable", "Available", "FleetAssignmentCoordinator");
+            await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Driver, driverIdDeliver, "Unavailable", "Available", "FleetAssignmentCoordinator");
 
         return assignment;
     }
@@ -213,28 +210,13 @@ public class FleetAssignmentCoordinator
 
         await _unitOfWork.SaveChangesAsync();
 
-        await _trackingCoordinator.RecordStatusChangeAsync(TrackingEntityType.Assignment, assignment.Id, prevStatusRealloc, AssignmentStatus.Rejected, "FleetAssignmentCoordinator");
+        await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Assignment, assignment.Id, prevStatusRealloc, AssignmentStatus.Rejected, "FleetAssignmentCoordinator");
         if (driverIdRealloc != Guid.Empty)
-            await _trackingCoordinator.RecordStatusChangeAsync(TrackingEntityType.Driver, driverIdRealloc, "Unavailable", "Available", "FleetAssignmentCoordinator");
+            await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Driver, driverIdRealloc, "Unavailable", "Available", "FleetAssignmentCoordinator");
 
         Console.WriteLine($"Reallocation requested for assignment {assignmentId}");
     }
 
-    public async Task<MaintenanceRecord> CreateMaintenanceRecordAsync(Guid vehicleId, string description, DateTime scheduledAt)
-    {
-        var vehicle = await _vehicles.GetByIdAsync(vehicleId)
-            ?? throw new InvalidOperationException($"Vehicle {vehicleId} not found.");
-
-        var record = new MaintenanceRecord
-        {
-            VehicleId = vehicle.Id,
-            Description = description,
-            ScheduledAt = scheduledAt
-        };
-        await _maintenanceRecords.AddAsync(record);
-        await _unitOfWork.SaveChangesAsync();
-        return record;
-    }
 
     public async Task<DeliveryConfirmation> CreateDeliveryConfirmationAsync(
         Guid shipmentId, Guid driverId, string recipientName, string proofSignature, double? gpsLatitude, double? gpsLongitude)
@@ -269,9 +251,9 @@ public class FleetAssignmentCoordinator
 
         await _unitOfWork.SaveChangesAsync();
 
-        await _trackingCoordinator.RecordStatusChangeAsync(TrackingEntityType.Assignment, assignment.Id, prevStatusConfirm, AssignmentStatus.Delivered, "FleetAssignmentCoordinator");
+        await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Assignment, assignment.Id, prevStatusConfirm, AssignmentStatus.Delivered, "FleetAssignmentCoordinator");
         if (driverIdConfirm != Guid.Empty)
-            await _trackingCoordinator.RecordStatusChangeAsync(TrackingEntityType.Driver, driverIdConfirm, "Unavailable", "Available", "FleetAssignmentCoordinator");
+            await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Driver, driverIdConfirm, "Unavailable", "Available", "FleetAssignmentCoordinator");
 
         await _orderFulfilmentCoordinator.MarkOrderFulfilledAsync(shipment.OrderId);
 
@@ -353,7 +335,7 @@ public class FleetAssignmentCoordinator
         await _unitOfWork.SaveChangesAsync();
 
         if (loadedAssignment is not null)
-            await _trackingCoordinator.RecordStatusChangeAsync(TrackingEntityType.Assignment, loadedAssignment.Id, AssignmentStatus.Assigned, AssignmentStatus.Loaded, "FleetAssignmentCoordinator");
+            await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Assignment, loadedAssignment.Id, AssignmentStatus.Assigned, AssignmentStatus.Loaded, "FleetAssignmentCoordinator");
 
         return manifest;
     }
@@ -385,7 +367,7 @@ public class FleetAssignmentCoordinator
         await _unitOfWork.SaveChangesAsync();
 
         if (deliveringAssignment is not null)
-            await _trackingCoordinator.RecordStatusChangeAsync(TrackingEntityType.Assignment, deliveringAssignment.Id, AssignmentStatus.Loaded, AssignmentStatus.Delivering, "FleetAssignmentCoordinator");
+            await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Assignment, deliveringAssignment.Id, AssignmentStatus.Loaded, AssignmentStatus.Delivering, "FleetAssignmentCoordinator");
 
         return shipment;
     }

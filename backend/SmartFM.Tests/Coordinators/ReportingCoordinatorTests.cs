@@ -17,7 +17,6 @@ public class ReportingCoordinatorTests : IDisposable
     private readonly ReportingCoordinator _coordinator;
     private readonly Repository<TrackingRecord> _trackingRecords;
     private readonly Repository<IncidentRecord> _incidentRecords;
-    private readonly Repository<AuditRecord> _auditRecords;
     private readonly Repository<Branch> _branches;
     private readonly Repository<Driver> _drivers;
     private readonly Repository<Vehicle> _vehicles;
@@ -33,7 +32,6 @@ public class ReportingCoordinatorTests : IDisposable
         _context = _factory.CreateContext();
         _trackingRecords = new Repository<TrackingRecord>(_context);
         _incidentRecords = new Repository<IncidentRecord>(_context);
-        _auditRecords = new Repository<AuditRecord>(_context);
         _branches = new Repository<Branch>(_context);
         _drivers = new Repository<Driver>(_context);
         _vehicles = new Repository<Vehicle>(_context);
@@ -47,7 +45,6 @@ public class ReportingCoordinatorTests : IDisposable
         _coordinator = new ReportingCoordinator(
             _trackingRecords,
             _incidentRecords,
-            _auditRecords,
             new Repository<Report>(_context),
             _assignments,
             _vehicles,
@@ -118,7 +115,7 @@ public class ReportingCoordinatorTests : IDisposable
     {
         var from = DateTime.UtcNow.AddMinutes(-5);
 
-        await _trackingRecords.AddAsync(new TrackingRecord { EntityType = "Assignment", EntityId = Guid.NewGuid(), FromStatus = null, ToStatus = "Pending", ChangedBy = "Test" });
+        await _trackingRecords.AddAsync(new TrackingRecord { VehicleId = Guid.NewGuid(), Lat = 21.0, Lon = 105.8, Waypoint = "Depot" });
         await _incidentRecords.AddAsync(new IncidentRecord { VehicleId = Guid.NewGuid(), Description = "Breakdown", Severity = "High" });
         await _context.SaveChangesAsync();
 
@@ -129,9 +126,6 @@ public class ReportingCoordinatorTests : IDisposable
         Assert.Equal("FleetSummary", report.ReportType);
         Assert.Contains("TrackingRecords: 1", report.Content);
         Assert.Contains("IncidentRecords: 1", report.Content);
-
-        var audits = _context.Set<AuditRecord>().ToList();
-        Assert.Contains(audits, a => a.Action == "ReportGenerated");
     }
 
     [Fact]

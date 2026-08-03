@@ -1,6 +1,6 @@
 namespace SmartFM.Domain.Records;
 
-public static class TrackingEntityType
+public static class AuditEntityType
 {
     public const string Order = "Order";
     public const string Assignment = "Assignment";
