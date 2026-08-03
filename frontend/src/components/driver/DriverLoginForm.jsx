@@ -20,8 +20,8 @@ export default function DriverLoginForm({ onLoginSuccess }) {
       try {
         const employees = await apiFetch("/api/master-data/employees");
         if (Array.isArray(employees)) {
-          const drivers = employees.filter((emp) => emp.type === "Driver" || emp.licenseNumber || emp.email);
-          setAvailableDrivers(drivers.length > 0 ? drivers : employees);
+          const drivers = employees.filter((emp) => emp.type === "Driver");
+          setAvailableDrivers(drivers);
           if (drivers.length > 0 && !email) {
             setEmail(drivers[0].email || "");
           }
@@ -65,11 +65,11 @@ export default function DriverLoginForm({ onLoginSuccess }) {
       // Search for employee matching email (case-insensitive)
       const targetEmail = email.trim().toLowerCase();
       const matchedDriver = employees.find(
-        (emp) => emp.email && emp.email.toLowerCase() === targetEmail
-      ) || employees.find((emp) => emp.type === "Driver") || employees[0];
+        (emp) => emp.email && emp.email.toLowerCase() === targetEmail && emp.type === "Driver"
+      );
 
       if (!matchedDriver) {
-        setError(`No employee account found matching email "${email}".`);
+        setError(`No Driver account found matching email "${email}".`);
         setLoading(false);
         return;
       }
