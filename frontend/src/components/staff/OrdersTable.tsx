@@ -12,17 +12,33 @@ import {
   Paper,
   Button,
   Chip,
-  Tooltip
+  Tooltip,
+  TablePagination
 } from "@mui/material";
 import type { OrderSummary } from "@/lib/types";
 
 export default function OrdersTable({ orders }: { orders: OrderSummary[] }) {
+  const [page, setPage] = React.useState(0);
+  const [rowsPerPage, setRowsPerPage] = React.useState(10);
+
+  const handleChangePage = (event: unknown, newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
   const formatId = (id: string) => `${id.substring(0, 8)}...`;
 
+  const displayedOrders = orders.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+
   return (
-    <TableContainer component={Paper} variant="outlined">
-      <Table sx={{ minWidth: 650 }} aria-label="orders table">
-        <TableHead>
+    <Paper variant="outlined">
+      <TableContainer>
+        <Table sx={{ minWidth: 650 }} aria-label="orders table">
+          <TableHead>
           <TableRow>
             <TableCell><strong>Order #</strong></TableCell>
             <TableCell><strong>Customer ID</strong></TableCell>
@@ -33,7 +49,7 @@ export default function OrdersTable({ orders }: { orders: OrderSummary[] }) {
           </TableRow>
         </TableHead>
         <TableBody>
-          {orders.map((order) => (
+          {displayedOrders.map((order) => (
             <TableRow key={order.id} sx={{ "&:last-child td, &:last-child th": { border: 0 } }}>
               <TableCell component="th" scope="row">
                 <Tooltip title={order.id} arrow>
@@ -78,6 +94,16 @@ export default function OrdersTable({ orders }: { orders: OrderSummary[] }) {
           )}
         </TableBody>
       </Table>
-    </TableContainer>
+      </TableContainer>
+      <TablePagination
+        rowsPerPageOptions={[10, 25, 50]}
+        component="div"
+        count={orders.length}
+        rowsPerPage={rowsPerPage}
+        page={page}
+        onPageChange={handleChangePage}
+        onRowsPerPageChange={handleChangeRowsPerPage}
+      />
+    </Paper>
   );
 }

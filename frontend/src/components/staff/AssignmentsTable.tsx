@@ -12,7 +12,8 @@ import {
   Paper,
   Button,
   Chip,
-  Tooltip
+  Tooltip,
+  TablePagination
 } from "@mui/material";
 import type { AssignmentResponse } from "@/lib/types";
 import { apiFetch } from "@/lib/api";
@@ -32,12 +33,27 @@ function DriverName({ driverId }: { driverId: string }) {
 }
 
 export default function AssignmentsTable({ assignments }: { assignments: AssignmentResponse[] }) {
+  const [page, setPage] = React.useState(0);
+  const [rowsPerPage, setRowsPerPage] = React.useState(10);
+
+  const handleChangePage = (event: unknown, newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
   const formatId = (id: string) => `${id.substring(0, 8)}...`;
+  
+  const displayedAssignments = assignments.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
   return (
-    <TableContainer component={Paper} variant="outlined">
-      <Table sx={{ minWidth: 650 }} aria-label="assignments table">
-        <TableHead>
+    <Paper variant="outlined">
+      <TableContainer>
+        <Table sx={{ minWidth: 650 }} aria-label="assignments table">
+          <TableHead>
           <TableRow>
             <TableCell><strong>Assignment #</strong></TableCell>
             <TableCell><strong>Status</strong></TableCell>
@@ -49,7 +65,7 @@ export default function AssignmentsTable({ assignments }: { assignments: Assignm
           </TableRow>
         </TableHead>
         <TableBody>
-          {assignments.map((assignment) => (
+          {displayedAssignments.map((assignment) => (
             <TableRow key={assignment.id} sx={{ "&:last-child td, &:last-child th": { border: 0 } }}>
               <TableCell component="th" scope="row">
                 <Tooltip title={assignment.id} arrow>
@@ -97,6 +113,16 @@ export default function AssignmentsTable({ assignments }: { assignments: Assignm
           )}
         </TableBody>
       </Table>
-    </TableContainer>
+      </TableContainer>
+      <TablePagination
+        rowsPerPageOptions={[10, 25, 50]}
+        component="div"
+        count={assignments.length}
+        rowsPerPage={rowsPerPage}
+        page={page}
+        onPageChange={handleChangePage}
+        onRowsPerPageChange={handleChangeRowsPerPage}
+      />
+    </Paper>
   );
 }
