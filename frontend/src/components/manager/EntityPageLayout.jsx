@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { startOfDayIso, endOfDayIso, getCurrentMonthRange } from "@/lib/dateRange";
@@ -12,6 +12,13 @@ function buildQuery(params) {
     if (value !== undefined && value !== null && value !== "") qs.set(key, value);
   });
   return qs.toString();
+}
+
+function buildFilterSignature(params) {
+  return Object.entries(params)
+    .map(([key, value]) => `${key}=${value ?? ""}`)
+    .sort()
+    .join("&");
 }
 
 export default function EntityPageLayout({
@@ -41,9 +48,10 @@ export default function EntityPageLayout({
   const [filterValues, setFilterValues] = useState({});
   const [sortKey, setSortKey] = useState(null);
   const [sortDir, setSortDir] = useState("asc");
+  const lastFilterSignatureRef = useRef(null);
 
   const [internalData, setInternalData] = useState(null);
-  const [internalLoading, setInternalLoading] = useState(!!fetchEndpoint);
+  const [internalResolvedKey, setInternalResolvedKey] = useState(null);
   const [internalError, setInternalError] = useState(null);
 
   const filterParams = useMemo(() => {
@@ -58,34 +66,45 @@ export default function EntityPageLayout({
     return params;
   }, [from, to, search, filterValues, filters, searchParam]);
 
+  const filterSignature = useMemo(() => buildFilterSignature(filterParams), [filterParams]);
+
   useEffect(() => {
+    if (lastFilterSignatureRef.current === filterSignature) return;
+    lastFilterSignatureRef.current = filterSignature;
     onFilterChange?.(filterParams);
-  }, [filterParams, onFilterChange]);
+  }, [filterParams, filterSignature, onFilterChange]);
+
+  const requestKey = useMemo(() => buildQuery(filterParams), [filterParams]);
 
   useEffect(() => {
     if (!fetchEndpoint) return;
     let cancelled = false;
-    setInternalLoading(true);
-    setInternalError(null);
-    const qs = buildQuery(filterParams);
-    apiFetch(`${fetchEndpoint}${qs ? `?${qs}` : ""}`)
+    apiFetch(`${fetchEndpoint}${requestKey ? `?${requestKey}` : ""}`)
       .then((result) => {
-        if (!cancelled) setInternalData(result);
+        if (!cancelled) {
+          setInternalData(result);
+          setInternalResolvedKey(requestKey);
+          setInternalError(null);
+        }
       })
       .catch((err) => {
-        if (!cancelled) setInternalError(err.message);
-      })
-      .finally(() => {
-        if (!cancelled) setInternalLoading(false);
+        if (!cancelled) {
+          setInternalError(err.message);
+          setInternalResolvedKey(requestKey);
+        }
       });
     return () => {
       cancelled = true;
     };
-  }, [fetchEndpoint, filterParams, refreshKey]);
+  }, [fetchEndpoint, requestKey, refreshKey]);
 
   const data = fetchEndpoint ? internalData : externalData;
-  const loading = fetchEndpoint ? internalLoading : externalLoading;
-  const error = fetchEndpoint ? internalError : externalError;
+  const loading = fetchEndpoint ? internalResolvedKey !== requestKey : externalLoading;
+  const error = fetchEndpoint
+    ? internalResolvedKey === requestKey
+      ? internalError
+      : null
+    : externalError;
 
   const rows = useMemo(() => {
     const rawRows = data && rowsAccessor ? rowsAccessor(data) : [];

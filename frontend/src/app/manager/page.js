@@ -160,16 +160,19 @@ export default function ManagerDashboardPage() {
             />
           </div>
 
+          <div className="h-80">
+            <WidgetCard title="Trips per Day">
+              <AssignmentsTrendChart data={tripsOverTime} />
+            </WidgetCard>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="h-80">
-              <WidgetCard title="Trips per Day">
-                <AssignmentsTrendChart data={tripsOverTime} />
-              </WidgetCard>
-            </div>
-            <div className="grid grid-rows-2 gap-4 h-80">
+            <div className="h-72">
               <WidgetCard title="Active / Idle Vehicles">
                 <FleetStatusDonut activeCount={activeCount} idleCount={idleCount} />
               </WidgetCard>
+            </div>
+            <div className="h-72">
               <WidgetCard title="Trips by Vehicle Type">
                 <TripsByVehicleTypeBar data={tripsByType} />
               </WidgetCard>
