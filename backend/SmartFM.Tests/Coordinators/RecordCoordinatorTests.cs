@@ -168,6 +168,10 @@ public class RecordCoordinatorTests : IDisposable
         var manifests = (await _loadManifests.GetAllAsync()).ToList();
         Assert.Single(manifests);
         Assert.Contains("Boxed goods", manifests[0].CargoDescriptions);
+
+        var audits = (await record.GetAuditRecordsAsync()).ToList();
+        Assert.Contains(audits, a => a.EntityType == "Vehicle" && a.EntityId == vehicle.Id
+            && a.ToStatus == "IncidentReported" && a.ChangedBy == "Staff");
     }
 
     [Fact]

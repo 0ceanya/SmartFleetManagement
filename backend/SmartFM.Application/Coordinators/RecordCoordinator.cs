@@ -109,6 +109,9 @@ public class RecordCoordinator
         }
 
         await _unitOfWork.SaveChangesAsync();
+
+        await RecordStatusChangeAsync(AuditEntityType.Vehicle, vehicleId, null, "IncidentReported", "Staff");
+
         return incident;
     }
 

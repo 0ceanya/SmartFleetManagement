@@ -1,5 +1,6 @@
 using SmartFM.Application.Abstractions;
 using SmartFM.Domain.Entities;
+using SmartFM.Domain.Records;
 
 namespace SmartFM.Application.Coordinators;
 
@@ -10,6 +11,7 @@ public class MasterDataCoordinator
     private readonly IRepository<Employee> _employees;
     private readonly IRepository<Vehicle> _vehicles;
     private readonly IRepository<Offering> _offerings;
+    private readonly RecordCoordinator _recordCoordinator;
     private readonly IUnitOfWork _unitOfWork;
 
     public MasterDataCoordinator(
@@ -18,6 +20,7 @@ public class MasterDataCoordinator
         IRepository<Employee> employees,
         IRepository<Vehicle> vehicles,
         IRepository<Offering> offerings,
+        RecordCoordinator recordCoordinator,
         IUnitOfWork unitOfWork)
     {
         _branches = branches;
@@ -25,8 +28,16 @@ public class MasterDataCoordinator
         _employees = employees;
         _vehicles = vehicles;
         _offerings = offerings;
+        _recordCoordinator = recordCoordinator;
         _unitOfWork = unitOfWork;
     }
+
+    private static string? EmployeeAuditEntityType(Employee employee) => employee switch
+    {
+        Driver => AuditEntityType.Driver,
+        Staff => AuditEntityType.Staff,
+        _ => null
+    };
 
     public Task InitializeMasterDataSubsystem()
     {
@@ -100,6 +111,9 @@ public class MasterDataCoordinator
         var driver = new Driver(name, email, branchId, licenseNumber);
         await _employees.AddAsync(driver);
         await _unitOfWork.SaveChangesAsync();
+
+        await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Driver, driver.Id, null, "Created", "Admin");
+
         return driver;
     }
 
@@ -108,6 +122,9 @@ public class MasterDataCoordinator
         var staff = new Staff(name, email, branchId, department);
         await _employees.AddAsync(staff);
         await _unitOfWork.SaveChangesAsync();
+
+        await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Staff, staff.Id, null, "Created", "Admin");
+
         return staff;
     }
 
@@ -126,6 +143,11 @@ public class MasterDataCoordinator
         employee.UpdateContactInfo(name, email);
         _employees.Update(employee);
         await _unitOfWork.SaveChangesAsync();
+
+        var entityType = EmployeeAuditEntityType(employee);
+        if (entityType is not null)
+            await _recordCoordinator.RecordStatusChangeAsync(entityType, employee.Id, null, "Updated", "Admin");
+
         return employee;
     }
 
@@ -133,8 +155,12 @@ public class MasterDataCoordinator
     {
         var employee = await _employees.GetByIdAsync(id)
             ?? throw new InvalidOperationException($"Employee {id} not found.");
+        var entityType = EmployeeAuditEntityType(employee);
         _employees.Remove(employee);
         await _unitOfWork.SaveChangesAsync();
+
+        if (entityType is not null)
+            await _recordCoordinator.RecordStatusChangeAsync(entityType, employee.Id, null, "Deleted", "Admin");
     }
 
     public Task<IEnumerable<Employee>> GetEmployeesAsync() => _employees.GetAllAsync();
@@ -150,6 +176,9 @@ public class MasterDataCoordinator
         };
         await _vehicles.AddAsync(vehicle);
         await _unitOfWork.SaveChangesAsync();
+
+        await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Vehicle, vehicle.Id, null, vehicle.CurrentStatus, "Admin");
+
         return vehicle;
     }
 
@@ -157,9 +186,13 @@ public class MasterDataCoordinator
     {
         var vehicle = await _vehicles.GetByIdAsync(id)
             ?? throw new InvalidOperationException($"Vehicle {id} not found.");
+        var prevStatus = vehicle.CurrentStatus;
         vehicle.SetStatus(status);
         _vehicles.Update(vehicle);
         await _unitOfWork.SaveChangesAsync();
+
+        await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Vehicle, vehicle.Id, prevStatus, vehicle.CurrentStatus, "Admin");
+
         return vehicle;
     }
 
@@ -167,8 +200,11 @@ public class MasterDataCoordinator
     {
         var vehicle = await _vehicles.GetByIdAsync(id)
             ?? throw new InvalidOperationException($"Vehicle {id} not found.");
+        var prevStatus = vehicle.CurrentStatus;
         _vehicles.Remove(vehicle);
         await _unitOfWork.SaveChangesAsync();
+
+        await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Vehicle, vehicle.Id, prevStatus, "Deleted", "Admin");
     }
 
     public Task<IEnumerable<Vehicle>> GetVehiclesAsync() => _vehicles.GetAllAsync();
@@ -235,10 +271,15 @@ public class MasterDataCoordinator
 
         if (promoteToManager && employee is not Manager)
         {
+            var prevEntityType = EmployeeAuditEntityType(employee);
             _employees.Remove(employee);
             var manager = new Manager(employee.Id, updatedName, updatedEmail, updatedBranchId);
             await _employees.AddAsync(manager);
             await _unitOfWork.SaveChangesAsync();
+
+            if (prevEntityType is not null)
+                await _recordCoordinator.RecordStatusChangeAsync(prevEntityType, manager.Id, null, "PromotedToManager", "Admin");
+
             return manager;
         }
 
@@ -257,6 +298,11 @@ public class MasterDataCoordinator
 
         _employees.Update(employee);
         await _unitOfWork.SaveChangesAsync();
+
+        var entityType = EmployeeAuditEntityType(employee);
+        if (entityType is not null)
+            await _recordCoordinator.RecordStatusChangeAsync(entityType, employee.Id, null, "Updated", "Admin");
+
         return employee;
     }
 
@@ -264,6 +310,8 @@ public class MasterDataCoordinator
     {
         var vehicle = await _vehicles.GetByIdAsync(id)
             ?? throw new InvalidOperationException($"Vehicle {id} not found.");
+
+        var prevStatus = vehicle.CurrentStatus;
 
         if (branchId.HasValue && branchId.Value != Guid.Empty)
         {
@@ -277,6 +325,10 @@ public class MasterDataCoordinator
 
         _vehicles.Update(vehicle);
         await _unitOfWork.SaveChangesAsync();
+
+        if (vehicle.CurrentStatus != prevStatus)
+            await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Vehicle, vehicle.Id, prevStatus, vehicle.CurrentStatus, "Admin");
+
         return vehicle;
     }
 
