@@ -42,8 +42,8 @@ function OrderCard({ assignment, vehicleMap, detail }) {
     if (auditRecords !== null) return;
     setAuditLoading(true);
     try {
-      const records = await apiFetch(`/api/audit/records?entityType=Order&entityId=${orderId}`);
-      setAuditRecords(records || []);
+      const data = await apiFetch(`/api/audit/records?entityType=Order&entityId=${orderId}`);
+      setAuditRecords(data?.records || []);
     } catch {
       setAuditRecords([]);
     } finally {

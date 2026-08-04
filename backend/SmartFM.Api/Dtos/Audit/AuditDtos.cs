@@ -1,3 +1,4 @@
+using SmartFM.Application.Coordinators;
 using SmartFM.Domain.Records;
 using SmartFM.Domain.ValueObjects;
 
@@ -10,11 +11,18 @@ public record AuditRecordResponse(
     string? FromStatus,
     string ToStatus,
     string? ChangedBy,
-    DateTime CreatedAt)
+    DateTime CreatedAt,
+    string EventType,
+    string Description)
 {
-    public static AuditRecordResponse FromEntity(AuditRecord r) =>
-        new(r.Id, r.EntityType, r.EntityId, r.FromStatus, r.ToStatus, r.ChangedBy, r.CreatedAt);
+    public static AuditRecordResponse FromEntity(AuditRecord r)
+    {
+        var (eventType, description) = RecordCoordinator.DescribeEvent(r);
+        return new(r.Id, r.EntityType, r.EntityId, r.FromStatus, r.ToStatus, r.ChangedBy, r.CreatedAt, eventType, description);
+    }
 }
+
+public record AuditFeedResponse(IEnumerable<AuditRecordResponse> Records, int TotalCount, int Page, int PageSize);
 
 public record NotificationResponse(Guid RecipientId, string Message, DateTime SentAt)
 {

@@ -111,6 +111,46 @@ public class RecordCoordinatorTests : IDisposable
     }
 
     [Fact]
+    public async Task QueryAuditRecordsAsync_FiltersByEventTypeAndOrdersNewestFirst()
+    {
+        var (record, _) = CreateCoordinators();
+        var orderId = Guid.NewGuid();
+
+        await record.RecordStatusChangeAsync(AuditEntityType.Order, orderId, null, OrderStatus.Pending, "Customer");
+        await record.RecordStatusChangeAsync(AuditEntityType.Order, orderId, OrderStatus.Pending, OrderStatus.Approved, "System");
+
+        var (createdResults, createdTotal) = await record.QueryAuditRecordsAsync(
+            entityType: AuditEntityType.Order, entityId: null, eventType: "OrderCreated",
+            from: null, to: null, after: null);
+        Assert.Equal(1, createdTotal);
+        Assert.Equal(OrderStatus.Pending, createdResults[0].ToStatus);
+
+        var (allResults, allTotal) = await record.QueryAuditRecordsAsync(
+            entityType: AuditEntityType.Order, entityId: null, eventType: null,
+            from: null, to: null, after: null);
+        Assert.Equal(2, allTotal);
+        Assert.Equal(OrderStatus.Approved, allResults[0].ToStatus); // newest first
+    }
+
+    [Fact]
+    public async Task QueryAuditRecordsAsync_AfterCursorOnlyReturnsNewerRecords()
+    {
+        var (record, _) = CreateCoordinators();
+        var entityId = Guid.NewGuid();
+
+        await record.RecordStatusChangeAsync(AuditEntityType.Assignment, entityId, null, AssignmentStatus.Pending);
+        var cursor = DateTime.UtcNow;
+        await Task.Delay(10);
+        await record.RecordStatusChangeAsync(AuditEntityType.Assignment, entityId, AssignmentStatus.Pending, AssignmentStatus.Assigned);
+
+        var (results, total) = await record.QueryAuditRecordsAsync(
+            entityType: null, entityId: null, eventType: null, from: null, to: null, after: cursor);
+
+        Assert.Equal(1, total);
+        Assert.Equal(AssignmentStatus.Assigned, results[0].ToStatus);
+    }
+
+    [Fact]
     public async Task RecordStatusChangeAsync_SetsCreatedAtTimestamp()
     {
         var (record, _) = CreateCoordinators();

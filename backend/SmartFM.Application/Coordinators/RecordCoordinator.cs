@@ -56,6 +56,57 @@ public class RecordCoordinator
 
     public Task<IEnumerable<Notification>> GetNotificationsAsync() => _notifications.GetAllAsync();
 
+    public async Task<(IReadOnlyList<AuditRecord> Records, int TotalCount)> QueryAuditRecordsAsync(
+        string? entityType, Guid? entityId, string? eventType,
+        DateTime? from, DateTime? to, DateTime? after,
+        int page = 1, int pageSize = 50)
+    {
+        var all = await _auditRecords.GetAllAsync();
+        var query = all.AsEnumerable();
+
+        if (entityType is not null)
+            query = query.Where(r => r.EntityType == entityType);
+        if (entityId is not null)
+            query = query.Where(r => r.EntityId == entityId);
+        if (from is not null)
+            query = query.Where(r => r.CreatedAt >= from);
+        if (to is not null)
+            query = query.Where(r => r.CreatedAt <= to);
+        if (after is not null)
+            query = query.Where(r => r.CreatedAt > after);
+        if (eventType is not null)
+            query = query.Where(r => DescribeEvent(r).EventType == eventType);
+
+        var ordered = query.OrderByDescending(r => r.CreatedAt).ToList();
+        var paged = ordered.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        return (paged, ordered.Count);
+    }
+
+    public static (string EventType, string Description) DescribeEvent(AuditRecord r) => (r.EntityType, r.FromStatus, r.ToStatus) switch
+    {
+        (AuditEntityType.Order, null, OrderStatus.Pending) => ("OrderCreated", $"Order {r.EntityId} created"),
+        (AuditEntityType.Order, OrderStatus.Pending, OrderStatus.Approved) => ("OrderApproved", $"Order {r.EntityId} approved"),
+        (AuditEntityType.Order, OrderStatus.Approved, OrderStatus.Active) => ("OrderActivated", $"Order {r.EntityId} activated"),
+        (AuditEntityType.Order, OrderStatus.Active, OrderStatus.Fulfilled) => ("OrderFulfilled", $"Order {r.EntityId} fulfilled"),
+        (AuditEntityType.Order, _, OrderStatus.Cancelled) => ("OrderCancelled", $"Order {r.EntityId} cancelled"),
+        (AuditEntityType.Assignment, null, AssignmentStatus.Pending) => ("AssignmentCreated", $"Assignment {r.EntityId} created"),
+        (AuditEntityType.Assignment, AssignmentStatus.Pending, AssignmentStatus.Assigned) => ("AssignmentApproved", $"Assignment {r.EntityId} approved"),
+        (AuditEntityType.Assignment, AssignmentStatus.Assigned, AssignmentStatus.Loaded) => ("AssignmentLoaded", $"Assignment {r.EntityId} loaded"),
+        (AuditEntityType.Assignment, AssignmentStatus.Loaded, AssignmentStatus.Delivering) => ("AssignmentInTransit", $"Assignment {r.EntityId} in transit"),
+        (AuditEntityType.Assignment, _, AssignmentStatus.Delivered) => ("AssignmentCompleted", $"Assignment {r.EntityId} completed"),
+        (AuditEntityType.Assignment, _, AssignmentStatus.Rejected) => ("AssignmentRejected", $"Assignment {r.EntityId} rejected"),
+        (AuditEntityType.Invoice, InvoiceStatus.Unpaid, InvoiceStatus.Paid) => ("PaymentCaptured", $"Invoice {r.EntityId} paid"),
+        (AuditEntityType.Invoice, null, InvoiceStatus.Unpaid) => ("InvoiceGenerated", $"Invoice {r.EntityId} generated"),
+        (AuditEntityType.Vehicle, null, "IncidentReported") => ("IncidentRaised", $"Incident reported for vehicle {r.EntityId}"),
+        (AuditEntityType.Vehicle, null, _) => ("VehicleCreated", $"Vehicle {r.EntityId} created"),
+        (AuditEntityType.Vehicle, _, "Deleted") => ("VehicleDeleted", $"Vehicle {r.EntityId} deleted"),
+        (AuditEntityType.Vehicle, _, _) => ("VehicleStatusChanged", $"Vehicle {r.EntityId} status changed to {r.ToStatus}"),
+        (AuditEntityType.Driver or AuditEntityType.Staff, null, "Created") => ($"{r.EntityType}Created", $"{r.EntityType} {r.EntityId} created"),
+        (AuditEntityType.Driver or AuditEntityType.Staff, null, "Updated") => ($"{r.EntityType}Updated", $"{r.EntityType} {r.EntityId} updated"),
+        (AuditEntityType.Driver or AuditEntityType.Staff, null, "Deleted") => ($"{r.EntityType}Deleted", $"{r.EntityType} {r.EntityId} deleted"),
+        _ => ($"{r.EntityType}{r.ToStatus}", $"{r.EntityType} {r.EntityId} changed to {r.ToStatus}")
+    };
+
     public async Task RecordStatusChangeAsync(
         string entityType, Guid entityId,
         string? fromStatus, string toStatus,
