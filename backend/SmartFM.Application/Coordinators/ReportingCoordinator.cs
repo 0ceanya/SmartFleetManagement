@@ -19,6 +19,15 @@ public record DashboardSummary(
 public record TripsPerDayEntry(DateOnly Day, int Count);
 public record TripsByVehicleTypeEntry(string VehicleType, int Count);
 
+public record VehicleReportCards(int ActiveVehicles, double TotalKmPeriod, int VehiclesUnderMaintenance);
+public record VehicleReportRow(Guid Id, string RegistrationNumber, string VehicleType, string CurrentStatus, Guid BranchId, int TripsPeriod, double KmPeriod, int Incidents);
+
+public record DriverReportCards(int ActiveDrivers, int TripsCompletedPeriod, int DriversInvolvedInIncidents);
+public record DriverReportRow(Guid Id, string Name, Guid BranchId, int Trips, double Km, int DeliveryConfirmations, int Incidents);
+
+public record StaffReportCards(int TotalStaff, int AssignmentsCreatedPeriod, int OrdersProcessedPeriod);
+public record StaffReportRow(Guid Id, string Name, Guid BranchId, int AssignmentsCreated, int OrdersProcessed, DateTime? LastActivity);
+
 public class ReportingCoordinator
 {
     private static readonly JsonSerializerOptions BreakdownJsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
@@ -34,6 +43,7 @@ public class ReportingCoordinator
     private readonly IRepository<AuditRecord> _auditRecords;
     private readonly IRepository<Shipment> _shipments;
     private readonly IRepository<Cargo> _cargoes;
+    private readonly IRepository<DeliveryConfirmation> _deliveryConfirmations;
     private readonly IUnitOfWork _unitOfWork;
 
     public ReportingCoordinator(
@@ -48,6 +58,7 @@ public class ReportingCoordinator
         IRepository<AuditRecord> auditRecords,
         IRepository<Shipment> shipments,
         IRepository<Cargo> cargoes,
+        IRepository<DeliveryConfirmation> deliveryConfirmations,
         IUnitOfWork unitOfWork)
     {
         _trackingRecords = trackingRecords;
@@ -61,6 +72,7 @@ public class ReportingCoordinator
         _auditRecords = auditRecords;
         _shipments = shipments;
         _cargoes = cargoes;
+        _deliveryConfirmations = deliveryConfirmations;
         _unitOfWork = unitOfWork;
     }
 
@@ -191,6 +203,110 @@ public class ReportingCoordinator
             .GroupBy(a => vehicleTypeMap[a.VehicleId])
             .Select(g => new TripsByVehicleTypeEntry(g.Key, g.Count()))
             .ToList();
+    }
+
+    public async Task<(VehicleReportCards Cards, IReadOnlyList<VehicleReportRow> Rows)> GetVehicleReportAsync(
+        DateTime from, DateTime to, string? search, string? vehicleType, string? status)
+    {
+        var vehicles = await _vehicles.GetAllAsync();
+        var filtered = vehicles.Where(v =>
+            (search is null || v.RegistrationNumber.Contains(search, StringComparison.OrdinalIgnoreCase)) &&
+            (vehicleType is null || VehicleTypeName(v) == vehicleType) &&
+            (status is null || v.CurrentStatus == status))
+            .ToList();
+
+        var assignments = await _assignments.GetAllAsync();
+        var trackingRecords = await _trackingRecords.GetAllAsync();
+        var incidentRecords = await _incidentRecords.GetAllAsync();
+
+        var rows = filtered.Select(v =>
+        {
+            var vehicleAssignments = assignments.Where(a => a.VehicleId == v.Id).ToList();
+            var trips = vehicleAssignments.Count(a => a.Status == AssignmentStatus.Delivered && a.CreatedAt >= from && a.CreatedAt <= to);
+            var km = SumTrackKm(trackingRecords.Where(r => r.VehicleId == v.Id && r.CreatedAt >= from && r.CreatedAt <= to));
+            var incidents = incidentRecords.Count(r => r.VehicleId == v.Id && r.CreatedAt >= from && r.CreatedAt <= to);
+            return new VehicleReportRow(v.Id, v.RegistrationNumber, VehicleTypeName(v), v.CurrentStatus, v.BranchId, trips, km, incidents);
+        }).ToList();
+
+        var cards = new VehicleReportCards(
+            ActiveVehicles: filtered.Count(v => v.CurrentStatus != VehicleStatus.UnderMaintenance),
+            TotalKmPeriod: rows.Sum(r => r.KmPeriod),
+            VehiclesUnderMaintenance: filtered.Count(v => v.CurrentStatus == VehicleStatus.UnderMaintenance));
+
+        return (cards, rows);
+    }
+
+    public async Task<(DriverReportCards Cards, IReadOnlyList<DriverReportRow> Rows)> GetDriverReportAsync(
+        DateTime from, DateTime to, string? search, Guid? branchId, string? status)
+    {
+        var employees = await _employees.GetAllAsync();
+        var drivers = employees.OfType<Driver>()
+            .Where(d =>
+                (search is null || d.Name.Contains(search, StringComparison.OrdinalIgnoreCase)) &&
+                (branchId is null || d.BranchId == branchId) &&
+                (status is null || (status == "Available") == d.IsAvailable))
+            .ToList();
+
+        var assignments = await _assignments.GetAllAsync();
+        var trackingRecords = await _trackingRecords.GetAllAsync();
+        var incidentRecords = await _incidentRecords.GetAllAsync();
+        var deliveryConfirmations = await _deliveryConfirmations.GetAllAsync();
+
+        var rows = drivers.Select(d =>
+        {
+            var driverAssignments = assignments.Where(a => a.DriverId == d.Id).ToList();
+            var periodAssignments = driverAssignments.Where(a => a.CreatedAt >= from && a.CreatedAt <= to).ToList();
+            var trips = periodAssignments.Count(a => a.Status == AssignmentStatus.Delivered);
+            var assignmentIds = periodAssignments.Select(a => a.Id).ToHashSet();
+            var km = SumTrackKm(trackingRecords.Where(r => r.AssignmentId is not null && assignmentIds.Contains(r.AssignmentId.Value)));
+            var confirmations = deliveryConfirmations.Count(c => c.DriverId == d.Id && c.ConfirmedAt >= from && c.ConfirmedAt <= to);
+            var driverVehicleIds = periodAssignments.Select(a => a.VehicleId).ToHashSet();
+            var incidents = incidentRecords.Count(r => r.CreatedAt >= from && r.CreatedAt <= to && driverVehicleIds.Contains(r.VehicleId));
+            return new DriverReportRow(d.Id, d.Name, d.BranchId, trips, km, confirmations, incidents);
+        }).ToList();
+
+        var incidentVehicleIds = incidentRecords.Where(r => r.CreatedAt >= from && r.CreatedAt <= to).Select(r => r.VehicleId).ToHashSet();
+        var driversInvolvedInIncidents = drivers.Count(d =>
+            assignments.Any(a => a.DriverId == d.Id && incidentVehicleIds.Contains(a.VehicleId)));
+
+        var cards = new DriverReportCards(
+            ActiveDrivers: drivers.Count(d => !d.IsAvailable),
+            TripsCompletedPeriod: rows.Sum(r => r.Trips),
+            DriversInvolvedInIncidents: driversInvolvedInIncidents);
+
+        return (cards, rows);
+    }
+
+    public async Task<(StaffReportCards Cards, IReadOnlyList<StaffReportRow> Rows)> GetStaffReportAsync(
+        DateTime from, DateTime to, string? search, Guid? branchId)
+    {
+        var employees = await _employees.GetAllAsync();
+        var staffMembers = employees.OfType<Staff>()
+            .Where(s =>
+                (search is null || s.Name.Contains(search, StringComparison.OrdinalIgnoreCase)) &&
+                (branchId is null || s.BranchId == branchId))
+            .ToList();
+
+        var auditRecords = (await _auditRecords.GetAllAsync())
+            .Where(r => r.CreatedAt >= from && r.CreatedAt <= to && r.ChangedBy is not null && r.ChangedBy.StartsWith("Staff:"))
+            .ToList();
+
+        var rows = staffMembers.Select(s =>
+        {
+            var staffTag = $"Staff:{s.Id}";
+            var staffAudits = auditRecords.Where(r => r.ChangedBy == staffTag).ToList();
+            var assignmentsCreated = staffAudits.Count(r => r.EntityType == AuditEntityType.Assignment && r.FromStatus is null);
+            var ordersProcessed = staffAudits.Count(r => r.EntityType == AuditEntityType.Order);
+            var lastActivity = staffAudits.Count > 0 ? staffAudits.Max(r => r.CreatedAt) : (DateTime?)null;
+            return new StaffReportRow(s.Id, s.Name, s.BranchId, assignmentsCreated, ordersProcessed, lastActivity);
+        }).ToList();
+
+        var cards = new StaffReportCards(
+            TotalStaff: staffMembers.Count,
+            AssignmentsCreatedPeriod: rows.Sum(r => r.AssignmentsCreated),
+            OrdersProcessedPeriod: rows.Sum(r => r.OrdersProcessed));
+
+        return (cards, rows);
     }
 
     private async Task<(int TripsCompleted, double FleetUtilizationPct, double TotalKm, int OpenIncidents)> ComputePeriodMetricsAsync(

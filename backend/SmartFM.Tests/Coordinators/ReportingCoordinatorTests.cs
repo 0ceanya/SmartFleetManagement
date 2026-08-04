@@ -29,6 +29,7 @@ public class ReportingCoordinatorTests : IDisposable
     private readonly Repository<Employee> _employees;
     private readonly Repository<AuditRecord> _auditRecords;
     private readonly Repository<Cargo> _cargoes;
+    private readonly Repository<DeliveryConfirmation> _deliveryConfirmations;
 
     public ReportingCoordinatorTests()
     {
@@ -47,6 +48,7 @@ public class ReportingCoordinatorTests : IDisposable
         _employees = new Repository<Employee>(_context);
         _auditRecords = new Repository<AuditRecord>(_context);
         _cargoes = new Repository<Cargo>(_context);
+        _deliveryConfirmations = new Repository<DeliveryConfirmation>(_context);
 
         _coordinator = new ReportingCoordinator(
             _trackingRecords,
@@ -60,6 +62,7 @@ public class ReportingCoordinatorTests : IDisposable
             _auditRecords,
             _shipments,
             _cargoes,
+            _deliveryConfirmations,
             new UnitOfWork(_context));
     }
 
@@ -102,7 +105,13 @@ public class ReportingCoordinatorTests : IDisposable
         assignment.MarkLoaded();
         assignment.MarkDelivering();
         assignment.Deliver();
-        return await AddAndSaveAsync(_assignments, assignment);
+        await AddAndSaveAsync(_assignments, assignment);
+
+        shipment.AssignTo(assignment.Id);
+        _shipments.Update(shipment);
+        await _context.SaveChangesAsync();
+
+        return assignment;
     }
 
     private async Task<Order> SeedOrderWithCargoAsync(decimal weightKg)
@@ -274,6 +283,79 @@ public class ReportingCoordinatorTests : IDisposable
 
         Assert.Contains(byType, e => e.VehicleType == "Light" && e.Count == 1);
         Assert.Contains(byType, e => e.VehicleType == "Heavy" && e.Count == 1);
+    }
+
+    [Fact]
+    public async Task GetVehicleReportAsync_ComputesCardsAndFiltersRows()
+    {
+        var branch = await SeedBranchAsync("Branch A");
+        var driver = await SeedDriverAsync(branch.Id);
+        var available = await SeedVehicleAsync(branch.Id, VehicleStatus.Available);
+        var maintenance = await SeedVehicleAsync(branch.Id, VehicleStatus.UnderMaintenance);
+        await SeedDeliveredAssignmentAsync(driver, available);
+
+        var from = DateTime.UtcNow.AddMinutes(-5);
+        var to = DateTime.UtcNow.AddMinutes(5);
+
+        var (cards, rows) = await _coordinator.GetVehicleReportAsync(from, to, search: null, vehicleType: null, status: null);
+
+        Assert.Equal(1, cards.ActiveVehicles);
+        Assert.Equal(1, cards.VehiclesUnderMaintenance);
+        Assert.Equal(2, rows.Count);
+        Assert.Contains(rows, r => r.Id == available.Id && r.TripsPeriod == 1);
+
+        var (_, filteredRows) = await _coordinator.GetVehicleReportAsync(from, to, search: null, vehicleType: null, status: VehicleStatus.UnderMaintenance);
+        Assert.Single(filteredRows);
+        Assert.Equal(maintenance.Id, filteredRows[0].Id);
+    }
+
+    [Fact]
+    public async Task GetDriverReportAsync_ComputesTripsAndDeliveryConfirmations()
+    {
+        var branch = await SeedBranchAsync("Branch A");
+        var driver = await SeedDriverAsync(branch.Id);
+        var vehicle = await SeedVehicleAsync(branch.Id, VehicleStatus.Available);
+        var assignment = await SeedDeliveredAssignmentAsync(driver, vehicle);
+
+        var shipmentId = (await _shipments.GetAllAsync()).First(s => s.AssignmentId == assignment.Id).Id;
+        await _deliveryConfirmations.AddAsync(new DeliveryConfirmation(
+            shipmentId, driver.Id, "Recipient", "Signed", null, null, DateTime.UtcNow, null));
+        await _context.SaveChangesAsync();
+
+        var from = DateTime.UtcNow.AddMinutes(-5);
+        var to = DateTime.UtcNow.AddMinutes(5);
+
+        var (cards, rows) = await _coordinator.GetDriverReportAsync(from, to, search: null, branchId: branch.Id, status: null);
+
+        Assert.Equal(1, cards.TripsCompletedPeriod);
+        Assert.Single(rows);
+        Assert.Equal(1, rows[0].Trips);
+        Assert.Equal(1, rows[0].DeliveryConfirmations);
+    }
+
+    [Fact]
+    public async Task GetStaffReportAsync_AttributesAuditActivityToActingStaff()
+    {
+        var branch = await SeedBranchAsync("Branch A");
+        var staff = await AddAndSaveAsync(new Repository<Staff>(_context), new Staff("Nguyen Van Staff", $"staff-{Guid.NewGuid()}@example.com", branch.Id, "Ops"));
+        var assignmentId = Guid.NewGuid();
+        var orderId = Guid.NewGuid();
+
+        await _auditRecords.AddAsync(new AuditRecord { EntityType = AuditEntityType.Assignment, EntityId = assignmentId, FromStatus = null, ToStatus = AssignmentStatus.Pending, ChangedBy = $"Staff:{staff.Id}" });
+        await _auditRecords.AddAsync(new AuditRecord { EntityType = AuditEntityType.Order, EntityId = orderId, FromStatus = OrderStatus.Approved, ToStatus = OrderStatus.Active, ChangedBy = $"Staff:{staff.Id}" });
+        await _context.SaveChangesAsync();
+
+        var from = DateTime.UtcNow.AddMinutes(-5);
+        var to = DateTime.UtcNow.AddMinutes(5);
+
+        var (cards, rows) = await _coordinator.GetStaffReportAsync(from, to, search: null, branchId: branch.Id);
+
+        Assert.Equal(1, cards.AssignmentsCreatedPeriod);
+        Assert.Equal(1, cards.OrdersProcessedPeriod);
+        Assert.Single(rows);
+        Assert.Equal(1, rows[0].AssignmentsCreated);
+        Assert.Equal(1, rows[0].OrdersProcessed);
+        Assert.NotNull(rows[0].LastActivity);
     }
 
     public void Dispose()
