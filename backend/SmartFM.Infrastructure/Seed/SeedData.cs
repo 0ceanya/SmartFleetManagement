@@ -225,6 +225,9 @@ public static class SeedData
         context.Orders.Add(order);
         context.Shipments.Add(shipment);
 
+        var invoice = new Invoice(order, offering.BasePrice);
+        context.Invoices.Add(invoice);
+
         var route = new Route($"Warehouse {seedIndex}, {city}", $"Customer address {seedIndex}, {city}", null, 8.0, 20);
         context.Routes.Add(route);
 
@@ -279,6 +282,9 @@ public static class SeedData
         order.AttachShipment(shipment);
         context.Orders.Add(order);
         context.Shipments.Add(shipment);
+
+        var invoice = new Invoice(order, offering.BasePrice);
+        context.Invoices.Add(invoice);
 
         var route = new Route($"Warehouse {seedIndex}, {city}", $"Customer address {seedIndex}, {city}", null, 9.5, 22);
         context.Routes.Add(route);

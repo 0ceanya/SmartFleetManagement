@@ -136,10 +136,22 @@ export interface LoadManifestResponse {
   damagedOrMissingItems: string[] | null;
 }
 
+export interface GeocodeAddressComponents {
+  road?: string;
+  suburb?: string;
+  quarter?: string;
+  village?: string;
+  city_district?: string;
+  city?: string;
+  town?: string;
+  state?: string;
+}
+
 export interface GeocodeResult {
   lat: number;
   lon: number;
   displayName: string;
+  address?: GeocodeAddressComponents;
 }
 
 export interface OsrmRouteResult {
