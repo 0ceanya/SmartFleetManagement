@@ -26,6 +26,9 @@ public class ReportingCoordinatorTests : IDisposable
     private readonly Repository<Shipment> _shipments;
     private readonly Repository<Assignment> _assignments;
     private readonly Repository<Invoice> _invoices;
+    private readonly Repository<Employee> _employees;
+    private readonly Repository<AuditRecord> _auditRecords;
+    private readonly Repository<Cargo> _cargoes;
 
     public ReportingCoordinatorTests()
     {
@@ -41,6 +44,9 @@ public class ReportingCoordinatorTests : IDisposable
         _shipments = new Repository<Shipment>(_context);
         _assignments = new Repository<Assignment>(_context);
         _invoices = new Repository<Invoice>(_context);
+        _employees = new Repository<Employee>(_context);
+        _auditRecords = new Repository<AuditRecord>(_context);
+        _cargoes = new Repository<Cargo>(_context);
 
         _coordinator = new ReportingCoordinator(
             _trackingRecords,
@@ -50,6 +56,10 @@ public class ReportingCoordinatorTests : IDisposable
             _vehicles,
             _orders,
             _invoices,
+            _employees,
+            _auditRecords,
+            _shipments,
+            _cargoes,
             new UnitOfWork(_context));
     }
 
@@ -81,6 +91,17 @@ public class ReportingCoordinatorTests : IDisposable
     {
         var shipment = await SeedShipmentAsync();
         var assignment = new Assignment(new[] { shipment }, driver, vehicle, null);
+        return await AddAndSaveAsync(_assignments, assignment);
+    }
+
+    private async Task<Assignment> SeedDeliveredAssignmentAsync(Driver driver, Vehicle vehicle)
+    {
+        var shipment = await SeedShipmentAsync();
+        var assignment = new Assignment(new[] { shipment }, driver, vehicle, null);
+        assignment.Approve();
+        assignment.MarkLoaded();
+        assignment.MarkDelivering();
+        assignment.Deliver();
         return await AddAndSaveAsync(_assignments, assignment);
     }
 
@@ -210,6 +231,49 @@ public class ReportingCoordinatorTests : IDisposable
 
         Assert.Equal(fleetWideReport.TotalCargoWeightKg, branchReport.TotalCargoWeightKg);
         Assert.Equal(fleetWideReport.Revenue, branchReport.Revenue);
+    }
+
+    [Fact]
+    public async Task GetDashboardSummaryAsync_CountsTripsAndDistanceWithinPeriod()
+    {
+        var branch = await SeedBranchAsync("Branch A");
+        var driver = await SeedDriverAsync(branch.Id);
+        var vehicle = await SeedVehicleAsync(branch.Id, VehicleStatus.Available);
+        var assignment = await SeedDeliveredAssignmentAsync(driver, vehicle);
+
+        await _trackingRecords.AddAsync(new TrackingRecord { VehicleId = vehicle.Id, AssignmentId = assignment.Id, Lat = 21.0, Lon = 105.8 });
+        await _trackingRecords.AddAsync(new TrackingRecord { VehicleId = vehicle.Id, AssignmentId = assignment.Id, Lat = 21.1, Lon = 105.9 });
+        await _context.SaveChangesAsync();
+
+        var from = DateTime.UtcNow.AddMinutes(-5);
+        var to = DateTime.UtcNow.AddMinutes(5);
+
+        var summary = await _coordinator.GetDashboardSummaryAsync(from, to, branch.Id, null);
+
+        Assert.Equal(1, summary.TripsCompleted);
+        Assert.True(summary.TotalKm > 0);
+        Assert.Equal(100, summary.FleetUtilizationPct);
+        Assert.Equal(0, summary.TripsCompletedPrevPeriod);
+    }
+
+    [Fact]
+    public async Task GetTripsByVehicleTypeAsync_GroupsByVehicleClrType()
+    {
+        var branch = await SeedBranchAsync("Branch A");
+        var driver = await SeedDriverAsync(branch.Id);
+        var lightVehicle = await SeedVehicleAsync(branch.Id, VehicleStatus.Available);
+        var heavyVehicle = await AddAndSaveAsync(_vehicles, new HeavyVehicle($"29A-{Guid.NewGuid().ToString()[..5]}", branch.Id));
+
+        await SeedDeliveredAssignmentAsync(driver, lightVehicle);
+        await SeedDeliveredAssignmentAsync(driver, heavyVehicle);
+
+        var from = DateTime.UtcNow.AddMinutes(-5);
+        var to = DateTime.UtcNow.AddMinutes(5);
+
+        var byType = await _coordinator.GetTripsByVehicleTypeAsync(from, to, null);
+
+        Assert.Contains(byType, e => e.VehicleType == "Light" && e.Count == 1);
+        Assert.Contains(byType, e => e.VehicleType == "Heavy" && e.Count == 1);
     }
 
     public void Dispose()
