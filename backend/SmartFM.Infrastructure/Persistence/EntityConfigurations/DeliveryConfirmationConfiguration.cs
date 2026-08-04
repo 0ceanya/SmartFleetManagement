@@ -19,6 +19,6 @@ public class DeliveryConfirmationConfiguration : IEntityTypeConfiguration<Delive
             .Metadata.SetValueComparer(new Microsoft.EntityFrameworkCore.ChangeTracking.ValueComparer<IReadOnlyList<string>>(
                 (a, b) => (a ?? new List<string>()).SequenceEqual(b ?? new List<string>()),
                 v => v == null ? 0 : v.Aggregate(0, (hash, s) => HashCode.Combine(hash, s.GetHashCode())),
-                v => v == null ? null : v.ToList()));
+                v => v == null ? new List<string>() : v.ToList()));
     }
 }

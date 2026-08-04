@@ -293,6 +293,37 @@ public class FleetAssignmentCoordinatorTests : IDisposable
     }
 
     [Fact]
+    public async Task FleetAssignmentCoordinatorRejectsAssignmentWhenShipmentWeightExceedsVehiclePayload()
+    {
+        var driver = await SeedDriverAsync();
+        var vehicle = await SeedVehicleAsync();
+        var shipment = await SeedShipmentAsync(orderWeightKg: 1500m);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _coordinator.CreateAssignmentAsync(new[] { shipment.Id }, driver.Id, vehicle.Id));
+
+        Assert.Contains("exceeds vehicle", exception.Message);
+        Assert.Empty(await _assignments.GetAllAsync());
+    }
+
+    [Fact]
+    public async Task FleetAssignmentCoordinatorAcceptsTheSameLoadOnAVehicleTypeWithEnoughPayload()
+    {
+        var driver = await SeedDriverAsync();
+        var branch = new Branch("Medium Vehicle Branch", "Hanoi");
+        await _branches.AddAsync(branch);
+        var vehicle = new MediumVehicle("29A-00002", branch.Id);
+        await _vehicles.AddAsync(vehicle);
+        await _context.SaveChangesAsync();
+        var shipment = await SeedShipmentAsync(orderWeightKg: 1500m);
+
+        var assignment = await _coordinator.CreateAssignmentAsync(new[] { shipment.Id }, driver.Id, vehicle.Id);
+
+        Assert.NotEqual(Guid.Empty, assignment.Id);
+        Assert.Equal(vehicle.Id, assignment.VehicleId);
+    }
+
+    [Fact]
     public async Task FleetAssignmentCoordinatorApprovesPendingAssignment()
     {
         var driver = await SeedDriverAsync();

@@ -96,13 +96,21 @@ public class FleetAssignmentCoordinator
             await _routes.AddAsync(route);
         }
 
+        var totalWeightKg = await CalculateTotalShipmentWeightAsync(shipments);
+
         Warehouse? warehouse = null;
         if (warehouseId is not null)
         {
             warehouse = await _warehouses.GetByIdAsync(warehouseId.Value)
                 ?? throw new InvalidOperationException($"Warehouse {warehouseId} not found.");
-            await EnsureWarehouseCapacityAsync(warehouse, shipments);
+            if (!warehouse.HasCapacityFor(totalWeightKg))
+                throw new InvalidOperationException(
+                    $"Shipment weight {totalWeightKg}kg exceeds warehouse '{warehouse.Name}' capacity of {warehouse.CapacityKg}kg.");
         }
+
+        if (!vehicle.CanCarry(totalWeightKg))
+            throw new InvalidOperationException(
+                $"Shipment weight {totalWeightKg}kg exceeds vehicle '{vehicle.RegistrationNumber}' payload capacity of {vehicle.MaxPayloadKg}kg.");
 
         await EnsureNotDoubleBookedAsync(driverId, vehicleId);
 
@@ -461,7 +469,7 @@ public class FleetAssignmentCoordinator
         }).ToList();
     }
 
-    private async Task EnsureWarehouseCapacityAsync(Warehouse warehouse, IReadOnlyList<Shipment> shipments)
+    private async Task<decimal> CalculateTotalShipmentWeightAsync(IReadOnlyList<Shipment> shipments)
     {
         decimal totalWeightKg = 0;
         foreach (var shipment in shipments)
@@ -471,9 +479,7 @@ public class FleetAssignmentCoordinator
             totalWeightKg += order.OrderWeightKg;
         }
 
-        if (totalWeightKg > warehouse.CapacityKg)
-            throw new InvalidOperationException(
-                $"Shipment weight {totalWeightKg}kg exceeds warehouse '{warehouse.Name}' capacity of {warehouse.CapacityKg}kg.");
+        return totalWeightKg;
     }
 
     private async Task EnsureNotDoubleBookedAsync(Guid driverId, Guid vehicleId)

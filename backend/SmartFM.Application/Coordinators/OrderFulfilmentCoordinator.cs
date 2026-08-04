@@ -265,9 +265,9 @@ public class OrderFulfilmentCoordinator
     {
         if (weightKg <= 0)
             throw new ArgumentException("WeightKg must be positive.", nameof(weightKg));
-        if (weightKg > offering.MaxWeightKg)
+        if (!offering.AcceptsWeight(weightKg))
             throw new InvalidOperationException($"WeightKg {weightKg} exceeds offering limit of {offering.MaxWeightKg}.");
-        if (volumeCbm.HasValue && volumeCbm.Value > offering.MaxVolumeCbm)
+        if (!offering.AcceptsVolume(volumeCbm))
             throw new InvalidOperationException($"VolumeCbm {volumeCbm} exceeds offering limit of {offering.MaxVolumeCbm}.");
     }
 

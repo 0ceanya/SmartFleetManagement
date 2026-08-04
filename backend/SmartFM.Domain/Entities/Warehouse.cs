@@ -21,6 +21,8 @@ public class Warehouse
         CapacityKg = capacityKg;
     }
 
+    public bool HasCapacityFor(decimal totalWeightKg) => totalWeightKg <= CapacityKg;
+
     public void UpdateDetails(string name, string address, Guid? branchId = null, decimal? capacityKg = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);

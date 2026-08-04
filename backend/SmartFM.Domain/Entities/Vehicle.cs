@@ -18,6 +18,8 @@ public abstract class Vehicle
         MaxPayloadKg = maxPayloadKg;
     }
 
+    public bool CanCarry(decimal weightKg) => weightKg <= (decimal)MaxPayloadKg;
+
     public void SetStatus(string status) => CurrentStatus = status;
 
     public void SetBranch(Guid branchId) => BranchId = branchId;

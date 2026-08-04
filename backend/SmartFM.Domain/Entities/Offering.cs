@@ -25,6 +25,10 @@ public class Offering
         VehicleClass = vehicleClass;
     }
 
+    public bool AcceptsWeight(decimal weightKg) => weightKg <= MaxWeightKg;
+
+    public bool AcceptsVolume(decimal? volumeCbm) => !volumeCbm.HasValue || volumeCbm.Value <= MaxVolumeCbm;
+
     public void UpdateDetails(string description, decimal basePrice, decimal maxWeightKg, decimal maxVolumeCbm, string? name = null, string? vehicleClass = null)
     {
         if (basePrice <= 0) throw new ArgumentException("BasePrice must be positive.", nameof(basePrice));
