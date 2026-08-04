@@ -15,6 +15,7 @@ import TableRow from "@mui/material/TableRow";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import CircularProgress from "@mui/material/CircularProgress";
+import TablePagination from "@mui/material/TablePagination";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import { apiFetch } from "@/lib/api";
@@ -40,6 +41,8 @@ export default function OrderShipmentPicker({
   const [expandedOrderId, setExpandedOrderId] = React.useState<string | null>(null);
   const [shipmentsByOrder, setShipmentsByOrder] = React.useState<Record<string, ShipmentSummary[]>>({});
   const [loadingShipmentsFor, setLoadingShipmentsFor] = React.useState<string | null>(null);
+  const [page, setPage] = React.useState(0);
+  const PAGE_SIZE = 5;
 
   React.useEffect(() => {
     let cancelled = false;
@@ -68,6 +71,13 @@ export default function OrderShipmentPicker({
     const needle = search.trim().toLowerCase();
     return order.id.toLowerCase().includes(needle) || order.status.toLowerCase().includes(needle);
   });
+
+  // Reset to first page whenever the search query changes
+  React.useEffect(() => {
+    setPage(0);
+  }, [search]);
+
+  const pagedOrders = filteredOrders.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
 
   const handleToggleExpand = async (orderId: string) => {
     if (expandedOrderId === orderId) {
@@ -117,7 +127,7 @@ export default function OrderShipmentPicker({
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredOrders.map((order) => {
+            {pagedOrders.map((order) => {
               const isExpanded = expandedOrderId === order.id;
               const shipments = shipmentsByOrder[order.id];
               return (
@@ -188,6 +198,20 @@ export default function OrderShipmentPicker({
             })}
           </TableBody>
         </Table>
+      )}
+
+      {!loading && !error && filteredOrders.length > 0 && (
+        <TablePagination
+          component="div"
+          count={filteredOrders.length}
+          page={page}
+          onPageChange={(_, newPage) => setPage(newPage)}
+          rowsPerPage={PAGE_SIZE}
+          rowsPerPageOptions={[PAGE_SIZE]}
+          labelDisplayedRows={({ from, to, count }) =>
+            `Orders ${from}–${to} of ${count}`
+          }
+        />
       )}
     </Stack>
   );

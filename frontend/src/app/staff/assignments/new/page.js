@@ -23,12 +23,12 @@ export default function CreateAssignmentPage() {
 
   const [drivers, setDrivers] = React.useState([]);
   const [vehicles, setVehicles] = React.useState([]);
-  const [warehouses, setWarehouses] = React.useState([]);
+
 
   const [selectedShipments, setSelectedShipments] = React.useState([]);
   const [selectedDriver, setSelectedDriver] = React.useState(null);
   const [selectedVehicle, setSelectedVehicle] = React.useState(null);
-  const [selectedWarehouse, setSelectedWarehouse] = React.useState(null);
+
   const [includeRoute, setIncludeRoute] = React.useState(true);
   const [routeDistanceKm, setRouteDistanceKm] = React.useState("");
   const [routeDurationMinutes, setRouteDurationMinutes] = React.useState("");
@@ -43,14 +43,12 @@ export default function CreateAssignmentPage() {
 
   React.useEffect(() => {
     async function load() {
-      const [employees, vehicleList, warehouseList] = await Promise.all([
+      const [employees, vehicleList] = await Promise.all([
         apiFetch("/api/master-data/employees"),
         apiFetch("/api/master-data/vehicles"),
-        apiFetch("/api/master-data/warehouses"),
       ]);
       setDrivers(employees.filter((e) => e.type === "Driver"));
       setVehicles(vehicleList);
-      setWarehouses(warehouseList);
     }
     load();
   }, []);
@@ -83,9 +81,9 @@ export default function CreateAssignmentPage() {
   };
 
   const firstShipment = selectedShipments[0] ?? null;
-  const mapDestinationAddress = selectedWarehouse ? selectedWarehouse.address : firstShipment?.deliveryAddress;
-  const mapDestinationLabel = selectedWarehouse ? "Staging leg to warehouse" : "Delivery";
-  const mapDestinationVariant = selectedWarehouse ? "warehouse" : "delivery";
+  const mapDestinationAddress = firstShipment?.deliveryAddress;
+  const mapDestinationLabel = "Delivery";
+  const mapDestinationVariant = "delivery";
 
   const handleRouteResolved = React.useCallback((info) => {
     setRouteDistanceKm(info.distanceKm.toFixed(1));
@@ -106,7 +104,6 @@ export default function CreateAssignmentPage() {
       shipmentIds: selectedShipments.map((s) => s.id),
       driverId: selectedDriver.id,
       vehicleId: selectedVehicle.id,
-      warehouseId: selectedWarehouse ? selectedWarehouse.id : null,
       route:
         includeRoute && firstShipment
           ? {
@@ -189,7 +186,7 @@ export default function CreateAssignmentPage() {
         <Card variant="outlined">
           <CardContent>
             <Typography variant="h6" sx={{ mb: 2 }}>
-              Driver, Vehicle &amp; Warehouse
+              Driver &amp; Vehicle
             </Typography>
             <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
               <Autocomplete
@@ -207,14 +204,6 @@ export default function CreateAssignmentPage() {
                 onChange={(_, value) => setSelectedVehicle(value)}
                 sx={{ minWidth: 240 }}
                 renderInput={(params) => <TextField {...params} label="Vehicle" />}
-              />
-              <Autocomplete
-                options={warehouses}
-                getOptionLabel={(w) => w.name}
-                value={selectedWarehouse}
-                onChange={(_, value) => setSelectedWarehouse(value)}
-                sx={{ minWidth: 240 }}
-                renderInput={(params) => <TextField {...params} label="Staging warehouse (optional)" />}
               />
             </Stack>
           </CardContent>
