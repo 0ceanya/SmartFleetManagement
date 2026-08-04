@@ -75,6 +75,10 @@ public class BillingCoordinatorTests : IDisposable
 
         Assert.Equal(150000m, invoice.Amount);
         Assert.Equal(InvoiceStatus.Unpaid, invoice.Status);
+
+        var audits = _context.Set<AuditRecord>().ToList();
+        Assert.Contains(audits, a => a.EntityType == "Invoice" && a.EntityId == invoice.Id
+            && a.FromStatus == null && a.ToStatus == InvoiceStatus.Unpaid && a.ChangedBy == "Staff");
     }
 
     [Fact]
@@ -103,7 +107,9 @@ public class BillingCoordinatorTests : IDisposable
 
         Assert.Equal(1, gateway.CallCount);
         var audits = _context.Set<AuditRecord>().ToList();
-        Assert.Contains(audits, a => a.EntityType == "Invoice" && a.ToStatus == "Paid");
+        Assert.Contains(audits, a => a.EntityType == "Invoice" && a.ToStatus == "Paid" && a.ChangedBy == "Customer");
+        Assert.Contains(audits, a => a.EntityType == "Order" && a.EntityId == order.Id
+            && a.ToStatus == OrderStatus.Approved && a.ChangedBy == "System");
         Assert.Equal("Payment processed", receipt.GatewayResponse);
         var updatedOrder = await _orders.GetByIdAsync(order.Id);
         Assert.Equal(OrderStatus.Approved, updatedOrder!.Status);

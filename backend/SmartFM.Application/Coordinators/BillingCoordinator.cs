@@ -56,6 +56,9 @@ public class BillingCoordinator
         var invoice = new Invoice(order, offering.BasePrice);
         await _invoices.AddAsync(invoice);
         await _unitOfWork.SaveChangesAsync();
+
+        await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Invoice, invoice.Id, null, InvoiceStatus.Unpaid, "Staff");
+
         return invoice;
     }
 
@@ -80,7 +83,7 @@ public class BillingCoordinator
         invoice.MarkPaid();
         _invoices.Update(invoice);
 
-        await ApproveOrderAsync(invoice.OrderId);
+        var orderPrevStatus = await ApproveOrderAsync(invoice.OrderId);
 
         var gatewayResponse = payment switch
         {
@@ -94,10 +97,8 @@ public class BillingCoordinator
 
         await _unitOfWork.SaveChangesAsync();
 
-        // Record Invoice status change: Unpaid → Paid
-        await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Invoice, invoice.Id, InvoiceStatus.Unpaid, InvoiceStatus.Paid, "BillingCoordinator");
-        // Also surface payment on the Order's audit trail
-        await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Order, invoice.OrderId, null, "InvoicePaid", "BillingCoordinator");
+        await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Invoice, invoice.Id, InvoiceStatus.Unpaid, InvoiceStatus.Paid, "Customer");
+        await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Order, invoice.OrderId, orderPrevStatus, OrderStatus.Approved, "System");
 
         return receipt;
     }
@@ -132,12 +133,14 @@ public class BillingCoordinator
         return new DigitalPayment(invoice.Amount, invoice.Id, "Payment processed", walletReference);
     }
 
-    private async Task ApproveOrderAsync(Guid orderId)
+    private async Task<string> ApproveOrderAsync(Guid orderId)
     {
         var order = await _orders.GetByIdAsync(orderId)
             ?? throw new InvalidOperationException($"Order {orderId} not found.");
 
+        var prevStatus = order.Status;
         order.SetStatus(OrderStatus.Approved);
         _orders.Update(order);
+        return prevStatus;
     }
 }

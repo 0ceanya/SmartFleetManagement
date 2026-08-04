@@ -150,6 +150,9 @@ public class OrderFulfilmentCoordinator
         await CreateCargoesAsync(order, offering, cargoItems);
 
         await _unitOfWork.SaveChangesAsync();
+
+        await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Order, order.Id, null, OrderStatus.Pending, "Customer");
+
         return (customer, order, shipment);
     }
 
@@ -200,7 +203,7 @@ public class OrderFulfilmentCoordinator
 
         await _unitOfWork.SaveChangesAsync();
 
-        await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Order, order.Id, prevStatus, OrderStatus.Fulfilled, "OrderFulfilmentCoordinator");
+        await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Order, order.Id, prevStatus, OrderStatus.Fulfilled, "System");
 
         return order;
     }
@@ -217,7 +220,7 @@ public class OrderFulfilmentCoordinator
 
         await _unitOfWork.SaveChangesAsync();
 
-        await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Order, order.Id, prevStatus, OrderStatus.Cancelled, "OrderFulfilmentCoordinator");
+        await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Order, order.Id, prevStatus, OrderStatus.Cancelled, "Staff");
 
         return order;
     }

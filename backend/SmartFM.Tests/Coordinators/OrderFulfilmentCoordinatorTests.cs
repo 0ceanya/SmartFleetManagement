@@ -125,6 +125,10 @@ public class OrderFulfilmentCoordinatorTests : IDisposable
         Assert.Equal(10m, cargo.WeightKg);
         Assert.Equal(1m, cargo.VolumeCbm);
         Assert.Equal(order.Id, cargo.OrderId);
+
+        var audits = _context.Set<Domain.Records.AuditRecord>().ToList();
+        Assert.Contains(audits, a => a.EntityType == "Order" && a.EntityId == order.Id
+            && a.FromStatus == null && a.ToStatus == OrderStatus.Pending && a.ChangedBy == "Customer");
     }
 
     [Fact]
