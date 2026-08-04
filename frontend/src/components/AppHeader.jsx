@@ -3,7 +3,6 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { getActiveHref } from "@/lib/navActive";
 
 export default function AppHeader({
   portalLabel,
@@ -14,6 +13,7 @@ export default function AppHeader({
     if (typeof window === "undefined") {
       return null;
     }
+
     return sessionStorage.getItem("smartfm.role");
   });
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -24,11 +24,13 @@ export default function AppHeader({
     .filter((href) => pathname === href || pathname.startsWith(`${href}/`))
     .sort((a, b) => b.length - a.length)[0];
 
+  const handleMobileNavClick = () => setIsMenuOpen(false);
+
   return (
-    <header className="border-b border-gray-300 bg-secondary px-4 py-3 text-white sm:px-6 lg:px-8 lg:py-4">
-      <div className="mx-auto max-w-[1600px]">
-        <div className="flex items-center justify-between gap-3 md:items-center">
-          <div className="flex items-center gap-3 sm:gap-4">
+    <header className="border-b border-gray-300 bg-secondary text-white shadow-sm">
+      <div className="mx-auto max-w-[1600px] px-4 py-3 sm:px-6 lg:px-8 lg:py-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-4">
             <Link
               href={homeHref}
               className="font-heading text-lg font-bold tracking-tight text-white hover:opacity-90 sm:text-2xl"
@@ -40,71 +42,96 @@ export default function AppHeader({
             </span>
           </div>
 
-        {navItems.length > 0 && (
-          <nav className="flex flex-wrap items-center gap-1">
-            {(() => {
-              const activeHref = getActiveHref(pathname, navItems.map((item) => item.href));
-              return navItems.map((item) => {
-          <button
-            type="button"
-            aria-label="Toggle navigation menu"
-            aria-expanded={isMenuOpen}
-            onClick={() => setIsMenuOpen((open) => !open)}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-white/20 bg-white/5 text-white transition-colors hover:bg-white/10 md:hidden"
-          >
-            <span className="sr-only">Toggle menu</span>
-            <div className="flex w-5 flex-col gap-1.5">
-              <span
-                className={`h-0.5 w-full rounded-full bg-white transition-transform ${isMenuOpen ? "translate-y-2 rotate-45" : ""}`}
-              />
-              <span
-                className={`h-0.5 w-full rounded-full bg-white transition-opacity ${isMenuOpen ? "opacity-0" : "opacity-100"}`}
-              />
-              <span
-                className={`h-0.5 w-full rounded-full bg-white transition-transform ${isMenuOpen ? "-translate-y-2 -rotate-45" : ""}`}
-              />
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="hidden text-xs sm:block sm:text-sm">
+              <span>
+                Role: <strong>{role || "Not Selected"}</strong>
+              </span>
             </div>
-          </button>
-        </div>
 
-        <div
-          className={`${isMenuOpen ? "mt-3 flex" : "hidden"} flex-col gap-3 md:mt-0 md:flex md:flex-row md:items-center md:justify-between md:gap-4`}
-        >
-          {navItems.length > 0 && (
-            <nav className="flex flex-col gap-1 md:flex-row md:flex-wrap md:items-center">
-              {navItems.map((item) => {
-                const isActive = item.href === activeHref;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setIsMenuOpen(false)}
-                    className={`rounded-sm px-3 py-2 text-sm font-heading font-bold transition-colors md:shrink-0 md:px-3 md:py-1.5 md:text-xs ${
-                      isActive ?
-                        "bg-primary text-white"
-                      : "text-white/80 hover:bg-primary/60 hover:text-white"
-                    }`}
-                  >
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </nav>
-          )}
-
-          <div className="flex flex-wrap items-center gap-3 text-xs sm:gap-4 sm:text-sm md:justify-end">
-            <span>
-              Role: <strong>{role || "Not Selected"}</strong>
-            </span>
             <Link
               href="/"
-              onClick={() => setIsMenuOpen(false)}
-              className="bg-white px-3 py-1.5 font-bold text-secondary transition-colors hover:bg-gray-100"
+              onClick={handleMobileNavClick}
+              className="hidden bg-white px-3 py-1.5 text-xs font-bold text-secondary transition-colors hover:bg-gray-100 sm:inline-flex sm:text-sm"
             >
               Switch Role
             </Link>
+
+            {navItems.length > 0 && (
+              <button
+                type="button"
+                aria-label="Toggle navigation menu"
+                aria-expanded={isMenuOpen}
+                onClick={() => setIsMenuOpen((open) => !open)}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-white/20 bg-white/5 transition-colors hover:bg-white/10 md:hidden"
+              >
+                <span className="flex flex-col gap-1.5">
+                  <span className="block h-0.5 w-5 rounded-full bg-white" />
+                  <span className="block h-0.5 w-5 rounded-full bg-white" />
+                  <span className="block h-0.5 w-5 rounded-full bg-white" />
+                </span>
+              </button>
+            )}
           </div>
         </div>
+
+        {navItems.length > 0 && (
+          <nav className="hidden items-center gap-1 pt-3 md:flex md:pt-0">
+            {navItems.map((item) => {
+              const isActive = item.href === activeHref;
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`shrink-0 px-3 py-1.5 text-xs font-heading font-bold transition-colors ${
+                    isActive ?
+                      "bg-primary text-white"
+                    : "text-white/80 hover:bg-primary/60 hover:text-white"
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+        )}
+
+        {navItems.length > 0 && isMenuOpen && (
+          <nav className="mt-3 flex flex-col gap-2 border-t border-white/10 pt-3 md:hidden">
+            {navItems.map((item) => {
+              const isActive = item.href === activeHref;
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={handleMobileNavClick}
+                  className={`rounded-md px-3 py-2 text-sm font-heading font-bold transition-colors ${
+                    isActive ?
+                      "bg-primary text-white"
+                    : "text-white/80 hover:bg-primary/60 hover:text-white"
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+
+            <div className="flex flex-col gap-2 border-t border-white/10 pt-3 text-xs text-white/90">
+              <span>
+                Role: <strong>{role || "Not Selected"}</strong>
+              </span>
+              <Link
+                href="/"
+                onClick={handleMobileNavClick}
+                className="bg-white px-3 py-2 text-center font-bold text-secondary transition-colors hover:bg-gray-100"
+              >
+                Switch Role
+              </Link>
+            </div>
+          </nav>
+        )}
       </div>
     </header>
   );
