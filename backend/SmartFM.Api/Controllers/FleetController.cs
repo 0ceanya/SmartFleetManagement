@@ -34,7 +34,7 @@ public class FleetController : ControllerBase
     public async Task<ActionResult<AssignmentResponse>> CreateAssignment(CreateAssignmentRequest request)
     {
         var assignment = await _coordinator.CreateAssignmentAsync(
-            request.ShipmentIds, request.DriverId, request.VehicleId, request.Route?.ToRouteData(), request.WarehouseId);
+            request.ShipmentIds, request.DriverId, request.VehicleId, request.Route?.ToRouteData(), request.WarehouseId, request.ActingStaffId);
         var details = await _coordinator.GetAssignmentDetailsAsync(assignment.Id);
         var response = AssignmentResponse.FromEntity(assignment, details!.Value.Shipments, details.Value.Route);
         return CreatedAtAction(nameof(GetAssignmentById), new { id = assignment.Id }, response);
@@ -44,9 +44,9 @@ public class FleetController : ControllerBase
     [ProducesResponseType(typeof(AssignmentResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    public async Task<ActionResult<AssignmentResponse>> ApproveAssignment(Guid id)
+    public async Task<ActionResult<AssignmentResponse>> ApproveAssignment(Guid id, [FromBody] ApproveAssignmentRequest? request = null)
     {
-        var assignment = await _coordinator.ApproveAssignmentAsync(id);
+        var assignment = await _coordinator.ApproveAssignmentAsync(id, request?.ActingStaffId);
         var details = await _coordinator.GetAssignmentDetailsAsync(id);
         return Ok(AssignmentResponse.FromEntity(assignment, details!.Value.Shipments, details.Value.Route));
     }

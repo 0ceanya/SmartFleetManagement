@@ -66,7 +66,7 @@ public class FleetAssignmentCoordinator
 
     public async Task<Route?> GetRouteByIdAsync(Guid id) => await _routes.GetByIdAsync(id);
 
-    public async Task<Assignment> CreateAssignmentAsync(IReadOnlyList<Guid> shipmentIds, Guid driverId, Guid vehicleId, RouteData? routeData = null, Guid? warehouseId = null)
+    public async Task<Assignment> CreateAssignmentAsync(IReadOnlyList<Guid> shipmentIds, Guid driverId, Guid vehicleId, RouteData? routeData = null, Guid? warehouseId = null, Guid? actingStaffId = null)
     {
         if (shipmentIds is null || shipmentIds.Count == 0)
             throw new ArgumentException("At least one shipment is required.", nameof(shipmentIds));
@@ -133,13 +133,15 @@ public class FleetAssignmentCoordinator
 
         await _unitOfWork.SaveChangesAsync();
 
-        await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Assignment, assignment.Id, null, AssignmentStatus.Pending, "FleetAssignmentCoordinator");
-        await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Driver, driver.Id, "Available", "Unavailable", "FleetAssignmentCoordinator");
+        var staffTag = actingStaffId is null ? "Staff" : $"Staff:{actingStaffId}";
+        await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Assignment, assignment.Id, null, AssignmentStatus.Pending, staffTag);
+        await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Driver, driver.Id, "Available", "Unavailable", "System");
+        await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Vehicle, vehicle.Id, VehicleStatus.Available, VehicleStatus.Assigned, "System");
 
         return assignment;
     }
 
-    public async Task<Assignment> ApproveAssignmentAsync(Guid assignmentId)
+    public async Task<Assignment> ApproveAssignmentAsync(Guid assignmentId, Guid? actingStaffId = null)
     {
         var assignment = await _assignments.GetByIdAsync(assignmentId)
             ?? throw new InvalidOperationException($"Assignment {assignmentId} not found.");
@@ -162,9 +164,10 @@ public class FleetAssignmentCoordinator
 
         await _unitOfWork.SaveChangesAsync();
 
-        await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Assignment, assignment.Id, AssignmentStatus.Pending, AssignmentStatus.Assigned, "FleetAssignmentCoordinator");
+        var staffTag = actingStaffId is null ? "Staff" : $"Staff:{actingStaffId}";
+        await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Assignment, assignment.Id, AssignmentStatus.Pending, AssignmentStatus.Assigned, staffTag);
         foreach (var orderId in activatedOrderIds)
-            await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Order, orderId, OrderStatus.Approved, OrderStatus.Active, "FleetAssignmentCoordinator");
+            await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Order, orderId, OrderStatus.Approved, OrderStatus.Active, staffTag);
 
         return assignment;
     }
@@ -178,13 +181,15 @@ public class FleetAssignmentCoordinator
         assignment.Deliver();
         _assignments.Update(assignment);
 
-        var (driverIdDeliver, _) = await ReleaseDriverAndVehicleAsync(assignment);
+        var (driverIdDeliver, vehicleIdDeliver) = await ReleaseDriverAndVehicleAsync(assignment);
 
         await _unitOfWork.SaveChangesAsync();
 
-        await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Assignment, assignment.Id, prevStatusDeliver, AssignmentStatus.Delivered, "FleetAssignmentCoordinator");
+        await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Assignment, assignment.Id, prevStatusDeliver, AssignmentStatus.Delivered, $"Driver:{assignment.DriverId}");
         if (driverIdDeliver != Guid.Empty)
-            await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Driver, driverIdDeliver, "Unavailable", "Available", "FleetAssignmentCoordinator");
+            await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Driver, driverIdDeliver, "Unavailable", "Available", "System");
+        if (vehicleIdDeliver != Guid.Empty)
+            await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Vehicle, vehicleIdDeliver, VehicleStatus.Assigned, VehicleStatus.Available, "System");
 
         return assignment;
     }
@@ -206,13 +211,15 @@ public class FleetAssignmentCoordinator
             _shipments.Update(shipment);
         }
 
-        var (driverIdRealloc, _) = await ReleaseDriverAndVehicleAsync(assignment);
+        var (driverIdRealloc, vehicleIdRealloc) = await ReleaseDriverAndVehicleAsync(assignment);
 
         await _unitOfWork.SaveChangesAsync();
 
-        await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Assignment, assignment.Id, prevStatusRealloc, AssignmentStatus.Rejected, "FleetAssignmentCoordinator");
+        await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Assignment, assignment.Id, prevStatusRealloc, AssignmentStatus.Rejected, "System");
         if (driverIdRealloc != Guid.Empty)
-            await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Driver, driverIdRealloc, "Unavailable", "Available", "FleetAssignmentCoordinator");
+            await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Driver, driverIdRealloc, "Unavailable", "Available", "System");
+        if (vehicleIdRealloc != Guid.Empty)
+            await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Vehicle, vehicleIdRealloc, VehicleStatus.Assigned, VehicleStatus.Available, "System");
 
         Console.WriteLine($"Reallocation requested for assignment {assignmentId}");
     }
@@ -247,13 +254,15 @@ public class FleetAssignmentCoordinator
         var prevStatusConfirm = assignment.Status;
         assignment.Deliver();
         _assignments.Update(assignment);
-        var (driverIdConfirm, _) = await ReleaseDriverAndVehicleAsync(assignment);
+        var (driverIdConfirm, vehicleIdConfirm) = await ReleaseDriverAndVehicleAsync(assignment);
 
         await _unitOfWork.SaveChangesAsync();
 
-        await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Assignment, assignment.Id, prevStatusConfirm, AssignmentStatus.Delivered, "FleetAssignmentCoordinator");
+        await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Assignment, assignment.Id, prevStatusConfirm, AssignmentStatus.Delivered, $"Driver:{driverId}");
         if (driverIdConfirm != Guid.Empty)
-            await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Driver, driverIdConfirm, "Unavailable", "Available", "FleetAssignmentCoordinator");
+            await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Driver, driverIdConfirm, "Unavailable", "Available", "System");
+        if (vehicleIdConfirm != Guid.Empty)
+            await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Vehicle, vehicleIdConfirm, VehicleStatus.Assigned, VehicleStatus.Available, "System");
 
         await _orderFulfilmentCoordinator.MarkOrderFulfilledAsync(shipment.OrderId);
 
@@ -335,7 +344,7 @@ public class FleetAssignmentCoordinator
         await _unitOfWork.SaveChangesAsync();
 
         if (loadedAssignment is not null)
-            await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Assignment, loadedAssignment.Id, AssignmentStatus.Assigned, AssignmentStatus.Loaded, "FleetAssignmentCoordinator");
+            await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Assignment, loadedAssignment.Id, AssignmentStatus.Assigned, AssignmentStatus.Loaded, $"Driver:{loadedAssignment.DriverId}");
 
         return manifest;
     }
@@ -367,7 +376,7 @@ public class FleetAssignmentCoordinator
         await _unitOfWork.SaveChangesAsync();
 
         if (deliveringAssignment is not null)
-            await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Assignment, deliveringAssignment.Id, AssignmentStatus.Loaded, AssignmentStatus.Delivering, "FleetAssignmentCoordinator");
+            await _recordCoordinator.RecordStatusChangeAsync(AuditEntityType.Assignment, deliveringAssignment.Id, AssignmentStatus.Loaded, AssignmentStatus.Delivering, $"Driver:{deliveringAssignment.DriverId}");
 
         return shipment;
     }
@@ -490,13 +499,15 @@ public class FleetAssignmentCoordinator
             releasedDriverId = driver.Id;
         }
 
+        var releasedVehicleId = Guid.Empty;
         var vehicle = await _vehicles.GetByIdAsync(assignment.VehicleId);
         if (vehicle is not null)
         {
             vehicle.SetStatus(VehicleStatus.Available);
             _vehicles.Update(vehicle);
+            releasedVehicleId = vehicle.Id;
         }
 
-        return (releasedDriverId, assignment.VehicleId);
+        return (releasedDriverId, releasedVehicleId);
     }
 }

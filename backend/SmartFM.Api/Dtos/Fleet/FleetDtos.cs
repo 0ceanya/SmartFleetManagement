@@ -48,6 +48,13 @@ public record CreateAssignmentRequest
     public RouteRequest? Route { get; init; }
 
     public Guid? WarehouseId { get; init; }
+
+    public Guid? ActingStaffId { get; init; }
+}
+
+public record ApproveAssignmentRequest
+{
+    public Guid? ActingStaffId { get; init; }
 }
 
 public record AssignmentShipmentResponse(Guid Id, Guid OrderId, string PickupAddress, string DeliveryAddress, string Status, string CustomerName, string CustomerPhone)
