@@ -63,6 +63,8 @@ public class ReportingCoordinatorTests : IDisposable
             _shipments,
             _cargoes,
             _deliveryConfirmations,
+            _customers,
+            new Repository<Route>(_context),
             new UnitOfWork(_context));
     }
 
@@ -356,6 +358,54 @@ public class ReportingCoordinatorTests : IDisposable
         Assert.Equal(1, rows[0].AssignmentsCreated);
         Assert.Equal(1, rows[0].OrdersProcessed);
         Assert.NotNull(rows[0].LastActivity);
+    }
+
+    [Fact]
+    public async Task GetOrderReportAsync_ComputesCardsAndResolvesCustomerAndPaymentStatus()
+    {
+        var customer = await AddAndSaveAsync(_customers, new Customer("Tran Thi Khach", $"khach-{Guid.NewGuid()}@example.com", "0900000000"));
+        var offering = await AddAndSaveAsync(_offerings, new Offering("Light Delivery", "Small parcels", 150000m, 1000m, 3m, "Light"));
+        var order = new Order(customer, offering);
+        order.AddCargo(new Cargo(order.Id, "Boxes", 10m, null, false));
+        await AddAndSaveAsync(_orders, order);
+        var invoice = new Invoice(order, 150000m);
+        invoice.MarkPaid();
+        await AddAndSaveAsync(_invoices, invoice);
+
+        var from = DateTime.UtcNow.AddMinutes(-5);
+        var to = DateTime.UtcNow.AddMinutes(5);
+
+        var (cards, rows) = await _coordinator.GetOrderReportAsync(from, to, search: "Tran Thi", status: null);
+
+        Assert.Equal(1, cards.OrdersPeriod);
+        Assert.Equal(1, cards.PendingApproval);
+        Assert.Single(rows);
+        Assert.Equal("Tran Thi Khach", rows[0].CustomerName);
+        Assert.Equal(1, rows[0].CargoCount);
+        Assert.Equal(InvoiceStatus.Paid, rows[0].PaymentStatus);
+    }
+
+    [Fact]
+    public async Task GetAssignmentReportAsync_ResolvesDriverVehicleAndCreatedByStaff()
+    {
+        var branch = await SeedBranchAsync("Branch A");
+        var driver = await SeedDriverAsync(branch.Id);
+        var vehicle = await SeedVehicleAsync(branch.Id, VehicleStatus.Available);
+        var assignment = await SeedAssignmentAsync(driver, vehicle);
+
+        var staffId = Guid.NewGuid();
+        await _auditRecords.AddAsync(new AuditRecord { EntityType = AuditEntityType.Assignment, EntityId = assignment.Id, FromStatus = null, ToStatus = AssignmentStatus.Pending, ChangedBy = $"Staff:{staffId}" });
+        await _context.SaveChangesAsync();
+
+        var from = DateTime.UtcNow.AddMinutes(-5);
+        var to = DateTime.UtcNow.AddMinutes(5);
+
+        var (cards, rows) = await _coordinator.GetAssignmentReportAsync(from, to, search: null, status: null);
+
+        Assert.Equal(1, cards.ActiveAssignments);
+        Assert.Equal(1, cards.AwaitingDriverOrVehicle);
+        Assert.Contains(rows, r => r.Id == assignment.Id && r.DriverName == driver.Name && r.VehicleRegistration == vehicle.RegistrationNumber
+            && r.CreatedByStaff == $"Staff:{staffId}");
     }
 
     public void Dispose()

@@ -28,6 +28,12 @@ public record DriverReportRow(Guid Id, string Name, Guid BranchId, int Trips, do
 public record StaffReportCards(int TotalStaff, int AssignmentsCreatedPeriod, int OrdersProcessedPeriod);
 public record StaffReportRow(Guid Id, string Name, Guid BranchId, int AssignmentsCreated, int OrdersProcessed, DateTime? LastActivity);
 
+public record OrderReportCards(int OrdersPeriod, int PendingApproval, int Completed);
+public record OrderReportRow(Guid Id, string CustomerName, string Status, DateTime CreatedAt, int CargoCount, string PaymentStatus);
+
+public record AssignmentReportCards(int ActiveAssignments, int CompletedPeriod, int AwaitingDriverOrVehicle);
+public record AssignmentReportRow(Guid Id, string DriverName, string VehicleRegistration, string? RouteSummary, string Status, string CreatedByStaff, DateTime CreatedAt);
+
 public class ReportingCoordinator
 {
     private static readonly JsonSerializerOptions BreakdownJsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
@@ -44,6 +50,8 @@ public class ReportingCoordinator
     private readonly IRepository<Shipment> _shipments;
     private readonly IRepository<Cargo> _cargoes;
     private readonly IRepository<DeliveryConfirmation> _deliveryConfirmations;
+    private readonly IRepository<Customer> _customers;
+    private readonly IRepository<Route> _routes;
     private readonly IUnitOfWork _unitOfWork;
 
     public ReportingCoordinator(
@@ -59,6 +67,8 @@ public class ReportingCoordinator
         IRepository<Shipment> shipments,
         IRepository<Cargo> cargoes,
         IRepository<DeliveryConfirmation> deliveryConfirmations,
+        IRepository<Customer> customers,
+        IRepository<Route> routes,
         IUnitOfWork unitOfWork)
     {
         _trackingRecords = trackingRecords;
@@ -73,6 +83,8 @@ public class ReportingCoordinator
         _shipments = shipments;
         _cargoes = cargoes;
         _deliveryConfirmations = deliveryConfirmations;
+        _customers = customers;
+        _routes = routes;
         _unitOfWork = unitOfWork;
     }
 
@@ -305,6 +317,82 @@ public class ReportingCoordinator
             TotalStaff: staffMembers.Count,
             AssignmentsCreatedPeriod: rows.Sum(r => r.AssignmentsCreated),
             OrdersProcessedPeriod: rows.Sum(r => r.OrdersProcessed));
+
+        return (cards, rows);
+    }
+
+    public async Task<(OrderReportCards Cards, IReadOnlyList<OrderReportRow> Rows)> GetOrderReportAsync(
+        DateTime from, DateTime to, string? search, string? status)
+    {
+        var orders = await _orders.GetAllAsync();
+        var customers = (await _customers.GetAllAsync()).ToDictionary(c => c.Id);
+        var invoices = (await _invoices.GetAllAsync()).ToList();
+
+        var periodOrders = orders.Where(o => o.CreatedAt >= from && o.CreatedAt <= to).ToList();
+
+        var filtered = periodOrders.Where(o =>
+        {
+            var customerName = customers.TryGetValue(o.CustomerId, out var c) ? c.Name : string.Empty;
+            var matchesSearch = search is null ||
+                o.Id.ToString().Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                customerName.Contains(search, StringComparison.OrdinalIgnoreCase);
+            var matchesStatus = status is null || o.Status == status;
+            return matchesSearch && matchesStatus;
+        }).ToList();
+
+        var rows = filtered.Select(o =>
+        {
+            var customerName = customers.TryGetValue(o.CustomerId, out var c) ? c.Name : string.Empty;
+            var invoice = invoices.FirstOrDefault(i => i.OrderId == o.Id);
+            return new OrderReportRow(o.Id, customerName, o.Status, o.CreatedAt, o.Cargoes.Count, invoice?.Status ?? "NoInvoice");
+        }).ToList();
+
+        var cards = new OrderReportCards(
+            OrdersPeriod: periodOrders.Count,
+            PendingApproval: periodOrders.Count(o => o.Status == OrderStatus.Pending),
+            Completed: periodOrders.Count(o => o.Status == OrderStatus.Fulfilled));
+
+        return (cards, rows);
+    }
+
+    public async Task<(AssignmentReportCards Cards, IReadOnlyList<AssignmentReportRow> Rows)> GetAssignmentReportAsync(
+        DateTime from, DateTime to, string? search, string? status)
+    {
+        var assignments = await _assignments.GetAllAsync();
+        var drivers = (await _employees.GetAllAsync()).OfType<Driver>().ToDictionary(d => d.Id);
+        var vehicles = (await _vehicles.GetAllAsync()).ToDictionary(v => v.Id);
+        var routes = (await _routes.GetAllAsync()).ToDictionary(r => r.Id);
+        var auditRecords = (await _auditRecords.GetAllAsync())
+            .Where(r => r.EntityType == AuditEntityType.Assignment && r.FromStatus is null)
+            .ToDictionary(r => r.EntityId, r => r.ChangedBy);
+
+        var filtered = assignments.Where(a =>
+        {
+            var driverName = drivers.TryGetValue(a.DriverId, out var d) ? d.Name : string.Empty;
+            var vehicleRegistration = vehicles.TryGetValue(a.VehicleId, out var v) ? v.RegistrationNumber : string.Empty;
+            var matchesSearch = search is null ||
+                a.Id.ToString().Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                driverName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                vehicleRegistration.Contains(search, StringComparison.OrdinalIgnoreCase);
+            var matchesStatus = status is null || a.Status == status;
+            return matchesSearch && matchesStatus;
+        }).ToList();
+
+        var rows = filtered.Select(a =>
+        {
+            var driverName = drivers.TryGetValue(a.DriverId, out var d) ? d.Name : string.Empty;
+            var vehicleRegistration = vehicles.TryGetValue(a.VehicleId, out var v) ? v.RegistrationNumber : string.Empty;
+            var routeSummary = a.RouteId is not null && routes.TryGetValue(a.RouteId.Value, out var route)
+                ? $"{route.OriginAddress} -> {route.DestinationAddress}"
+                : null;
+            var createdByStaff = auditRecords.TryGetValue(a.Id, out var changedBy) ? (changedBy ?? "Staff") : "Staff";
+            return new AssignmentReportRow(a.Id, driverName, vehicleRegistration, routeSummary, a.Status, createdByStaff, a.CreatedAt);
+        }).ToList();
+
+        var cards = new AssignmentReportCards(
+            ActiveAssignments: assignments.Count(a => a.Status is not (AssignmentStatus.Delivered or AssignmentStatus.Rejected)),
+            CompletedPeriod: assignments.Count(a => a.Status == AssignmentStatus.Delivered && a.CreatedAt >= from && a.CreatedAt <= to),
+            AwaitingDriverOrVehicle: assignments.Count(a => a.Status == AssignmentStatus.Pending));
 
         return (cards, rows);
     }
