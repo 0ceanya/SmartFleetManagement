@@ -19,6 +19,22 @@ export interface ShipmentSummary {
   createdAt: string;
 }
 
+export interface InvoiceSummary {
+  id: string;
+  orderId: string;
+  amount: number;
+  status: string;
+  createdAt: string;
+}
+
+export interface Receipt {
+  invoiceId: string;
+  amountPaid: number;
+  paymentMethod: string;
+  gatewayResponse: string;
+  issuedAt: string;
+}
+
 export interface OrderDetails {
   id: string;
   customerId: string;
@@ -28,6 +44,7 @@ export interface OrderDetails {
   createdAt: string;
   cargoes: Cargo[];
   shipments: ShipmentSummary[];
+  invoice: InvoiceSummary | null;
 }
 
 export interface OrderSummary {
