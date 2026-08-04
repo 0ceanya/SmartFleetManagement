@@ -20,8 +20,8 @@ public static class SeedData
         var hcmc = new Branch("Ho Chi Minh City Branch", "Ho Chi Minh City");
         context.Branches.AddRange(hanoi, hcmc);
 
-        var hanoiWarehouse = new Warehouse("Hanoi Warehouse", "1 Giai Phong Street, Hanoi", hanoi.Id, 50000m);
-        var hcmcWarehouse = new Warehouse("Ho Chi Minh City Warehouse", "1 Nguyen Van Linh Street, Ho Chi Minh City", hcmc.Id, 50000m);
+        var hanoiWarehouse = new Warehouse("Hanoi Warehouse", "Đường Giải Phóng, Hoàng Mai, Hà Nội", hanoi.Id, 50000m);
+        var hcmcWarehouse = new Warehouse("Ho Chi Minh City Warehouse", "Nguyễn Văn Linh, Phường Tân Thuận, Hồ Chí Minh", hcmc.Id, 50000m);
         context.Warehouses.AddRange(hanoiWarehouse, hcmcWarehouse);
 
         var driver1 = new Driver("Nguyen Van A", "driver.a@smartfm.vn", hanoi.Id, "D-0001");
