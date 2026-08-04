@@ -22,6 +22,7 @@ export default function EntityPageLayout({
   error: externalError,
   onFilterChange,
   cards = [],
+  showSearch = true,
   searchPlaceholder = "Search...",
   searchParam = "search",
   filters = [],
@@ -30,6 +31,7 @@ export default function EntityPageLayout({
   detailRoute,
   rowKey,
   bodySlot,
+  refreshKey,
 }) {
   const router = useRouter();
   const defaultRange = useMemo(() => getCurrentMonthRange(), []);
@@ -79,7 +81,7 @@ export default function EntityPageLayout({
     return () => {
       cancelled = true;
     };
-  }, [fetchEndpoint, filterParams]);
+  }, [fetchEndpoint, filterParams, refreshKey]);
 
   const data = fetchEndpoint ? internalData : externalData;
   const loading = fetchEndpoint ? internalLoading : externalLoading;
@@ -131,13 +133,15 @@ export default function EntityPageLayout({
       )}
 
       <div className="flex flex-wrap items-center gap-2">
-        <input
-          type="text"
-          placeholder={searchPlaceholder}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="border border-gray-300 p-1.5 text-sm w-56"
-        />
+        {showSearch && (
+          <input
+            type="text"
+            placeholder={searchPlaceholder}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="border border-gray-300 p-1.5 text-sm w-56"
+          />
+        )}
         {filters.map((f) => (
           <select
             key={f.key}
