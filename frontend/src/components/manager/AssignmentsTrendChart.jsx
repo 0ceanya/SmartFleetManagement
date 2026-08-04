@@ -1,20 +1,9 @@
 import React from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
-export default function AssignmentsTrendChart({ report }) {
-  if (!report) {
-    return <p className="text-sm text-gray-500">Generate or select a report to see the trend.</p>;
-  }
-
-  let data = [];
-  try {
-    data = JSON.parse(report.assignmentsByDayJson || "[]");
-  } catch {
-    data = [];
-  }
-
-  if (data.length === 0) {
-    return <p className="text-sm text-gray-500">No assignments in this report&apos;s date range.</p>;
+export default function AssignmentsTrendChart({ data }) {
+  if (!data || data.length === 0) {
+    return <p className="text-sm text-gray-500">No trips in this date range.</p>;
   }
 
   return (

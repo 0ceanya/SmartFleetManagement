@@ -15,7 +15,6 @@ public class ReportsController : ControllerBase
         _coordinator = coordinator;
     }
 
-    [HttpPost]
     [HttpPost("generate")]
     [ProducesResponseType(typeof(ReportResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
