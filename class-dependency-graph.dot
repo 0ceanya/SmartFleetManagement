@@ -1,0 +1,104 @@
+digraph CSharpDependencies {
+  graph [rankdir=TB, fontname="Helvetica", fontsize=14, splines=sprite, overlap=false, nodesep=0.2];
+  node [shape=box, style=filled, fillcolor=lightblue, fontname="Helvetica", fontsize=11];
+  edge [fontname="Helvetica", fontsize=9];
+
+  subgraph "cluster_SmartFM.Api" {
+    label="SmartFM.Api ()";
+    style="filled";
+    color="lightgray";
+
+    "SmartFM.Api.AuditController" [label="AuditController", fillcolor=white, tooltip="SmartFM.Api.Controllers.AuditController"]
+    "SmartFM.Api.BillingController" [label="BillingController", fillcolor=white,tooltip="SmartFM.Api.Controllers.BillingController"];
+    "SmartFM.Api.CustomersController" [label="CustomersController", fillcolor=white, tooltip="SmartFM.Api.Controllers.CustomersController"];
+    "SmartFM.Api.FleetController" [label="FleetController", fillcolor=white, tooltip="SmartFM.Api.Controllers.FleetController"];
+    "SmartFM.Api.IncidentsController" [label="IncidentsController", fillcolor=white, tooltip="SmartFM.Api.Controllers.IncidentsController"];
+    "SmartFM.Api.MasterDataController" [label="MasterDataController", fillcolor=white, tooltip="SmartFM.Api.Controllers.MasterDataController"];
+    "SmartFM.Api.OrdersController" [label="OrdersController", fillcolor=white, tooltip="SmartFM.Api.Controllers.OrdersController"];
+    "SmartFM.Api.ReportsController" [label="ReportsController", fillcolor=white, tooltip="SmartFM.Api.Controllers.ReportsController"];
+    "SmartFM.Api.TrackingController" [label="TrackingController", fillcolor=white, tooltip="SmartFM.Api.Controllers.TrackingController"];
+    "SmartFM.Api.ApiExceptionHandler" [label="ApiExceptionHandler", fillcolor=white, tooltip="SmartFM.Api.ErrorHandling.ApiExceptionHandler"];
+  }
+
+  subgraph "cluster_SmartFM.Application" {
+    label="SmartFM.Application ()";
+    style="filled";
+    color="lightgray";
+
+    "SmartFM.Application.BillingCoordinator" [label="BillingCoordinator", fillcolor=white, tooltip="SmartFM.Application.Coordinators.BillingCoordinator"];
+    "SmartFM.Application.FleetAssignmentCoordinator" [label="FleetAssignmentCoordinator", fillcolor=white, tooltip="SmartFM.Application.Coordinators.FleetAssignmentCoordinator"];
+    "SmartFM.Application.MasterDataCoordinator" [label="MasterDataCoordinator", fillcolor=white, tooltip="SmartFM.Application.Coordinators.MasterDataCoordinator"];
+    "SmartFM.Application.OrderFulfilmentCoordinator" [label="OrderFulfilmentCoordinator", fillcolor=white, tooltip="SmartFM.Application.Coordinators.OrderFulfilmentCoordinator"];
+    "SmartFM.Application.RecordCoordinator" [label="RecordCoordinator", fillcolor=white, tooltip="SmartFM.Application.Coordinators.RecordCoordinator"];
+    "SmartFM.Application.ReportingCoordinator" [label="ReportingCoordinator", fillcolor=white, tooltip="SmartFM.Application.Coordinators.ReportingCoordinator"];
+    "SmartFM.Application.SmartFMSystem" [label="SmartFMSystem", fillcolor=white, tooltip="SmartFM.Application.SmartFMSystem"];
+  }
+
+  subgraph "cluster_SmartFM.Domain" {
+    label="SmartFM.Domain ()";
+    style="filled";
+    color="lightgray";
+
+    "SmartFM.Domain.Assignment" [label="Assignment", fillcolor=white, tooltip="SmartFM.Domain.Entities.Assignment"];
+    "SmartFM.Domain.AssignmentStatus" [label="AssignmentStatus", fillcolor=white, tooltip="SmartFM.Domain.Entities.AssignmentStatus"];
+    "SmartFM.Domain.Branch" [label="Branch", fillcolor=white, tooltip="SmartFM.Domain.Entities.Branch"];
+    "SmartFM.Domain.CardPayment" [label="CardPayment", fillcolor=white, tooltip="SmartFM.Domain.Entities.CardPayment"];
+    "SmartFM.Domain.Cargo" [label="Cargo", fillcolor=white, tooltip="SmartFM.Domain.Entities.Cargo"];
+    "SmartFM.Domain.CashPayment" [label="CashPayment", fillcolor=white, tooltip="SmartFM.Domain.Entities.CashPayment"];
+    "SmartFM.Domain.Customer" [label="Customer", fillcolor=white, tooltip="SmartFM.Domain.Entities.Customer"];
+    "SmartFM.Domain.DigitalPayment" [label="DigitalPayment", fillcolor=white, tooltip="SmartFM.Domain.Entities.DigitalPayment"];
+    "SmartFM.Domain.Driver" [label="Driver", fillcolor=white, tooltip="SmartFM.Domain.Entities.Driver"];
+    "SmartFM.Domain.Employee" [label="Employee", fillcolor=white, tooltip="SmartFM.Domain.Entities.Employee"];
+    "SmartFM.Domain.HeavyVehicle" [label="HeavyVehicle", fillcolor=white, tooltip="SmartFM.Domain.Entities.HeavyVehicle"];
+    "SmartFM.Domain.Invoice" [label="Invoice", fillcolor=white, tooltip="SmartFM.Domain.Entities.Invoice"];
+    "SmartFM.Domain.InvoiceStatus" [label="InvoiceStatus", fillcolor=white, tooltip="SmartFM.Domain.Entities.InvoiceStatus"];
+    "SmartFM.Domain.LightVehicle" [label="LightVehicle", fillcolor=white, tooltip="SmartFM.Domain.Entities.LightVehicle"];
+    "SmartFM.Domain.Manager" [label="Manager", fillcolor=white, tooltip="SmartFM.Domain.Entities.Manager"];
+    "SmartFM.Domain.MediumVehicle" [label="MediumVehicle", fillcolor=white, tooltip="SmartFM.Domain.Entities.MediumVehicle"];
+    "SmartFM.Domain.Offering" [label="Offering", fillcolor=white, tooltip="SmartFM.Domain.Entities.Offering"];
+    "SmartFM.Domain.Order" [label="Order", fillcolor=white, tooltip="SmartFM.Domain.Entities.Order"];
+    "SmartFM.Domain.OrderStatus" [label="OrderStatus", fillcolor=white, tooltip="SmartFM.Domain.Entities.OrderStatus"];
+    "SmartFM.Domain.Payment" [label="Payment", fillcolor=white, tooltip="SmartFM.Domain.Entities.Payment"];
+    "SmartFM.Domain.Route" [label="Route", fillcolor=white, tooltip="SmartFM.Domain.Entities.Route"];
+    "SmartFM.Domain.Shipment" [label="Shipment", fillcolor=white, tooltip="SmartFM.Domain.Entities.Shipment"];
+    "SmartFM.Domain.ShipmentStatus" [label="ShipmentStatus", fillcolor=white, tooltip="SmartFM.Domain.Entities.ShipmentStatus"];
+    "SmartFM.Domain.Staff" [label="Staff", fillcolor=white, tooltip="SmartFM.Domain.Entities.Staff"];
+    "SmartFM.Domain.Vehicle" [label="Vehicle", fillcolor=white, tooltip="SmartFM.Domain.Entities.Vehicle"];
+    "SmartFM.Domain.VehicleStatus" [label="VehicleStatus", fillcolor=white, tooltip="SmartFM.Domain.Entities.VehicleStatus"];
+    "SmartFM.Domain.Warehouse" [label="Warehouse", fillcolor=white, tooltip="SmartFM.Domain.Entities.Warehouse"];
+    "SmartFM.Domain.AuditEntityType" [label="AuditEntityType", fillcolor=white, tooltip="SmartFM.Domain.Records.AuditEntityType"];
+  }
+
+  subgraph "cluster_SmartFM.Infrastructure" {
+    label="SmartFM.Infrastructure ()";
+    style="filled";
+    color="lightgray";
+
+    "SmartFM.Infrastructure.InitialCreate" [label="InitialCreate", fillcolor=white, tooltip="SmartFM.Infrastructure.Migrations.InitialCreate"];
+    "SmartFM.Infrastructure.InitialCreate" [label="InitialCreate", fillcolor=white, tooltip="SmartFM.Infrastructure.Migrations.InitialCreate"];
+    "SmartFM.Infrastructure.SmartFMDbContextModelSnapshot" [label="SmartFMDbContextModelSnapshot", fillcolor=white, tooltip="SmartFM.Infrastructure.Migrations.SmartFMDbContextModelSnapshot"];
+    "SmartFM.Infrastructure.AssignmentConfiguration" [label="AssignmentConfiguration", fillcolor=white, tooltip="SmartFM.Infrastructure.Persistence.EntityConfigurations.AssignmentConfiguration"];
+    "SmartFM.Infrastructure.BranchConfiguration" [label="BranchConfiguration", fillcolor=white, tooltip="SmartFM.Infrastructure.Persistence.EntityConfigurations.BranchConfiguration"];
+    "SmartFM.Infrastructure.CargoConfiguration" [label="CargoConfiguration", fillcolor=white, tooltip="SmartFM.Infrastructure.Persistence.EntityConfigurations.CargoConfiguration"];
+    "SmartFM.Infrastructure.CustomerConfiguration" [label="CustomerConfiguration", fillcolor=white, tooltip="SmartFM.Infrastructure.Persistence.EntityConfigurations.CustomerConfiguration"];
+    "SmartFM.Infrastructure.DeliveryConfirmationConfiguration" [label="DeliveryConfirmationConfiguration", fillcolor=white, tooltip="SmartFM.Infrastructure.Persistence.EntityConfigurations.DeliveryConfirmationConfiguration"];
+    "SmartFM.Infrastructure.EmployeeConfiguration" [label="EmployeeConfiguration", fillcolor=white, tooltip="SmartFM.Infrastructure.Persistence.EntityConfigurations.EmployeeConfiguration"];
+    "SmartFM.Infrastructure.InvoiceConfiguration" [label="InvoiceConfiguration", fillcolor=white, tooltip="SmartFM.Infrastructure.Persistence.EntityConfigurations.InvoiceConfiguration"];
+    "SmartFM.Infrastructure.LoadManifestConfiguration" [label="LoadManifestConfiguration", fillcolor=white, tooltip="SmartFM.Infrastructure.Persistence.EntityConfigurations.LoadManifestConfiguration"];
+    "SmartFM.Infrastructure.NotificationConfiguration" [label="NotificationConfiguration", fillcolor=white, tooltip="SmartFM.Infrastructure.Persistence.EntityConfigurations.NotificationConfiguration"];
+    "SmartFM.Infrastructure.OfferingConfiguration" [label="OfferingConfiguration", fillcolor=white, tooltip="SmartFM.Infrastructure.Persistence.EntityConfigurations.OfferingConfiguration"];
+    "SmartFM.Infrastructure.OrderConfiguration" [label="OrderConfiguration", fillcolor=white, tooltip="SmartFM.Infrastructure.Persistence.EntityConfigurations.OrderConfiguration"];
+    "SmartFM.Infrastructure.PaymentConfiguration" [label="PaymentConfiguration", fillcolor=white, tooltip="SmartFM.Infrastructure.Persistence.EntityConfigurations.PaymentConfiguration"];
+    "SmartFM.Infrastructure.ReceiptConfiguration" [label="ReceiptConfiguration", fillcolor=white, tooltip="SmartFM.Infrastructure.Persistence.EntityConfigurations.ReceiptConfiguration"];
+    "SmartFM.Infrastructure.RecordConfiguration" [label="RecordConfiguration", fillcolor=white, tooltip="SmartFM.Infrastructure.Persistence.EntityConfigurations.RecordConfiguration"];
+    "SmartFM.Infrastructure.ReportConfiguration" [label="ReportConfiguration", fillcolor=white, tooltip="SmartFM.Infrastructure.Persistence.EntityConfigurations.ReportConfiguration"];
+    "SmartFM.Infrastructure.RouteConfiguration" [label="RouteConfiguration", fillcolor=white, tooltip="SmartFM.Infrastructure.Persistence.EntityConfigurations.RouteConfiguration"];
+    "SmartFM.Infrastructure.ShipmentConfiguration" [label="ShipmentConfiguration", fillcolor=white, tooltip="SmartFM.Infrastructure.Persistence.EntityConfigurations.ShipmentConfiguration"];
+    "SmartFM.Infrastructure.VehicleConfiguration" [label="VehicleConfiguration", fillcolor=white, tooltip="SmartFM.Infrastructure.Persistence.EntityConfigurations.VehicleConfiguration"];
+    "SmartFM.Infrastructure.WarehouseConfiguration" [label="WarehouseConfiguration", fillcolor=white, tooltip="SmartFM.Infrastructure.Persistence.EntityConfigurations.WarehouseConfiguration"];
+    "SmartFM.Infrastructure.Repository" [label="Repository", fillcolor=white, tooltip="SmartFM.Infrastructure.Persistence.Repositories.Repository"];
+    "SmartFM.Infrastructure.UnitOfWork" [label="UnitOfWork", fillcolor=white, tooltip="SmartFM.Infrastructure.Persistence.Repositories.UnitOfWork"];
+    "SmartFM.Infrastructure.SmartFMDbContext" [label="SmartFMDbContext", fillcolor=white, tooltip="SmartFM.Infrastructure.Persistence.SmartFMDbContext"];
+    "SmartFM.Infrastructure.PaymentGatewayStub" [label="PaymentGatewayStub", fillcolor=white, tooltip="SmartFM.Infrastructure.Services.PaymentGatewayStub"];
+  }
+}

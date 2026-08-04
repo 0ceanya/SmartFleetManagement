@@ -120,7 +120,6 @@ export default function RolePickerPage() {
 
                   <div className="pt-3 border-t border-gray-200 flex items-center justify-between text-[11px] font-bold text-gray-400 group-hover:text-black transition-colors">
                     <span>ENTER WORKSPACE</span>
-                    <span>SMARTFM • V1.0</span>
                   </div>
                 </div>
               </Link>

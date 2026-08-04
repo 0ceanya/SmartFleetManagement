@@ -1,10 +1,4 @@
-CLAUDE.md
 task.md
 bin/
 obj/
-meomeo.txt
 *.db
-*.db-shm
-*.db-wal
-*patch
-frontend/map_api_documentation.md
