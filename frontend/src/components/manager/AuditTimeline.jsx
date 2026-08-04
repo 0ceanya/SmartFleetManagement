@@ -12,24 +12,31 @@ function resolveActor(changedBy, employeesById) {
   return employee ? `${role}: ${employee.name}` : changedBy;
 }
 
-export default function AuditTimeline({ entityType, entityId, title = "Activity Log" }) {
+export default function AuditTimeline({ entityType, entityId, changedBy, title = "Activity Log" }) {
   const [records, setRecords] = useState([]);
   const [employeesById, setEmployeesById] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Two filtering modes: by (entityType, entityId) for "what happened to this entity", or by
+  // changedBy for "what did this actor do" (e.g. a staff member's own activity trail, which spans
+  // many different entity types and can't be expressed as a single entityType/entityId pair).
   useEffect(() => {
-    if (!entityId) return undefined;
+    if (!entityId && !changedBy) return undefined;
     let cancelled = false;
     setLoading(true);
     setError(null);
+    const query = changedBy
+      ? "pageSize=200"
+      : `entityType=${entityType}&entityId=${entityId}&pageSize=100`;
     Promise.all([
-      apiFetch(`/api/audit/records?entityType=${entityType}&entityId=${entityId}&pageSize=100`),
+      apiFetch(`/api/audit/records?${query}`),
       apiFetch("/api/master-data/employees").catch(() => []),
     ])
       .then(([auditData, employees]) => {
         if (cancelled) return;
-        setRecords(auditData?.records || []);
+        const allRecords = auditData?.records || [];
+        setRecords(changedBy ? allRecords.filter((r) => r.changedBy === changedBy) : allRecords);
         const map = {};
         (employees || []).forEach((e) => {
           map[e.id] = e;
@@ -45,7 +52,7 @@ export default function AuditTimeline({ entityType, entityId, title = "Activity 
     return () => {
       cancelled = true;
     };
-  }, [entityType, entityId]);
+  }, [entityType, entityId, changedBy]);
 
   return (
     <Card variant="outlined">
