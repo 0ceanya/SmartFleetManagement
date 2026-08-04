@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { getActiveHref } from "@/lib/navActive";
 
 export default function AppHeader({ portalLabel, homeHref = "/", navItems = [] }) {
   const [role, setRole] = useState(null);
@@ -27,10 +28,7 @@ export default function AppHeader({ portalLabel, homeHref = "/", navItems = [] }
         {navItems.length > 0 && (
           <nav className="flex flex-wrap items-center gap-1">
             {(() => {
-              const activeHref = navItems
-                .map((item) => item.href)
-                .filter((href) => pathname === href || pathname.startsWith(`${href}/`))
-                .sort((a, b) => b.length - a.length)[0];
+              const activeHref = getActiveHref(pathname, navItems.map((item) => item.href));
               return navItems.map((item) => {
                 const isActive = item.href === activeHref;
                 return (

@@ -1,22 +1,19 @@
-import { Container } from "@mui/material";
 import AppHeader from "@/components/AppHeader";
 import AppFooter from "@/components/AppFooter";
+import ManagerSidebar from "@/components/manager/ManagerSidebar";
 
 export const metadata = {
   title: "SmartFM - Manager Portal",
 };
 
-const navItems = [
-  { label: "Dashboard", href: "/manager" },
-  { label: "Reports", href: "/manager/reports" },
-  { label: "Audit Log", href: "/manager/audit" },
-];
-
 export default function ManagerLayout({ children }) {
   return (
     <div className="min-h-screen bg-surface-bg flex flex-col">
-      <AppHeader portalLabel="Manager" homeHref="/manager" navItems={navItems} />
-      <div className="flex-1 flex flex-col w-full">{children}</div>
+      <AppHeader portalLabel="Manager" homeHref="/manager" />
+      <div className="flex-1 flex w-full">
+        <ManagerSidebar />
+        <div className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8">{children}</div>
+      </div>
       <AppFooter />
     </div>
   );
