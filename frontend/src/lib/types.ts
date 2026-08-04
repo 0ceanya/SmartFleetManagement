@@ -176,3 +176,14 @@ export interface OsrmRouteResult {
   durationMinutes: number;
   coordinates: [number, number][];
 }
+
+export interface IncidentRecordResponse {
+  id: string;
+  vehicleId: string;
+  shipmentId: string | null;
+  description: string;
+  severity: string;
+  category: string;
+  createdAt: string;
+}
+
