@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import RouteMap from "@/components/RouteMap";
+import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { apiFetch } from "@/lib/api";
 
 const CITIES = [
@@ -30,6 +31,7 @@ export default function RouteAddressStep({ orderData, onChange }) {
     ward: "",
     street: "",
   });
+  const [deliveryPin, setDeliveryPin] = useState(null);
 
   useEffect(() => {
     if (hasLoadedPickupwarehouses.current) return;
@@ -62,9 +64,10 @@ export default function RouteAddressStep({ orderData, onChange }) {
 
   const combineAddress = (addr) => {
     const parts = [
-      addr.address.trim(),
       addr.street.trim(),
       addr.ward.trim(),
+      addr.address.trim(),
+      "Việt Nam",
     ].filter((p) => p.length > 0);
     return parts.join(", ");
   };
@@ -89,6 +92,28 @@ export default function RouteAddressStep({ orderData, onChange }) {
   const handleDeliveryChange = (field, value) => {
     const updated = { ...delivery, [field]: value };
     setDelivery(updated);
+    setDeliveryPin(null);
+    onChange("deliveryAddress", combineAddress(updated));
+  };
+
+  const handleDeliverySuggestionSelected = (picked) => {
+    const components = picked.address || {};
+    const ward =
+      components.suburb ||
+      components.quarter ||
+      components.village ||
+      components.city_district ||
+      "";
+    const city = components.city || components.town || components.state || "";
+
+    const updated = {
+      ...delivery,
+      ward: ward || delivery.ward,
+      address: city || delivery.address,
+    };
+
+    setDelivery(updated);
+    setDeliveryPin(picked);
     onChange("deliveryAddress", combineAddress(updated));
   };
 
@@ -183,13 +208,18 @@ export default function RouteAddressStep({ orderData, onChange }) {
               <label className="block text-xs font-bold uppercase text-gray-700 mb-1">
                 Detailed Street Address
               </label>
-              <input
-                type="text"
+              <AddressAutocomplete
                 placeholder="e.g. 12 Xuân Diệu, Ngõ 4"
                 value={delivery.street}
-                onChange={(e) => handleDeliveryChange("street", e.target.value)}
-                className="w-full border border-gray-300 p-2.5 text-sm focus:border-primary focus:outline-none"
+                onInputChange={(value) => handleDeliveryChange("street", value)}
+                onSelect={handleDeliverySuggestionSelected}
+                buildQuery={(streetText) =>
+                  combineAddress({ ...delivery, street: streetText })
+                }
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Start typing to see matching addresses and drop a pinpoint.
+              </p>
             </div>
           </div>
         </div>
@@ -205,6 +235,7 @@ export default function RouteAddressStep({ orderData, onChange }) {
         <RouteMap
           originAddress={orderData.pickupAddress || "Hà Nội"}
           destinationAddress={orderData.deliveryAddress || "Hà Nội"}
+          destinationCoordinates={deliveryPin}
           heightClassName="h-[540px]"
         />
       </div>

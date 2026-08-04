@@ -13,7 +13,13 @@ import Typography from "@mui/material/Typography";
 import PlaceIcon from "@mui/icons-material/Place";
 import WarehouseIcon from "@mui/icons-material/Warehouse";
 import type * as Leaflet from "leaflet";
-import { fetchOsrmRoute, geocodeAddress, haversineKm, reverseGeocode } from "@/lib/geo";
+import {
+  fetchOsrmRoute,
+  formatDurationMinutes,
+  geocodeAddress,
+  haversineKm,
+  reverseGeocode,
+} from "@/lib/geo";
 import muiTheme from "@/lib/muiTheme";
 import type { GeocodeResult } from "@/lib/types";
 
@@ -55,6 +61,8 @@ export interface RouteMapProps {
   originLabel?: string;
   destinationLabel?: string;
   destinationVariant?: "delivery" | "warehouse";
+  originCoordinates?: GeocodeResult | null;
+  destinationCoordinates?: GeocodeResult | null;
   onRouteResolved?: (info: RouteResolvedInfo) => void;
   onAddressCorrected?: (correction: AddressCorrection) => void;
   heightClassName?: string;
@@ -66,6 +74,8 @@ export default function RouteMap({
   originLabel = "Pickup",
   destinationLabel = "Delivery",
   destinationVariant = "delivery",
+  originCoordinates = null,
+  destinationCoordinates = null,
   onRouteResolved,
   onAddressCorrected,
   heightClassName = "h-80",
@@ -104,7 +114,7 @@ export default function RouteMap({
         }).addTo(layerGroup);
         setFallbackNote(null);
         setSummary(
-          `Distance: ${osrmRoute.distanceKm.toFixed(1)} km, Duration: ${Math.round(osrmRoute.durationMinutes)} min`,
+          `Distance: ${osrmRoute.distanceKm.toFixed(1)} km, Duration: ${formatDurationMinutes(osrmRoute.durationMinutes)}`,
         );
         onRouteResolved?.({
           distanceKm: osrmRoute.distanceKm,
@@ -192,12 +202,12 @@ export default function RouteMap({
       layerGroup.clearLayers();
       routeLineRef.current = null;
 
-      const origin = await geocodeAddress(originAddress);
+      const origin = originCoordinates ?? (await geocodeAddress(originAddress));
       if (cancelled) return;
       if (!origin) setOriginError(`Address not found: ${originAddress}`);
       originPointRef.current = origin;
 
-      const destination = await geocodeAddress(destinationAddress);
+      const destination = destinationCoordinates ?? (await geocodeAddress(destinationAddress));
       if (cancelled) return;
       if (!destination) setDestinationError(`Address not found: ${destinationAddress}`);
       destinationPointRef.current = destination;
@@ -265,7 +275,17 @@ export default function RouteMap({
     return () => {
       cancelled = true;
     };
-  }, [originAddress, destinationAddress, originLabel, destinationLabel, destinationVariant, drawRoute, handleDragEnd]);
+  }, [
+    originAddress,
+    destinationAddress,
+    originLabel,
+    destinationLabel,
+    destinationVariant,
+    originCoordinates,
+    destinationCoordinates,
+    drawRoute,
+    handleDragEnd,
+  ]);
 
   React.useEffect(() => {
     return () => {

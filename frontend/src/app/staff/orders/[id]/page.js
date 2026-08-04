@@ -256,10 +256,187 @@ export default function OrderDetailsPage() {
             </Card>
           </Grid>
 
+          {/* Tracking Section */}
+          <Grid item xs={12}>
+            <TrackingSection shipments={order.shipments} getAssignmentIdForShipment={getAssignmentIdForShipment} />
+          </Grid>
+
         </Grid>
       ) : (
         !error && <Typography>Order not found.</Typography>
       )}
     </Box>
+  );
+}
+
+function TrackingSection({ shipments, getAssignmentIdForShipment }) {
+  const [trackingByAssignment, setTrackingByAssignment] = React.useState({});
+  const [loadingTracking, setLoadingTracking] = React.useState(false);
+
+  // Build list of unique assignmentIds from shipments that have one
+  const assignmentIds = React.useMemo(() => {
+    const ids = new Set();
+    shipments.forEach(s => {
+      const aid = getAssignmentIdForShipment(s.id);
+      if (aid) ids.add(aid);
+    });
+    return [...ids];
+  }, [shipments, getAssignmentIdForShipment]);
+
+  const assignmentIdsKey = assignmentIds.join(',');
+
+  React.useEffect(() => {
+    if (assignmentIds.length === 0) return;
+    let cancelled = false;
+    const fetchAll = async () => {
+      setLoadingTracking(true);
+      try {
+        const results = await Promise.all(
+          assignmentIds.map(aid =>
+            apiFetch(`/api/tracking/records?assignmentId=${aid}`)
+              .then(records => ({ aid, records }))
+              .catch(() => ({ aid, records: [] }))
+          )
+        );
+        if (!cancelled) {
+          const map = {};
+          results.forEach(({ aid, records }) => { map[aid] = records; });
+          setTrackingByAssignment(map);
+        }
+      } finally {
+        if (!cancelled) setLoadingTracking(false);
+      }
+    };
+    fetchAll();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assignmentIdsKey]);
+
+  if (assignmentIds.length === 0) return null;
+
+  return (
+    <Card variant="outlined">
+      <CardContent>
+        <Box display="flex" alignItems="center" gap={1} mb={2}>
+          <Typography variant="h6">Tracking</Typography>
+          {loadingTracking && <CircularProgress size={18} />}
+        </Box>
+
+        {assignmentIds.map((aid, aidIdx) => {
+          const records = trackingByAssignment[aid] || [];
+          const latest = records[records.length - 1];
+
+          // Find which shipments belong to this assignment
+          const relatedShipments = shipments.filter(s => getAssignmentIdForShipment(s.id) === aid);
+
+          return (
+            <Box key={aid} mb={aidIdx < assignmentIds.length - 1 ? 4 : 0}>
+              {/* Assignment header */}
+              <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
+                <Box>
+                  <Typography variant="subtitle1" fontWeight={600}>
+                    Assignment&nbsp;
+                    <Typography component="span" variant="subtitle1" color="text.secondary" fontFamily="monospace">
+                      {aid.substring(0, 8).toUpperCase()}
+                    </Typography>
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {relatedShipments.map(s => `Shipment ${s.id.split('-')[0].toUpperCase()}`).join(', ')}
+                  </Typography>
+                </Box>
+                {latest && (
+                  <Chip
+                    size="small"
+                    color="success"
+                    label={`Last ping: ${new Date(latest.createdAt).toLocaleString()}`}
+                  />
+                )}
+              </Box>
+
+              {loadingTracking ? (
+                <Typography variant="body2" color="text.secondary">Loading tracking data…</Typography>
+              ) : records.length === 0 ? (
+                <Alert severity="info" sx={{ py: 0.5 }}>No tracking records for this assignment yet.</Alert>
+              ) : (
+                <>
+                  {/* Latest position summary */}
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      gap: 3,
+                      p: 1.5,
+                      mb: 2,
+                      borderRadius: 1,
+                      bgcolor: 'action.hover',
+                    }}
+                  >
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">Latest Lat</Typography>
+                      <Typography variant="body2" fontFamily="monospace">{latest.lat.toFixed(6)}</Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">Latest Lon</Typography>
+                      <Typography variant="body2" fontFamily="monospace">{latest.lon.toFixed(6)}</Typography>
+                    </Box>
+                    {latest.waypoint && (
+                      <Box>
+                        <Typography variant="caption" color="text.secondary">Waypoint</Typography>
+                        <Typography variant="body2">{latest.waypoint}</Typography>
+                      </Box>
+                    )}
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">Total Pings</Typography>
+                      <Typography variant="body2">{records.length}</Typography>
+                    </Box>
+                  </Box>
+
+                  {/* Waypoint timeline */}
+                  <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
+                    GPS History ({records.length} records)
+                  </Typography>
+                  <Box
+                    sx={{
+                      maxHeight: 260,
+                      overflowY: 'auto',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      borderRadius: 1,
+                    }}
+                  >
+                    <List disablePadding dense>
+                      {[...records].reverse().map((rec, recIdx) => (
+                        <React.Fragment key={rec.id}>
+                          <ListItem sx={{ py: 0.75 }}>
+                            <ListItemText
+                              primary={
+                                <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
+                                  <Typography variant="body2" fontFamily="monospace" fontSize={12}>
+                                    {rec.lat.toFixed(6)}, {rec.lon.toFixed(6)}
+                                  </Typography>
+                                  {rec.waypoint && (
+                                    <Chip label={rec.waypoint} size="small" variant="outlined" sx={{ height: 20, fontSize: 11 }} />
+                                  )}
+                                  {recIdx === 0 && (
+                                    <Chip label="Latest" size="small" color="success" sx={{ height: 20, fontSize: 11 }} />
+                                  )}
+                                </Box>
+                              }
+                              secondary={new Date(rec.createdAt).toLocaleString()}
+                            />
+                          </ListItem>
+                          {recIdx < records.length - 1 && <Divider component="li" />}
+                        </React.Fragment>
+                      ))}
+                    </List>
+                  </Box>
+                </>
+              )}
+
+              {aidIdx < assignmentIds.length - 1 && <Divider sx={{ mt: 3 }} />}
+            </Box>
+          );
+        })}
+      </CardContent>
+    </Card>
   );
 }

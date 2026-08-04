@@ -1,5 +1,6 @@
 using SmartFM.Application.Coordinators;
 using SmartFM.Domain.Entities;
+using SmartFM.Domain.ValueObjects;
 using SmartFM.Infrastructure.Persistence;
 using SmartFM.Infrastructure.Persistence.Repositories;
 using SmartFM.Tests.TestSupport;
@@ -16,13 +17,23 @@ public class MasterDataCoordinatorTests : IDisposable
     public MasterDataCoordinatorTests()
     {
         _context = _factory.CreateContext();
+        var unitOfWork = new UnitOfWork(_context);
+        var recordCoordinator = new RecordCoordinator(
+            new Repository<Domain.Records.AuditRecord>(_context),
+            new Repository<Notification>(_context),
+            new Repository<Domain.Records.IncidentRecord>(_context),
+            new Repository<Assignment>(_context),
+            new Repository<Shipment>(_context),
+            () => null!,  // incident methods not invoked in master data tests
+            unitOfWork);
         _coordinator = new MasterDataCoordinator(
             new Repository<Branch>(_context),
             new Repository<Warehouse>(_context),
             new Repository<Employee>(_context),
             new Repository<Vehicle>(_context),
             new Repository<Offering>(_context),
-            new UnitOfWork(_context));
+            recordCoordinator,
+            unitOfWork);
     }
 
     [Fact]
@@ -66,6 +77,11 @@ public class MasterDataCoordinatorTests : IDisposable
         Assert.Contains(employees, e => e.Id == driver.Id);
         Assert.Contains(employees, e => e.Id == staff.Id);
         Assert.Contains(employees, e => e.Id == manager.Id);
+
+        var audits = _context.Set<Domain.Records.AuditRecord>().ToList();
+        Assert.Contains(audits, a => a.EntityType == "Driver" && a.EntityId == driver.Id && a.ChangedBy == "Admin");
+        Assert.Contains(audits, a => a.EntityType == "Staff" && a.EntityId == staff.Id && a.ChangedBy == "Admin");
+        Assert.DoesNotContain(audits, a => a.EntityId == manager.Id);
     }
 
     [Fact]
@@ -76,6 +92,23 @@ public class MasterDataCoordinatorTests : IDisposable
         var vehicle = await _coordinator.CreateVehicleAsync("15A-00001", branch.Id, "Medium");
 
         Assert.IsType<MediumVehicle>(vehicle);
+
+        var audits = _context.Set<Domain.Records.AuditRecord>().ToList();
+        Assert.Contains(audits, a => a.EntityType == "Vehicle" && a.EntityId == vehicle.Id
+            && a.FromStatus == null && a.ToStatus == VehicleStatus.Available && a.ChangedBy == "Admin");
+    }
+
+    [Fact]
+    public async Task MasterDataCoordinatorRecordsAuditOnVehicleStatusUpdate()
+    {
+        var branch = await _coordinator.CreateBranchAsync("Vinh Branch", "Vinh");
+        var vehicle = await _coordinator.CreateVehicleAsync("38A-00001", branch.Id, "Light");
+
+        await _coordinator.UpdateVehicleStatusAsync(vehicle.Id, VehicleStatus.UnderMaintenance);
+
+        var audits = _context.Set<Domain.Records.AuditRecord>().ToList();
+        Assert.Contains(audits, a => a.EntityType == "Vehicle" && a.EntityId == vehicle.Id
+            && a.FromStatus == VehicleStatus.Available && a.ToStatus == VehicleStatus.UnderMaintenance && a.ChangedBy == "Admin");
     }
 
     [Fact]

@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { getActiveHref } from "@/lib/navActive";
 
 export default function AppHeader({
   portalLabel,
@@ -39,6 +40,11 @@ export default function AppHeader({
             </span>
           </div>
 
+        {navItems.length > 0 && (
+          <nav className="flex flex-wrap items-center gap-1">
+            {(() => {
+              const activeHref = getActiveHref(pathname, navItems.map((item) => item.href));
+              return navItems.map((item) => {
           <button
             type="button"
             aria-label="Toggle navigation menu"

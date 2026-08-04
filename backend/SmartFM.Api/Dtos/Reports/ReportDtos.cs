@@ -25,6 +25,8 @@ public record GenerateReportRequest : IValidatableObject
 }
 
 public record ReportResponse(
+    // Display identifier only, not a database key - Report has no persisted Id in the domain model.
+    DateTime Id,
     string ReportType,
     DateTime From,
     DateTime To,
@@ -38,10 +40,12 @@ public record ReportResponse(
     decimal Revenue,
     string AssignmentsByDayJson,
     string AssignmentsByBranchJson,
-    string AssignmentsByDriverJson)
+    string AssignmentsByDriverJson,
+    string Actor)
 {
     public static ReportResponse FromEntity(Report report) =>
         new(
+            Id: report.GeneratedAt,
             ReportType: report.ReportType,
             From: report.From,
             To: report.To,
@@ -55,6 +59,8 @@ public record ReportResponse(
             Revenue: report.Revenue,
             AssignmentsByDayJson: report.AssignmentsByDayJson,
             AssignmentsByBranchJson: report.AssignmentsByBranchJson,
-            AssignmentsByDriverJson: report.AssignmentsByDriverJson);
+            AssignmentsByDriverJson: report.AssignmentsByDriverJson,
+            // Manager is the only actor that can generate a Report - no persisted actor field needed.
+            Actor: "Manager");
 }
 

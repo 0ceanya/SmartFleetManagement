@@ -175,6 +175,24 @@ public class FleetAssignmentCoordinatorTests : IDisposable
     }
 
     [Fact]
+    public async Task FleetAssignmentCoordinatorRecordsVehicleAndStaffAuditOnAssignmentCreation()
+    {
+        var driver = await SeedDriverAsync();
+        var vehicle = await SeedVehicleAsync();
+        var shipment = await SeedShipmentAsync();
+        var staffId = Guid.NewGuid();
+
+        var assignment = await _coordinator.CreateAssignmentAsync(
+            new[] { shipment.Id }, driver.Id, vehicle.Id, actingStaffId: staffId);
+
+        var audits = _context.Set<Domain.Records.AuditRecord>().ToList();
+        Assert.Contains(audits, a => a.EntityType == "Vehicle" && a.EntityId == vehicle.Id
+            && a.FromStatus == VehicleStatus.Available && a.ToStatus == VehicleStatus.Assigned && a.ChangedBy == "System");
+        Assert.Contains(audits, a => a.EntityType == "Assignment" && a.EntityId == assignment.Id
+            && a.ChangedBy == $"Staff:{staffId}");
+    }
+
+    [Fact]
     public async Task FleetAssignmentCoordinatorCreatesAssignmentWithNullRouteForDirectDelivery()
     {
         var driver = await SeedDriverAsync();
@@ -446,6 +464,12 @@ public class FleetAssignmentCoordinatorTests : IDisposable
         Assert.True(updatedDriver!.IsAvailable);
         var updatedVehicle = await _vehicles.GetByIdAsync(vehicle.Id);
         Assert.Equal(VehicleStatus.Available, updatedVehicle!.CurrentStatus);
+
+        var audits = _context.Set<Domain.Records.AuditRecord>().ToList();
+        Assert.Contains(audits, a => a.EntityType == "Vehicle" && a.EntityId == vehicle.Id
+            && a.FromStatus == VehicleStatus.Assigned && a.ToStatus == VehicleStatus.Available && a.ChangedBy == "System");
+        Assert.Contains(audits, a => a.EntityType == "Assignment" && a.EntityId == assignment.Id
+            && a.ToStatus == AssignmentStatus.Delivered && a.ChangedBy == $"Driver:{driver.Id}");
     }
 
     [Fact]

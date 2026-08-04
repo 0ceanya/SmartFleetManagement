@@ -17,20 +17,26 @@ public class AuditController : ControllerBase
     }
 
     /// <summary>
-    /// Get all audit records, optionally filtered by entity type and ID.
-    /// Example: GET /api/audit/records?entityType=Order&amp;entityId={id}
+    /// Get audit records, newest-first, optionally filtered by entity type/ID, event type, and date
+    /// range. Example: GET /api/audit/records?entityType=Order&amp;entityId={id}
+    /// The "after" cursor (a timestamp) supports notification-style polling for new records.
     /// </summary>
     [HttpGet("records")]
-    [ProducesResponseType(typeof(IEnumerable<AuditRecordResponse>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IEnumerable<AuditRecordResponse>>> GetAuditRecords(
+    [ProducesResponseType(typeof(AuditFeedResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<AuditFeedResponse>> GetAuditRecords(
         [FromQuery] string? entityType,
-        [FromQuery] Guid? entityId)
+        [FromQuery] Guid? entityId,
+        [FromQuery] string? eventType,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] DateTime? after,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50)
     {
-        IEnumerable<AuditRecord> records = (entityType is not null && entityId is not null)
-            ? await _coordinator.GetAuditRecordsByEntityAsync(entityType, entityId.Value)
-            : await _coordinator.GetAuditRecordsAsync();
+        var (records, totalCount) = await _coordinator.QueryAuditRecordsAsync(
+            entityType, entityId, eventType, from, to, after, page, pageSize);
 
-        return Ok(records.Select(AuditRecordResponse.FromEntity));
+        return Ok(new AuditFeedResponse(records.Select(AuditRecordResponse.FromEntity), totalCount, page, pageSize));
     }
 
     [HttpGet("notifications")]
