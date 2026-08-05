@@ -10,6 +10,8 @@ import OrderSummaryCard from "@/components/OrderSummaryCard";
 import Button from "@/components/ui/Button";
 import { apiFetch } from "@/lib/api";
 
+const VEHICLE_CLASS_ORDER = { Light: 0, Medium: 1, Heavy: 2 };
+
 const defaultCargoItems = [
   {
     description: "Cargo 1",
@@ -46,8 +48,13 @@ export default function PlaceOrderForm() {
     async function loadOfferings() {
       try {
         const data = await apiFetch("/api/master-data/offerings");
-        setOfferings(data || []);
-        if (data && data.length > 0) setSelectedOfferingId(data[0].id);
+        const sorted = [...(data || [])].sort(
+          (a, b) =>
+            (VEHICLE_CLASS_ORDER[a.vehicleClass] ?? 99) -
+            (VEHICLE_CLASS_ORDER[b.vehicleClass] ?? 99),
+        );
+        setOfferings(sorted);
+        if (sorted.length > 0) setSelectedOfferingId(sorted[0].id);
       } catch (err) {
         setErrorMsg("Could not load offerings.");
       } finally {
